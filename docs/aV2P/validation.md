@@ -9,7 +9,7 @@ run logs; UNVERIFIED marks a cell that was not checked in that configuration.
 
 | Role | SHA | Verified |
 |---|---|---|
-| aV2P branch tip (test subject) | `4660930f0a9b00c733bdbf3b81a171202f0fb65f` | exists in fork; `av2p/develop` |
+| aV2P branch tip (test subject) | `3eceff07f71aaa472b34733684b22f0e74b006a` | exists in fork; `av2p/develop` |
 | Base: fork `develop` | `61c5a7113a1b4b3ac2648ceaed88874635d05c7d` | exists; source identical to 2.2.0 apart from version and changelog |
 | Legacy release 2.2.0 | `4dc5ea558defeab95427e114a2dd9da83cc4d215` | exists; tag `2.2.0` resolves to this commit |
 | Dependency: native alpaka 3.0.0 | `eb677e8d7f70d79b35df25d9002f94ba669b6f44` | exists |
@@ -33,7 +33,7 @@ export alpaka_DEP_HWLOC=OFF
 (3.0.0). Build in the aV2P fork worktree at the branch tip SHA.
 
 The commands in this section were validated against
-`4660930f0a9b00c733bdbf3b81a171202f0fb65f` on the named machines (fwk394 for the
+`3eceff07f71aaa472b34733684b22f0e74b006a` on the named machines (fwk394 for the
 CPU and CUDA configurations, hal for HIP and oneAPI).
 
 CPU serial + OpenMP (fwk394, g++ 13.3; nvcc 12.5 present but not used):
@@ -135,7 +135,7 @@ Build counts are targets compiled; ctest and examples are pass/total.
 | CUDA 12.5 sm_70 (fwk394) | 278/278 | 51/51 | 18/18 | PASS | GV100 |
 | CUDA 12.5 sm_75 (fwk394) | 278/278 | 51/51 | 18/18 | PASS | RTX 2080 Ti |
 | HIP ROCm 7.2 gfx1100 (hal) | 278/278 | 51/51 | 18/18 | PASS, interop PASS | RX 7900 XTX |
-| oneAPI 2026.2 GPU (hal) | 281/281 | 46/51 | 15/17 | PASS, interop PASS | Arc A770 |
+| oneAPI 2026.2 GPU (hal) | 281/281 | 46/51 | 16/18 | PASS, interop PASS | Arc A770 |
 | oneAPI 2026.2 CPU (hal) | 281/281 | 51/51 | 18/18 | PASS, interop PASS | EPYC 7452 |
 
 TBB detail runs, all green. The numbers are `assertions/cases`, not
@@ -160,7 +160,7 @@ as PASS above rather than per device.
   ctest 46/51 with failures in heatEquation, heatEquation2D, atomicTest,
   mathTest double/complex-double and randTest. With FP64 emulation enabled,
   four of those five pass; mathTest then fails 21 double-precision accuracy
-  checks inside the software-emulated FP64. Two of the 15/17 example failures
+  checks inside the software-emulated FP64. Two of the 18 examples
   are the same FP64 cause. This is a device capability, not an aV2P defect.
 - Intentionally disabled or unsupported (see `limitations.md` for details and
   restoration conditions): zero-dimensional memory (section 3 of
