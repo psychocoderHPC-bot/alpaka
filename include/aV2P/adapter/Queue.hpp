@@ -12,7 +12,11 @@
 #include "aV2P/wait/Traits.hpp"
 
 #include <alpaka/alpaka.hpp>
+#include <alpaka/core/CallbackThread.hpp>
 
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <type_traits>
 
 namespace aV2P
@@ -20,11 +24,37 @@ namespace aV2P
     template<typename TDev>
     class EventAlpaka3;
 
+    namespace detail
+    {
+        //! True only for the CUDA/HIP adapter devices, whose queue native handle is the runtime stream.
+        //!
+        //! The 2.2 CUDA/HIP queues exposed a stream and could be constructed from one.  alpaka 3
+        //! `onHost::Queue` always creates and owns its stream, so the adapter keeps a separate
+        //! non-owning stream-backed mode for that compatibility path.
+        template<typename TDev>
+        inline constexpr bool isUniformCudaHipDevice = false;
+
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+        template<>
+        inline constexpr bool isUniformCudaHipDevice<DevCudaRt> = true;
+#endif
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
+        template<>
+        inline constexpr bool isUniformCudaHipDevice<DevHipRt> = true;
+#endif
+    } // namespace detail
+
     //! Queue handle wrapping an alpaka 3 `onHost::Queue`.
     //!
     //! `TQueueKind` is the alpaka 3 queue kind (`alpaka::queueKind::Blocking` or
     //! `alpaka::queueKind::NonBlocking`).  The queue kind is honoured at construction time.
     //! `getAlpaka3()` returns a reference into the wrapper and is bound to the wrapper's lifetime.
+    //!
+    //! On CUDA/HIP the wrapper can additionally adopt an existing runtime stream, mirroring the 2.2
+    //! `QueueUniformCudaHipRt` constructor.  Such a wrapper does not own the stream: it never
+    //! synchronizes or destroys it and `getAlpaka3()` is unavailable because alpaka 3 has no queue
+    //! that borrows a native stream.  `getNativeHandle()` and `getDev()` remain valid, and wait/empty
+    //! and host-task enqueue operate directly on the borrowed stream.
     template<typename TDev, alpaka::concepts::QueueKind TQueueKind>
     class QueueAlpaka3 final
         : public interface::Implements<ConceptCurrentThreadWaitFor, QueueAlpaka3<TDev, TQueueKind>>
@@ -34,26 +64,125 @@ namespace aV2P
     public:
         using QueueType
             = alpaka::onHost::Queue<typename TDev::DevType, alpaka::onHost::QueuePolicyList<TQueueKind>>;
+        using NativeHandleType = decltype(std::declval<QueueType const&>().getNativeHandle());
 
         explicit QueueAlpaka3(TDev const& dev)
-            : m_queueImpl{createQueue(dev)}
+            : m_dev{dev}
+            , m_queueImpl{createQueue(dev)}
         {
         }
 
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED) || defined(AV2P_ACC_GPU_HIP_ENABLED)
+        //! Adopt an existing CUDA/HIP stream without creating a queue.
+        //!
+        //! The wrapper is non-owning: the caller keeps responsibility for the stream lifetime.  The
+        //! device is the one that is current when the wrapper is constructed, matching 2.2.
+        template<typename TStream>
+        requires(detail::isUniformCudaHipDevice<TDev> && std::same_as<std::decay_t<TStream>, NativeHandleType>)
+        explicit QueueAlpaka3(TStream stream)
+            : m_dev{makeCurrentDevice()}
+            , m_nativeStream{stream}
+            , m_callbackThread{std::make_shared<alpaka::core::CallbackThread>()}
+        {
+        }
+#endif
+
         //! Non-owning reference to the wrapped alpaka 3 queue.
+        //!
+        //! Only available for queues that own an alpaka 3 queue.  A stream-adopting wrapper throws
+        //! `std::bad_optional_access` (terminating, because the accessor is `noexcept`) instead of
+        //! silently creating a second queue.
         [[nodiscard]] auto getAlpaka3() & noexcept -> QueueType&
         {
-            return m_queueImpl;
+            return m_queueImpl.value();
         }
 
         [[nodiscard]] auto getAlpaka3() const& noexcept -> QueueType const&
         {
-            return m_queueImpl;
+            return m_queueImpl.value();
+        }
+
+        //! The native stream for CUDA/HIP, the host queue id for CPU and the backend handle otherwise.
+        [[nodiscard]] auto getNativeHandle() const noexcept
+        {
+            if(m_nativeStream)
+                return *m_nativeStream;
+            return m_queueImpl->getNativeHandle();
+        }
+
+        [[nodiscard]] auto getDev() const noexcept -> TDev const&
+        {
+            return m_dev;
+        }
+
+        [[nodiscard]] bool isNativeStreamBacked() const noexcept
+        {
+            return m_nativeStream.has_value();
+        }
+
+        //! Wait for all work in the queue, using the alpaka 3 queue or the borrowed stream.
+        void wait() const
+        {
+            if(m_queueImpl)
+                alpaka::onHost::wait(*m_queueImpl);
+            else
+                nativeWait();
+        }
+
+        [[nodiscard]] bool empty() const
+        {
+            if(m_queueImpl)
+                return m_queueImpl->isEmpty();
+            return nativeEmpty();
+        }
+
+        //! Enqueue a host task, preserving the blocking/non-blocking queue kind on both paths.
+        template<typename TTask>
+        void enqueueHostFn(TTask const& task) const
+        {
+            if(m_queueImpl)
+            {
+                m_queueImpl->enqueueHostFn(task);
+                return;
+            }
+
+            if constexpr(detail::isUniformCudaHipDevice<TDev>)
+            {
+                struct TaskData
+                {
+                    std::shared_ptr<alpaka::core::CallbackThread> callbackThread;
+                    TTask task;
+                };
+
+                auto* data = new TaskData{m_callbackThread, task};
+                auto const hostFunc = [](void* raw) noexcept
+                {
+                    std::unique_ptr<TaskData> holder{static_cast<TaskData*>(raw)};
+                    auto callbackThread = holder->callbackThread;
+                    auto localTask = std::move(holder->task);
+                    holder.reset();
+                    callbackThread->submit([task = std::move(localTask)]() mutable { task(); }).wait();
+                };
+
+#    if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+                if constexpr(std::is_same_v<TDev, DevCudaRt>)
+                    cudaLaunchHostFunc(*m_nativeStream, hostFunc, data);
+#    endif
+#    if defined(AV2P_ACC_GPU_HIP_ENABLED)
+                if constexpr(std::is_same_v<TDev, DevHipRt>)
+                    hipLaunchHostFunc(*m_nativeStream, hostFunc, data);
+#    endif
+
+                if constexpr(std::is_same_v<TQueueKind, alpaka::queueKind::Blocking>)
+                    nativeWait();
+            }
         }
 
         auto operator==(QueueAlpaka3 const& rhs) const -> bool
         {
-            return m_queueImpl == rhs.m_queueImpl;
+            if(m_queueImpl && rhs.m_queueImpl)
+                return *m_queueImpl == *rhs.m_queueImpl;
+            return m_nativeStream == rhs.m_nativeStream && m_dev == rhs.m_dev;
         }
 
         auto operator!=(QueueAlpaka3 const& rhs) const -> bool
@@ -69,7 +198,60 @@ namespace aV2P
             return dev.getAlpaka3().makeQueue(TQueueKind{});
         }
 
-        QueueType m_queueImpl;
+        static auto makeCurrentDevice() -> TDev
+        {
+            int deviceIdx = 0;
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+            if constexpr(std::is_same_v<TDev, DevCudaRt>)
+                cudaGetDevice(&deviceIdx);
+#endif
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
+            if constexpr(std::is_same_v<TDev, DevHipRt>)
+                hipGetDevice(&deviceIdx);
+#endif
+            using DevSpec = typename TDev::DevSpec;
+            return TDev{alpaka::onHost::makeDeviceSelector(DevSpec{}.toAlpaka())
+                            .makeDevice(static_cast<std::uint32_t>(deviceIdx))};
+        }
+
+        void nativeWait() const
+        {
+            if constexpr(detail::isUniformCudaHipDevice<TDev>)
+            {
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+                if constexpr(std::is_same_v<TDev, DevCudaRt>)
+                    cudaStreamSynchronize(*m_nativeStream);
+#endif
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
+                if constexpr(std::is_same_v<TDev, DevHipRt>)
+                    hipStreamSynchronize(*m_nativeStream);
+#endif
+            }
+        }
+
+        [[nodiscard]] bool nativeEmpty() const
+        {
+            if constexpr(detail::isUniformCudaHipDevice<TDev>)
+            {
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+                if constexpr(std::is_same_v<TDev, DevCudaRt>)
+                    return cudaStreamQuery(*m_nativeStream) == cudaSuccess;
+#endif
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
+                if constexpr(std::is_same_v<TDev, DevHipRt>)
+                    return hipStreamQuery(*m_nativeStream) == hipSuccess;
+#endif
+            }
+            return true;
+        }
+
+        TDev m_dev;
+        //! Engaged for device-constructed, alpaka 3 owning queues.  Empty for stream-adopting wrappers.
+        std::optional<QueueType> m_queueImpl;
+        //! Borrowed CUDA/HIP stream; engaged only for stream-adopting wrappers.
+        std::optional<NativeHandleType> m_nativeStream;
+        //! Executes host tasks launched into the borrowed stream.  Only set for stream-adopting wrappers.
+        std::shared_ptr<alpaka::core::CallbackThread> m_callbackThread;
     };
 
     using QueueCpuBlocking = QueueAlpaka3<DevCpu, alpaka::queueKind::Blocking>;
@@ -134,7 +316,17 @@ namespace aV2P
         {
             AV2P_FN_HOST static auto getDev(QueueAlpaka3<TDev, TQueueKind> const& queue) -> TDev
             {
-                return TDev{queue.getAlpaka3().getDevice()};
+                return queue.getDev();
+            }
+        };
+
+        //! The 2.2 native queue handle trait: the CUDA/HIP stream, the host queue id, or the backend handle.
+        template<typename TDev, alpaka::concepts::QueueKind TQueueKind>
+        struct NativeHandle<QueueAlpaka3<TDev, TQueueKind>>
+        {
+            [[nodiscard]] static auto getNativeHandle(QueueAlpaka3<TDev, TQueueKind> const& queue)
+            {
+                return queue.getNativeHandle();
             }
         };
 
@@ -145,7 +337,7 @@ namespace aV2P
         {
             AV2P_FN_HOST static auto enqueue(QueueAlpaka3<TDev, TQueueKind>& queue, TTask const& task) -> void
             {
-                queue.getAlpaka3().enqueueHostFn(task);
+                queue.enqueueHostFn(task);
             }
         };
 
@@ -154,7 +346,7 @@ namespace aV2P
         {
             AV2P_FN_HOST static auto empty(QueueAlpaka3<TDev, TQueueKind> const& queue) -> bool
             {
-                return queue.getAlpaka3().isEmpty();
+                return queue.empty();
             }
         };
 
@@ -163,7 +355,7 @@ namespace aV2P
         {
             AV2P_FN_HOST static auto currentThreadWaitFor(QueueAlpaka3<TDev, TQueueKind> const& queue) -> void
             {
-                alpaka::onHost::wait(queue.getAlpaka3());
+                queue.wait();
             }
         };
     } // namespace trait
