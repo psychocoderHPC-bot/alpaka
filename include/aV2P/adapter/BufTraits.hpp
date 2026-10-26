@@ -18,6 +18,43 @@
 #include <type_traits>
 #include <utility>
 
+namespace aV2P::adapter::detail
+{
+    /*! Re-view an alpaka 3 allocation with the legacy 2.2 contiguous pitches.
+     *
+     * alpaka 3 host allocations pad the innermost row pitch to the backend SIMD alignment, so a
+     * multi-dimensional allocation is larger than the logical extent product and rows are not
+     * adjacent.  The 2.2 layout contract is contiguous row-major memory:
+     * `pitch[i] == product(extents[i+1:]) * sizeof(TElem)` and `std::data(buf)[i]` spans the whole
+     * buffer linearly.
+     *
+     * This helper keeps the alpaka 3 allocation as the owner (same base pointer, same extents,
+     * same alignment) and only replaces the pitches with contiguous ones.  Ownership is retained
+     * by capturing the original `SharedBuffer` in the deleter of the new buffer, so the memory is
+     * freed exactly once by the original allocator.  No data is copied and nothing is allocated a
+     * second time.  The allocated byte range is at least the contiguous span (padding only adds
+     * bytes), so every contiguous index stays inside the allocation.
+     *
+     * Consequence: `getAlpaka3()` returns this re-view, therefore aV2P and a native alpaka 3
+     * consumer of the same handle observe identical element offsets.
+     */
+    template<typename TElem, typename TBuffer>
+    AV2P_FN_HOST auto makeContiguous2p2Buffer(TBuffer native)
+    {
+        using Buffer = std::remove_cvref_t<TBuffer>;
+        auto const extents = native.getExtents();
+        auto const pitches = aV2P::adapter::toAlpaka(
+            aV2P::detail::calculatePitchesFromExtents<TElem>(aV2P::adapter::fromAlpaka(extents)));
+        return Buffer{
+            alpaka::getApi(native),
+            native.data(),
+            extents,
+            pitches,
+            [keepAlive = native]() noexcept {},
+            alpaka::getAlignment(native)};
+    }
+} // namespace aV2P::adapter::detail
+
 namespace aV2P::trait
 {
     template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
@@ -119,13 +156,12 @@ namespace aV2P::trait
         }
     };
 
-    //! Report the pitches of the alpaka 3 allocation itself.
+    //! Report the 2.2 contiguous pitches of the re-viewed allocation.
     //!
-    //! alpaka 3 pads the innermost row pitch to the backend alignment, so the allocation is not
-    //! contiguous for dimensions greater than one.  Synthesizing contiguous pitches from the
-    //! logical extents would make every pointer computation, copy, fill and kernel access disagree
-    //! with the real memory layout.  Forward the native pitches instead; `data()`, the view
-    //! accessor and all memory operations use them.
+    //! `getAlpaka3()` is not the raw padded alpaka 3 allocation: the allocator re-views the same
+    //! memory with contiguous pitches (see `adapter::detail::makeContiguous2p2Buffer`).  The
+    //! pitches reported here therefore equal `extents * sizeof(TElem)` and match `data()`, the view
+    //! accessor, all memory operations and a native alpaka 3 consumer of `getAlpaka3()`.
     template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
     struct GetPitchesInBytes<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
     {
@@ -233,10 +269,14 @@ namespace aV2P::trait
         {
             using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
             if constexpr(std::is_integral_v<TExtent>)
-                return Buffer{alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), alpaka::Vec{extent}), dev};
+                return Buffer{
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), alpaka::Vec{extent})),
+                    dev};
             else
                 return Buffer{
-                    alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent)),
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent))),
                     dev};
         }
     };
@@ -257,11 +297,13 @@ namespace aV2P::trait
             auto const dev = aV2P::getDev(queue);
             if constexpr(std::is_integral_v<TExtent>)
                 return Buffer{
-                    alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent}),
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent})),
                     dev};
             else
                 return Buffer{
-                    alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), adapter::toAlpaka(extent)),
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), adapter::toAlpaka(extent))),
                     dev};
         }
     };
@@ -293,10 +335,14 @@ namespace aV2P::trait
                 "Phase 3b GPU task.");
             using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
             if constexpr(std::is_integral_v<TExtent>)
-                return Buffer{alpaka::onHost::allocMapped<TElem>(host.getAlpaka3(), alpaka::Vec{extent}), host};
+                return Buffer{
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::allocMapped<TElem>(host.getAlpaka3(), alpaka::Vec{extent})),
+                    host};
             else
                 return Buffer{
-                    alpaka::onHost::allocMapped<TElem>(host.getAlpaka3(), adapter::toAlpaka(extent)),
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::allocMapped<TElem>(host.getAlpaka3(), adapter::toAlpaka(extent))),
                     host};
         }
     };
@@ -316,10 +362,14 @@ namespace aV2P::trait
                 "Unified memory on a real device is a Phase 3b GPU task.");
             using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
             if constexpr(std::is_integral_v<TExtent>)
-                return Buffer{alpaka::onHost::allocUnified<TElem>(host.getAlpaka3(), alpaka::Vec{extent}), host};
+                return Buffer{
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::allocUnified<TElem>(host.getAlpaka3(), alpaka::Vec{extent})),
+                    host};
             else
                 return Buffer{
-                    alpaka::onHost::allocUnified<TElem>(host.getAlpaka3(), adapter::toAlpaka(extent)),
+                    adapter::detail::makeContiguous2p2Buffer<TElem>(
+                        alpaka::onHost::allocUnified<TElem>(host.getAlpaka3(), adapter::toAlpaka(extent))),
                     host};
         }
     };
