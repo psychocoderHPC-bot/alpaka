@@ -14,7 +14,31 @@
 
 #include <alpaka/alpaka.hpp>
 
+#include <type_traits>
 #include <utility>
+
+namespace aV2P::detail
+{
+    //! Keep the allocation's alignment only when the whole buffer is one row.
+    //!
+    //! A 2.2 contiguous re-view of a multi-dimensional allocation drops the padding that made every
+    //! interior row start SIMD aligned.  Advertising the allocation alignment on such a view lets
+    //! native alpaka 3 operations issue misaligned SIMD accesses.  The element alignment is the
+    //! strongest guarantee the contiguous layout actually provides for more than one dimension.
+    template<typename TBuffer, bool TKeepAllocationAlignment>
+    struct NativeBufferWithMatchingAlignment
+    {
+        using type = TBuffer;
+    };
+
+    template<typename TApi, typename TType, typename TExtents, typename TAlignment>
+    struct NativeBufferWithMatchingAlignment<
+        alpaka::onHost::SharedBuffer<TApi, TType, TExtents, TAlignment>,
+        false>
+    {
+        using type = alpaka::onHost::SharedBuffer<TApi, TType, TExtents, alpaka::Alignment<>>;
+    };
+} // namespace aV2P::detail
 
 namespace aV2P
 {
@@ -32,9 +56,12 @@ namespace aV2P
         friend ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
 
         using DevType = DevAlpaka3<TDevSpec>;
-        using AlpakaBufferType = decltype(alpaka::onHost::alloc<TElem>(
+        using AllocatedBufferType = decltype(alpaka::onHost::alloc<TElem>(
             std::declval<DevType&>().getAlpaka3(),
             std::declval<alpaka::Vec<TIdx, static_cast<std::uint32_t>(TDim::value)>>()));
+        using AlpakaBufferType = typename detail::NativeBufferWithMatchingAlignment<
+            AllocatedBufferType,
+            (TDim::value <= 1u)>::type;
 
         [[nodiscard]] auto getAlpaka3() & noexcept -> AlpakaBufferType&
         {
@@ -108,9 +135,12 @@ namespace aV2P
     {
     public:
         using DevType = DevAlpaka3<TDevSpec>;
-        using AlpakaBufferType = decltype(alpaka::onHost::alloc<TElem>(
+        using AllocatedBufferType = decltype(alpaka::onHost::alloc<TElem>(
             std::declval<DevType&>().getAlpaka3(),
             std::declval<alpaka::Vec<TIdx, static_cast<std::uint32_t>(TDim::value)>>()));
+        using AlpakaBufferType = typename detail::NativeBufferWithMatchingAlignment<
+            AllocatedBufferType,
+            (TDim::value <= 1u)>::type;
 
         [[nodiscard]] auto getAlpaka3() & noexcept -> AlpakaBufferType&
         {

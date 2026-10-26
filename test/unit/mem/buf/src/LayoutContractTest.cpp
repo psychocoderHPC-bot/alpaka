@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 namespace
 {
@@ -118,6 +119,55 @@ TEST_CASE("memBufAlpaka3Interop", "[memBuf][layout]")
     for(Idx y = 0; y < extent[0]; ++y)
         for(Idx x = 0; x < extent[1]; ++x)
             CHECK(buf.getAlpaka3()[alpaka::Vec<Idx, 2u>{y, x}] == av2pValue);
+}
+
+TEST_CASE("memBufNativeBulkFillUsesContiguousAlignment", "[memBuf][layout]")
+{
+    auto const dev = makeHostCpuDev();
+    auto const extent = aV2P::Vec<aV2P::DimInt<2>, Idx>{4u, 5u};
+    auto buf = aV2P::allocBuf<Elem, Idx>(dev, extent);
+    aV2P::QueueCpuBlocking queue{dev};
+
+    constexpr auto allocationAlignment = alpaka::api::util::simdOptimizedAlignment<Elem>(
+        alpaka::api::Host{},
+        alpaka::deviceKind::Cpu{});
+    auto const rowBytes = static_cast<std::size_t>(extent[1]) * sizeof(Elem);
+
+    // The regression is only observable when the contiguous row pitch is not a multiple of the
+    // allocation alignment that the padded alpaka 3 layout used to guarantee for every row.
+    REQUIRE(allocationAlignment > alignof(Elem));
+    REQUIRE(rowBytes % allocationAlignment != 0u);
+
+    // A contiguous multi-dimensional re-view must not advertise the padded allocation alignment.
+    CHECK(alpaka::getAlignment(buf.getAlpaka3()).get<Elem>() == alignof(Elem));
+
+    // A native alpaka 3 SIMD fill must not assume aligned interior rows of this re-view.
+    constexpr Elem fillValue = 0xA1B2C3D4u;
+    alpaka::onHost::fill(queue.getAlpaka3(), buf.getAlpaka3(), fillValue);
+    aV2P::wait(queue);
+
+    for(Idx y = 0; y < extent[0]; ++y)
+        for(Idx x = 0; x < extent[1]; ++x)
+        {
+            auto const nativeIdx = alpaka::Vec<Idx, 2u>{y, x};
+            CHECK(buf.getAlpaka3()[nativeIdx] == fillValue);
+            CHECK(buf[aV2P::Vec{y, x}] == fillValue);
+        }
+
+    // The native byte-wise memset uses the contiguous pitches as well.
+    constexpr std::uint8_t byteValue = 0x5Au;
+    alpaka::onHost::memset(queue.getAlpaka3(), buf.getAlpaka3(), byteValue);
+    aV2P::wait(queue);
+
+    Elem expected{};
+    std::memset(&expected, byteValue, sizeof(Elem));
+    for(Idx y = 0; y < extent[0]; ++y)
+        for(Idx x = 0; x < extent[1]; ++x)
+        {
+            auto const nativeIdx = alpaka::Vec<Idx, 2u>{y, x};
+            CHECK(buf.getAlpaka3()[nativeIdx] == expected);
+            CHECK(buf[aV2P::Vec{y, x}] == expected);
+        }
 }
 
 TEST_CASE("memBufDoesNotTouchPadding", "[memBuf][layout]")

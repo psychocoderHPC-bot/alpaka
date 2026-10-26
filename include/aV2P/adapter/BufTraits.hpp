@@ -28,30 +28,46 @@ namespace aV2P::adapter::detail
      * `pitch[i] == product(extents[i+1:]) * sizeof(TElem)` and `std::data(buf)[i]` spans the whole
      * buffer linearly.
      *
-     * This helper keeps the alpaka 3 allocation as the owner (same base pointer, same extents,
-     * same alignment) and only replaces the pitches with contiguous ones.  Ownership is retained
+     * This helper keeps the alpaka 3 allocation as the owner (same base pointer, same extents) and
+     * only replaces the pitches with contiguous ones.  Ownership is retained
      * by capturing the original `SharedBuffer` in the deleter of the new buffer, so the memory is
      * freed exactly once by the original allocator.  No data is copied and nothing is allocated a
      * second time.  The allocated byte range is at least the contiguous span (padding only adds
      * bytes), so every contiguous index stays inside the allocation.
      *
      * Consequence: `getAlpaka3()` returns this re-view, therefore aV2P and a native alpaka 3
-     * consumer of the same handle observe identical element offsets.
+     * consumer of the same handle observe identical element offsets.  The alignment metadata is the
+     * allocation alignment for a one-dimensional buffer and the element alignment otherwise: the
+     * contiguous layout of a multi-dimensional re-view no longer guarantees SIMD-aligned interior
+     * rows, and claiming otherwise would let native alpaka 3 bulk operations perform misaligned
+     * SIMD accesses.  No padding guarantee is lost because the allocation only grows.
      */
     template<typename TElem, typename TBuffer>
     AV2P_FN_HOST auto makeContiguous2p2Buffer(TBuffer native)
     {
         using Buffer = std::remove_cvref_t<TBuffer>;
+        constexpr bool isOneDimensional = Buffer::dim() <= 1u;
+        using ContiguousBuffer
+            = typename aV2P::detail::NativeBufferWithMatchingAlignment<Buffer, isOneDimensional>::type;
         auto const extents = native.getExtents();
         auto const pitches = aV2P::adapter::toAlpaka(
             aV2P::detail::calculatePitchesFromExtents<TElem>(aV2P::adapter::fromAlpaka(extents)));
-        return Buffer{
-            alpaka::getApi(native),
-            native.data(),
-            extents,
-            pitches,
-            [keepAlive = native]() noexcept {},
-            alpaka::getAlignment(native)};
+        if constexpr(isOneDimensional)
+            return ContiguousBuffer{
+                alpaka::getApi(native),
+                native.data(),
+                extents,
+                pitches,
+                [keepAlive = native]() noexcept {},
+                alpaka::getAlignment(native)};
+        else
+            return ContiguousBuffer{
+                alpaka::getApi(native),
+                native.data(),
+                extents,
+                pitches,
+                [keepAlive = native]() noexcept {},
+                alpaka::Alignment<>{}};
     }
 } // namespace aV2P::adapter::detail
 
