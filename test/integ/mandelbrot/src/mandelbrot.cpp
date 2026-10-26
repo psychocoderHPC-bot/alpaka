@@ -2,10 +2,10 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/test/MeasureKernelRunTime.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/test/MeasureKernelRunTime.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
 #include <catch2/catch_template_test_macros.hpp>
 
@@ -14,44 +14,44 @@
 #include <iostream>
 #include <typeinfo>
 
-// #define ALPAKA_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING  // Define this to enable the continuous color mapping.
+// #define AV2P_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING  // Define this to enable the continuous color mapping.
 
 //! Complex Number.
 template<typename T>
 class SimpleComplex
 {
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
-    ALPAKA_FN_HOST_ACC SimpleComplex(T const& a, T const& b) : r(a), i(b)
+    AV2P_NO_HOST_ACC_WARNING
+    AV2P_FN_HOST_ACC SimpleComplex(T const& a, T const& b) : r(a), i(b)
     {
     }
 
-    ALPAKA_NO_HOST_ACC_WARNING
-    [[nodiscard]] ALPAKA_FN_INLINE ALPAKA_FN_HOST_ACC auto absSq() const -> T
+    AV2P_NO_HOST_ACC_WARNING
+    [[nodiscard]] AV2P_FN_INLINE AV2P_FN_HOST_ACC auto absSq() const -> T
     {
         return r * r + i * i;
     }
 
-    ALPAKA_NO_HOST_ACC_WARNING
-    ALPAKA_FN_HOST_ACC auto operator*(SimpleComplex const& a) -> SimpleComplex
+    AV2P_NO_HOST_ACC_WARNING
+    AV2P_FN_HOST_ACC auto operator*(SimpleComplex const& a) -> SimpleComplex
     {
         return SimpleComplex(r * a.r - i * a.i, i * a.r + r * a.i);
     }
 
-    ALPAKA_NO_HOST_ACC_WARNING
-    ALPAKA_FN_HOST_ACC auto operator*(float const& a) -> SimpleComplex
+    AV2P_NO_HOST_ACC_WARNING
+    AV2P_FN_HOST_ACC auto operator*(float const& a) -> SimpleComplex
     {
         return SimpleComplex(r * a, i * a);
     }
 
-    ALPAKA_NO_HOST_ACC_WARNING
-    ALPAKA_FN_HOST_ACC auto operator+(SimpleComplex const& a) -> SimpleComplex
+    AV2P_NO_HOST_ACC_WARNING
+    AV2P_FN_HOST_ACC auto operator+(SimpleComplex const& a) -> SimpleComplex
     {
         return SimpleComplex(r + a.r, i + a.i);
     }
 
-    ALPAKA_NO_HOST_ACC_WARNING
-    ALPAKA_FN_HOST_ACC auto operator+(float const& a) -> SimpleComplex
+    AV2P_NO_HOST_ACC_WARNING
+    AV2P_FN_HOST_ACC auto operator+(float const& a) -> SimpleComplex
     {
         return SimpleComplex(r + a, i);
     }
@@ -65,8 +65,8 @@ public:
 class MandelbrotKernel
 {
 public:
-#ifndef ALPAKA_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING
-    ALPAKA_FN_HOST_ACC MandelbrotKernel()
+#ifndef AV2P_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING
+    AV2P_FN_HOST_ACC MandelbrotKernel()
     {
         // Banding can be prevented by a continuous color functions.
         m_colors[0u] = convertRgbSingleToBgra(66, 30, 15);
@@ -98,9 +98,9 @@ public:
     //! \param fMinI The bottom border.
     //! \param fMaxI The top border.
     //! \param maxIterations The maximum number of iterations.
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         std::uint32_t* const pColors,
         std::uint32_t const& numRows,
@@ -112,9 +112,9 @@ public:
         float const& fMaxI,
         std::uint32_t const& maxIterations) const -> void
     {
-        static_assert(alpaka::Dim<TAcc>::value == 2, "The MandelbrotKernel expects 2-dimensional indices!");
+        static_assert(aV2P::Dim<TAcc>::value == 2, "The MandelbrotKernel expects 2-dimensional indices!");
 
-        auto const [gridThreadIdxY, gridThreadIdxX] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [gridThreadIdxY, gridThreadIdxX] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         if((gridThreadIdxY < numRows) && (gridThreadIdxX < numCols))
         {
             SimpleComplex<float> c(
@@ -125,7 +125,7 @@ public:
 
             auto const pColorsRow = pColors + ((gridThreadIdxY * rowPitchBytes) / sizeof(std::uint32_t));
             pColorsRow[gridThreadIdxX] =
-#ifdef ALPAKA_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING
+#ifdef AV2P_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING
                 iterationCountToContinousColor(iterationCount, maxIterations);
 #else
                 iterationCountToRepeatedColor(iterationCount);
@@ -136,7 +136,7 @@ public:
     //! \return The number of iterations until the Mandelbrot iteration with the given Value reaches the absolute value
     //! of 2.
     //!     Only does maxIterations steps and returns maxIterations if the value would be higher.
-    ALPAKA_FN_ACC static auto iterateMandelbrot(SimpleComplex<float> const& c, std::uint32_t const& maxIterations)
+    AV2P_FN_ACC static auto iterateMandelbrot(SimpleComplex<float> const& c, std::uint32_t const& maxIterations)
         -> std::uint32_t
     {
         SimpleComplex<float> z(0.0f, 0.0f);
@@ -151,7 +151,7 @@ public:
         return maxIterations;
     }
 
-    ALPAKA_FN_HOST_ACC static auto convertRgbSingleToBgra(
+    AV2P_FN_HOST_ACC static auto convertRgbSingleToBgra(
         std::uint32_t const& r,
         std::uint32_t const& g,
         std::uint32_t const& b) -> std::uint32_t
@@ -159,11 +159,11 @@ public:
         return 0xFF00'0000 | (r << 16) | (g << 8) | b;
     }
 
-#ifdef ALPAKA_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING
+#ifdef AV2P_MANDELBROT_TEST_CONTINOUS_COLOR_MAPPING
     //! This uses a simple mapping from iteration count to colors.
     //! This leads to banding but allows a all pixels to be colored.
-    ALPAKA_NO_HOST_ACC_WARNING
-    ALPAKA_FN_ACC static auto iterationCountToContinousColor(
+    AV2P_NO_HOST_ACC_WARNING
+    AV2P_FN_ACC static auto iterationCountToContinousColor(
         std::uint32_t const& iterationCount,
         std::uint32_t const& maxIterations) -> std::uint32_t
     {
@@ -179,7 +179,7 @@ public:
 #else
     //! This uses a simple mapping from iteration count to colors.
     //! This leads to banding but allows a all pixels to be colored.
-    [[nodiscard]] ALPAKA_FN_ACC auto iterationCountToRepeatedColor(std::uint32_t const& iterationCount) const
+    [[nodiscard]] AV2P_FN_ACC auto iterationCountToRepeatedColor(std::uint32_t const& iterationCount) const
         -> std::uint32_t
     {
         return m_colors[iterationCount % 16];
@@ -193,21 +193,21 @@ public:
 template<typename TBuf>
 auto writeTgaColorImage(std::string const& fileName, TBuf const& bufRgba) -> void
 {
-    static_assert(alpaka::Dim<TBuf>::value == 2, "The buffer has to be 2 dimensional!");
-    static_assert(std::is_integral_v<alpaka::Elem<TBuf>>, "The buffer element type has to be integral!");
+    static_assert(aV2P::Dim<TBuf>::value == 2, "The buffer has to be 2 dimensional!");
+    static_assert(std::is_integral_v<aV2P::Elem<TBuf>>, "The buffer element type has to be integral!");
 
     // The width of the input buffer is in input elements.
-    auto const bufWidthElems = alpaka::getWidth(bufRgba);
-    auto const bufWidthBytes = bufWidthElems * sizeof(alpaka::Elem<TBuf>);
+    auto const bufWidthElems = aV2P::getWidth(bufRgba);
+    auto const bufWidthBytes = bufWidthElems * sizeof(aV2P::Elem<TBuf>);
     // The row width in bytes has to be dividable by 4 Bytes (RGBA).
-    ALPAKA_ASSERT(bufWidthBytes % sizeof(std::uint32_t) == 0);
+    AV2P_ASSERT(bufWidthBytes % sizeof(std::uint32_t) == 0);
     // The number of colors in a row.
     auto const bufWidthColors = bufWidthBytes / sizeof(std::uint32_t);
-    ALPAKA_ASSERT(bufWidthColors >= 1);
-    auto const bufHeightColors = alpaka::getHeight(bufRgba);
-    ALPAKA_ASSERT(bufHeightColors >= 1);
-    auto const bufRowPitchBytes = alpaka::getPitchesInBytes(bufRgba)[0];
-    ALPAKA_ASSERT(bufRowPitchBytes >= bufWidthBytes);
+    AV2P_ASSERT(bufWidthColors >= 1);
+    auto const bufHeightColors = aV2P::getHeight(bufRgba);
+    AV2P_ASSERT(bufHeightColors >= 1);
+    auto const bufRowPitchBytes = aV2P::getPitchesInBytes(bufRgba)[0];
+    AV2P_ASSERT(bufRowPitchBytes >= bufWidthBytes);
 
     std::ofstream ofs(fileName, std::ofstream::out | std::ofstream::binary);
     if(!ofs.is_open())
@@ -252,15 +252,15 @@ auto writeTgaColorImage(std::string const& fileName, TBuf const& bufRgba) -> voi
     }
 }
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<2u>, std::uint32_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<2u>, std::uint32_t>;
 
 TEMPLATE_LIST_TEST_CASE("mandelbrot", "[mandelbrot]", TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-#ifdef ALPAKA_CI
+#ifdef AV2P_CI
     Idx const imageSize(1u << 5u);
 #else
     Idx const imageSize(1u << 10u);
@@ -274,44 +274,44 @@ TEMPLATE_LIST_TEST_CASE("mandelbrot", "[mandelbrot]", TestAccs)
     Idx const maxIterations(300u);
 
     using Val = std::uint32_t;
-    using DevAcc = alpaka::Dev<Acc>;
-    using PlatformAcc = alpaka::Platform<DevAcc>;
-    using QueueAcc = alpaka::test::DefaultQueue<DevAcc>;
+    using DevAcc = aV2P::Dev<Acc>;
+    using PlatformAcc = aV2P::Platform<DevAcc>;
+    using QueueAcc = aV2P::test::DefaultQueue<DevAcc>;
 
     // Create the kernel function object.
     MandelbrotKernel kernel;
 
     // Get the host device.
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
     // Select a device to execute on.
     auto const platformAcc = PlatformAcc{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Get a queue on this device.
     QueueAcc queue(devAcc);
 
-    alpaka::Vec<Dim, Idx> const extent(static_cast<Idx>(numRows), static_cast<Idx>(numCols));
+    aV2P::Vec<Dim, Idx> const extent(static_cast<Idx>(numRows), static_cast<Idx>(numCols));
 
     // allocate host memory, potentially pinned for faster copy to/from the accelerator.
-    auto bufColorHost = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
+    auto bufColorHost = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
 
     // Allocate the buffer on the accelerator.
-    auto bufColorAcc = alpaka::allocBuf<Val, Idx>(devAcc, extent);
+    auto bufColorAcc = aV2P::allocBuf<Val, Idx>(devAcc, extent);
 
     // Copy Host -> Acc.
-    alpaka::memcpy(queue, bufColorAcc, bufColorHost);
+    aV2P::memcpy(queue, bufColorAcc, bufColorHost);
 
     // Create the kernel execution task.
-    auto const [rowPitch, _] = alpaka::getPitchesInBytes(bufColorAcc);
+    auto const [rowPitch, _] = aV2P::getPitchesInBytes(bufColorAcc);
     CHECK(rowPitch % sizeof(Val) == 0);
 
-    alpaka::KernelCfg<Acc> const kernelCfg
-        = {extent, alpaka::Vec<Dim, Idx>::ones(), false, alpaka::GridBlockExtentSubDivRestrictions::Unrestricted};
+    aV2P::KernelCfg<Acc> const kernelCfg
+        = {extent, aV2P::Vec<Dim, Idx>::ones(), false, aV2P::GridBlockExtentSubDivRestrictions::Unrestricted};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = alpaka::getValidWorkDiv(
+    auto const workDiv = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         kernel,
@@ -327,12 +327,12 @@ TEMPLATE_LIST_TEST_CASE("mandelbrot", "[mandelbrot]", TestAccs)
 
     std::cout << "MandelbrotKernel("
               << " numRows:" << numRows << ", numCols:" << numCols << ", maxIterations:" << maxIterations
-              << ", accelerator: " << alpaka::getAccName<Acc>()
-              << ", kernel: " << alpaka::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
+              << ", accelerator: " << aV2P::getAccName<Acc>()
+              << ", kernel: " << aV2P::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
               << std::endl;
 
 
-    auto const taskKernel = alpaka::createTaskKernel<Acc>(
+    auto const taskKernel = aV2P::createTaskKernel<Acc>(
         workDiv,
         kernel,
         std::data(bufColorAcc),
@@ -346,18 +346,18 @@ TEMPLATE_LIST_TEST_CASE("mandelbrot", "[mandelbrot]", TestAccs)
         maxIterations);
 
     // Profile the kernel execution.
-    std::cout << "Execution time: " << alpaka::test::integ::measureTaskRunTimeMs(queue, taskKernel) << " ms"
+    std::cout << "Execution time: " << aV2P::test::integ::measureTaskRunTimeMs(queue, taskKernel) << " ms"
               << std::endl;
 
     // Copy back the result.
-    alpaka::memcpy(queue, bufColorHost, bufColorAcc);
+    aV2P::memcpy(queue, bufColorHost, bufColorAcc);
 
     // Wait for the queue to finish the memory operation.
-    alpaka::wait(queue);
+    aV2P::wait(queue);
 
     // Write the image to a file.
     std::string fileName(
-        "mandelbrot" + std::to_string(numCols) + "x" + std::to_string(numRows) + "_" + alpaka::getAccName<Acc>()
+        "mandelbrot" + std::to_string(numCols) + "x" + std::to_string(numRows) + "_" + aV2P::getAccName<Acc>()
         + ".tga");
     std::replace(fileName.begin(), fileName.end(), '<', '_');
     std::replace(fileName.begin(), fileName.end(), '>', '_');

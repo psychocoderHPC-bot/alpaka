@@ -2,10 +2,10 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/test/Extent.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/test/Extent.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -18,7 +18,7 @@
 struct Duplicate
 {
     template<typename T>
-    ALPAKA_FN_HOST_ACC T operator()(T value) const
+    AV2P_FN_HOST_ACC T operator()(T value) const
     {
         return value * 2;
     }
@@ -28,31 +28,31 @@ struct Duplicate
 struct Sin
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_HOST_ACC T operator()(TAcc const& acc, T value) const
+    AV2P_FN_HOST_ACC T operator()(TAcc const& acc, T value) const
     {
-        return alpaka::math::sin(acc, value);
+        return aV2P::math::sin(acc, value);
     }
 };
 
-using TestAccs1D = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, uint32_t>;
+using TestAccs1D = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, uint32_t>;
 
 TEMPLATE_LIST_TEST_CASE("transform_pointers", "[algo]", TestAccs1D)
 {
     using Acc = TestType;
-    using Tag = alpaka::AccToTag<Acc>;
-    using Platform = alpaka::Platform<Acc>;
-    using Device = alpaka::Dev<Acc>;
-    using Queue = alpaka::Queue<Device, alpaka::NonBlocking>;
+    using Tag = aV2P::AccToTag<Acc>;
+    using Platform = aV2P::Platform<Acc>;
+    using Device = aV2P::Dev<Acc>;
+    using Queue = aV2P::Queue<Device, aV2P::NonBlocking>;
 
-    using Idx = alpaka::Idx<Acc>;
-    // using Dim = alpaka::Dim<Acc>;
-    // using Vec = alpaka::Vec<Dim, Idx>;
+    using Idx = aV2P::Idx<Acc>;
+    // using Dim = aV2P::Dim<Acc>;
+    // using Vec = aV2P::Vec<Dim, Idx>;
 
-    const alpaka::PlatformCpu host_platform{};
-    auto const host = alpaka::getDevByIdx(host_platform, 0u);
+    const aV2P::PlatformCpu host_platform{};
+    auto const host = aV2P::getDevByIdx(host_platform, 0u);
 
     const Platform platform{};
-    const Device device = alpaka::getDevByIdx(platform, 0);
+    const Device device = aV2P::getDevByIdx(platform, 0);
     Queue queue{device};
 
     // Random number generator with a gaussian distribution.
@@ -63,8 +63,8 @@ TEMPLATE_LIST_TEST_CASE("transform_pointers", "[algo]", TestAccs1D)
     Idx size = 1000;
 
     // Allocate input and output buffers on the host.
-    auto sample = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto result = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
+    auto sample = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto result = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
 
     // Fill the input buffer with random numbers.
     for(Idx i = 0; i < size; ++i)
@@ -73,20 +73,20 @@ TEMPLATE_LIST_TEST_CASE("transform_pointers", "[algo]", TestAccs1D)
     }
 
     // Allocate input and output buffers on the device.
-    auto sample_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-    auto result_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
+    auto sample_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+    auto result_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
 
     // Copy the input random numbers to the device.
-    alpaka::memcpy(queue, sample_d, sample);
+    aV2P::memcpy(queue, sample_d, sample);
 
     // Apply the transform algorithm on the device.
-    alpaka::transform<Tag>(queue, result_d.data(), result_d.data() + size, Duplicate{}, sample_d.data());
+    aV2P::transform<Tag>(queue, result_d.data(), result_d.data() + size, Duplicate{}, sample_d.data());
 
     // Copy the result to the host.
-    alpaka::memcpy(queue, result, result_d);
+    aV2P::memcpy(queue, result, result_d);
 
     // Wait for all asynchronous operations to complete.
-    alpaka::wait(queue);
+    aV2P::wait(queue);
 
     // Check the correctness of the results.
     for(Idx i = 0; i < size; ++i)
@@ -96,23 +96,23 @@ TEMPLATE_LIST_TEST_CASE("transform_pointers", "[algo]", TestAccs1D)
     }
 }
 
-TEMPLATE_LIST_TEST_CASE("transform_buffer", "[algo]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("transform_buffer", "[algo]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Tag = alpaka::AccToTag<Acc>;
-    using Platform = alpaka::Platform<Acc>;
-    using Device = alpaka::Dev<Acc>;
-    using Queue = alpaka::test::DefaultQueue<Device>;
+    using Tag = aV2P::AccToTag<Acc>;
+    using Platform = aV2P::Platform<Acc>;
+    using Device = aV2P::Dev<Acc>;
+    using Queue = aV2P::test::DefaultQueue<Device>;
 
-    using Idx = alpaka::Idx<Acc>;
-    using Dim = alpaka::Dim<Acc>;
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Idx = aV2P::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Vec = aV2P::Vec<Dim, Idx>;
 
-    const alpaka::PlatformCpu host_platform{};
-    auto const host = alpaka::getDevByIdx(host_platform, 0u);
+    const aV2P::PlatformCpu host_platform{};
+    auto const host = aV2P::getDevByIdx(host_platform, 0u);
 
     const Platform platform{};
-    const Device device = alpaka::getDevByIdx(platform, 0);
+    const Device device = aV2P::getDevByIdx(platform, 0);
     Queue queue{device};
 
     // Random number generator with a gaussian distribution.
@@ -120,11 +120,11 @@ TEMPLATE_LIST_TEST_CASE("transform_buffer", "[algo]", alpaka::test::TestAccs)
     std::default_random_engine rand{rd()};
     std::normal_distribution<float> dist{0.f, 1.f};
 
-    Vec size = alpaka::test::extentBuf<Dim, Idx>;
+    Vec size = aV2P::test::extentBuf<Dim, Idx>;
 
     // Allocate input and output buffers on the host.
-    auto sample = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto result = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
+    auto sample = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto result = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
 
     // Fill the input buffer with random numbers.
     for(Idx i = 0; i < size.prod(); ++i)
@@ -133,20 +133,20 @@ TEMPLATE_LIST_TEST_CASE("transform_buffer", "[algo]", alpaka::test::TestAccs)
     }
 
     // Allocate input and output buffers on the device.
-    auto sample_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-    auto result_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
+    auto sample_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+    auto result_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
 
     // Copy the input random numbers to the device.
-    alpaka::memcpy(queue, sample_d, sample);
+    aV2P::memcpy(queue, sample_d, sample);
 
     // Apply the transform algorithm on the device.
-    alpaka::transform<Tag>(queue, result_d, Sin{}, sample_d);
+    aV2P::transform<Tag>(queue, result_d, Sin{}, sample_d);
 
     // Copy the result to the host.
-    alpaka::memcpy(queue, result, result_d);
+    aV2P::memcpy(queue, result, result_d);
 
     // Wait for all asynchronous operations to complete.
-    alpaka::wait(queue);
+    aV2P::wait(queue);
 
     // Check the correctness of the results.
     for(Idx i = 0; i < size.prod(); ++i)

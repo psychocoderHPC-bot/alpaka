@@ -2,36 +2,36 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/kernel/Traits.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
+#include <aV2P/kernel/Traits.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
-using Dim = alpaka::DimInt<2u>;
+using Dim = aV2P::DimInt<2u>;
 using Idx = std::uint32_t;
-#if defined(ALPAKA_ACC_CPU_SERIAL_ENABLED)
-using AccCpu = alpaka::AccCpuSerial<Dim, Idx>;
+#if defined(AV2P_ACC_CPU_SERIAL_ENABLED)
+using AccCpu = aV2P::AccCpuSerial<Dim, Idx>;
 #endif
-#if defined(ALPAKA_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP
-using AccGpu = alpaka::AccGpuHipRt<Dim, Idx>;
-#elif defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA
-using AccGpu = alpaka::AccGpuCudaRt<Dim, Idx>;
+#if defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP
+using AccGpu = aV2P::AccGpuHipRt<Dim, Idx>;
+#elif defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA
+using AccGpu = aV2P::AccGpuCudaRt<Dim, Idx>;
 #endif
 
-#if defined(ALPAKA_ACC_CPU_SERIAL_ENABLED)
+#if defined(AV2P_ACC_CPU_SERIAL_ENABLED)
 struct KernelNoTemplateCpu
 {
-    ALPAKA_FN_ACC auto operator()(AccCpu const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(AccCpu const& acc, bool* success) const -> void
     {
-        ALPAKA_CHECK(
+        AV2P_CHECK(
             *success,
-            static_cast<alpaka::Idx<AccCpu>>(1) == (alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)).prod());
+            static_cast<aV2P::Idx<AccCpu>>(1) == (aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)).prod());
     }
 };
 
 TEST_CASE("kernelNoTemplateCpu", "[kernel]")
 {
-    alpaka::test::KernelExecutionFixture<AccCpu> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<AccCpu> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     KernelNoTemplateCpu kernel;
 
@@ -39,22 +39,22 @@ TEST_CASE("kernelNoTemplateCpu", "[kernel]")
 }
 #endif
 
-#if(defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)                                                         \
-    || (defined(ALPAKA_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
+#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA)                                                         \
+    || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
 struct KernelNoTemplateGpu
 {
-    ALPAKA_FN_ACC
+    AV2P_FN_ACC
     auto operator()(AccGpu const& acc, bool* success) const -> void
     {
-        ALPAKA_CHECK(
+        AV2P_CHECK(
             *success,
-            static_cast<alpaka::Idx<AccGpu>>(1) == (alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)).prod());
+            static_cast<aV2P::Idx<AccGpu>>(1) == (aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)).prod());
     }
 };
 
 TEST_CASE("kernelNoTemplateGpu", "[kernel]")
 {
-    alpaka::test::KernelExecutionFixture<AccGpu> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<AccGpu> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     KernelNoTemplateGpu kernel;
 
@@ -62,21 +62,21 @@ TEST_CASE("kernelNoTemplateGpu", "[kernel]")
 }
 #endif
 
-#if defined(ALPAKA_ACC_CPU_SERIAL_ENABLED)
+#if defined(AV2P_ACC_CPU_SERIAL_ENABLED)
 struct KernelUnusedTemplateParamCpu
 {
     template<typename TNotUsed = void>
-    ALPAKA_FN_ACC auto operator()(AccCpu const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(AccCpu const& acc, bool* success) const -> void
     {
-        ALPAKA_CHECK(
+        AV2P_CHECK(
             *success,
-            static_cast<alpaka::Idx<AccCpu>>(1) == (alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)).prod());
+            static_cast<aV2P::Idx<AccCpu>>(1) == (aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)).prod());
     }
 };
 
 TEST_CASE("kernelUnusedTemplateParamCpu", "[kernel]")
 {
-    alpaka::test::KernelExecutionFixture<AccCpu> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<AccCpu> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     KernelUnusedTemplateParamCpu kernel;
 
@@ -84,22 +84,22 @@ TEST_CASE("kernelUnusedTemplateParamCpu", "[kernel]")
 }
 #endif
 
-#if(defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)                                                         \
-    || (defined(ALPAKA_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
+#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA)                                                         \
+    || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
 struct KernelUnusedTemplateParamGpu
 {
     template<typename TNotUsed = void>
-    ALPAKA_FN_ACC auto operator()(AccGpu const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(AccGpu const& acc, bool* success) const -> void
     {
-        ALPAKA_CHECK(
+        AV2P_CHECK(
             *success,
-            static_cast<alpaka::Idx<AccGpu>>(1) == (alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)).prod());
+            static_cast<aV2P::Idx<AccGpu>>(1) == (aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)).prod());
     }
 };
 
 TEST_CASE("kernelUnusedTemplateParamGpu", "[kernel]")
 {
-    alpaka::test::KernelExecutionFixture<AccGpu> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<AccGpu> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     KernelUnusedTemplateParamGpu kernel;
 

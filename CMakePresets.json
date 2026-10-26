@@ -12,7 +12,7 @@
             "hidden": true,
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
-                "alpaka_BUILD_EXAMPLES": "ON",
+                "aV2P_BUILD_EXAMPLES": "ON",
                 "BUILD_TESTING": "ON"
             }
         },
@@ -21,7 +21,7 @@
             "description": "enable serial back-end",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON"
             }
         },
         {
@@ -29,7 +29,7 @@
             "description": "enable OpenMP 2 Grid Block back-end",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_OMP2_T_SEQ_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE": "ON"
             }
         },
         {
@@ -37,7 +37,7 @@
             "description": "enable OpenMP 2 Block Thread back-end",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_SEQ_T_OMP2_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE": "ON"
             }
         },
         {
@@ -45,7 +45,7 @@
             "description": "enable std::thread back-end",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_SEQ_T_THREADS_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE": "ON"
             }
         },
         {
@@ -53,7 +53,7 @@
             "description": "enable Intel TBB back-end",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_TBB_T_SEQ_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE": "ON"
             }
         },
         {
@@ -61,11 +61,11 @@
             "description": "enable all cpu back-ends (serial, OpenMP 2 Grid Block and Block Thread, std::thread and Intel TBB back-end",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
-                "alpaka_ACC_CPU_B_OMP2_T_SEQ_ENABLE": "ON",
-                "alpaka_ACC_CPU_B_SEQ_T_OMP2_ENABLE": "ON",
-                "alpaka_ACC_CPU_B_SEQ_T_THREADS_ENABLE": "ON",
-                "alpaka_ACC_CPU_B_TBB_T_SEQ_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
+                "aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE": "ON",
+                "aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE": "ON",
+                "aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE": "ON",
+                "aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE": "ON"
             }
         },
         {
@@ -73,8 +73,8 @@
             "description": "use HIP back-end on AMD GPUs",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
-                "alpaka_ACC_GPU_HIP_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
+                "aV2P_ACC_GPU_HIP_ENABLE": "ON"
             }
         },
         {
@@ -83,10 +83,10 @@
             "inherits": "develop",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "icpx",
-                "alpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
-                "alpaka_ACC_SYCL_ENABLE": "ON",
-                "alpaka_SYCL_ONEAPI_GPU": "ON",
-                "alpaka_SYCL_ONEAPI_GPU_DEVICES": "spir64"
+                "aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
+                "aV2P_ACC_SYCL_ENABLE": "ON",
+                "aV2P_SYCL_ONEAPI_GPU": "ON",
+                "aV2P_SYCL_ONEAPI_GPU_DEVICES": "spir64"
             }
         },
         {
@@ -94,8 +94,8 @@
             "description": "use cuda back-end on Nvidia GPUs with nvcc device compiler",
             "inherits": "develop",
             "cacheVariables": {
-                "alpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
-                "alpaka_ACC_GPU_CUDA_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
+                "aV2P_ACC_GPU_CUDA_ENABLE": "ON"
             }
         },
         {
@@ -105,8 +105,8 @@
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_CUDA_COMPILER": "clang++",
-                "alpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
-                "alpaka_ACC_GPU_CUDA_ENABLE": "ON"
+                "aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE": "ON",
+                "aV2P_ACC_GPU_CUDA_ENABLE": "ON"
             }
         }
     ],

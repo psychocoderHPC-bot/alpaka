@@ -2,11 +2,11 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/mem/buf/Traits.hpp>
-#include <alpaka/test/Extent.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/mem/view/ViewTest.hpp>
-#include <alpaka/test/queue/Queue.hpp>
+#include <aV2P/mem/buf/Traits.hpp>
+#include <aV2P/test/Extent.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/mem/view/ViewTest.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
 #include <catch2/catch_message.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -20,30 +20,30 @@ namespace buftest
     template<typename TDev, typename TDim, typename TElem, typename TIdx, typename TExtent>
     auto initConstBuf(TDev dev, TExtent extent)
     {
-        using QueueAcc = alpaka::test::DefaultQueue<TDev>;
+        using QueueAcc = aV2P::test::DefaultQueue<TDev>;
 
         // allocate buffer
-        auto buf = alpaka::allocBuf<TElem, TIdx>(dev, extent);
+        auto buf = aV2P::allocBuf<TElem, TIdx>(dev, extent);
 
         // fill buffer
-        auto const platformHost = alpaka::PlatformCpu{};
-        auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+        auto const platformHost = aV2P::PlatformCpu{};
+        auto const devHost = aV2P::getDevByIdx(platformHost, 0);
         std::vector<TElem> dataHost(static_cast<std::size_t>(getExtentProduct(extent)), static_cast<TElem>(1));
-        auto bufHost = alpaka::createView(devHost, dataHost.data(), extent);
+        auto bufHost = aV2P::createView(devHost, dataHost.data(), extent);
         QueueAcc queueAcc{dev};
-        alpaka::memcpy(queueAcc, buf, bufHost);
-        alpaka::wait(queueAcc);
+        aV2P::memcpy(queueAcc, buf, bufHost);
+        aV2P::wait(queueAcc);
 
-#if ALPAKA_COMP_CLANG >= ALPAKA_VERSION_NUMBER(21, 1, 0)
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0)
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wnrvo"
 #endif
 
         // make the buffer constant and return only that
-        auto const constBuf = alpaka::makeConstBuf(std::move(buf));
+        auto const constBuf = aV2P::makeConstBuf(std::move(buf));
         return constBuf;
 
-#if ALPAKA_COMP_CLANG >= ALPAKA_VERSION_NUMBER(21, 1, 0)
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0)
 #    pragma clang diagnostic pop
 #endif
     }
@@ -51,32 +51,32 @@ namespace buftest
     template<typename TBuf>
     concept onlyConstNativePtr = requires(TBuf t) {
         {
-            alpaka::getPtrNative(t)
-        } -> std::same_as<alpaka::Elem<std::remove_const_t<TBuf>> const*>;
+            aV2P::getPtrNative(t)
+        } -> std::same_as<aV2P::Elem<std::remove_const_t<TBuf>> const*>;
     };
 } // namespace buftest
 
 template<typename TAcc>
-static auto testConstBuffer(alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> const& extent) -> void
+static auto testConstBuffer(aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const& extent) -> void
 {
-    using Dev = alpaka::Dev<TAcc>;
+    using Dev = aV2P::Dev<TAcc>;
 
     using Elem = float;
-    using Dim = alpaka::Dim<TAcc>;
-    using Idx = alpaka::Idx<TAcc>;
+    using Dim = aV2P::Dim<TAcc>;
+    using Idx = aV2P::Idx<TAcc>;
 
-    auto const platformAcc = alpaka::Platform<TAcc>{};
-    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<TAcc>{};
+    auto const dev = aV2P::getDevByIdx(platformAcc, 0);
 
-    // alpaka::malloc
-    auto buf = alpaka::allocBuf<Elem, Idx>(dev, extent);
+    // aV2P::malloc
+    auto buf = aV2P::allocBuf<Elem, Idx>(dev, extent);
     auto const c_buf = buftest::initConstBuf<Dev, Dim, Elem, Idx>(dev, extent);
 
     using TBuf = decltype(buf);
     using TCBuf = decltype(c_buf);
 
-    auto const offset = alpaka::Vec<Dim, Idx>::zeros();
-    alpaka::test::testViewImmutable<Elem const>(c_buf, dev, extent, offset);
+    auto const offset = aV2P::Vec<Dim, Idx>::zeros();
+    aV2P::test::testViewImmutable<Elem const>(c_buf, dev, extent, offset);
 
     // check that Constant buffer can't be converted to non-const buffer
     STATIC_REQUIRE_FALSE(std::convertible_to<TCBuf, TBuf>);
@@ -89,9 +89,9 @@ static auto testConstBuffer(alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> co
     // *getPtrNative(c_buf) = 0.f;  // <- this does not compile, as desired
 
     // check return types of the buffers
-    using Platform = alpaka::Platform<TAcc>;
+    using Platform = aV2P::Platform<TAcc>;
     if constexpr(
-        std::is_same_v<Platform, alpaka::PlatformCpu> or std::is_same_v<alpaka::AccToTag<TAcc>, alpaka::TagCpuSycl>)
+        std::is_same_v<Platform, aV2P::PlatformCpu> or std::is_same_v<aV2P::AccToTag<TAcc>, aV2P::TagCpuSycl>)
     {
         STATIC_REQUIRE(std::is_same_v<decltype(buf[0]), Elem&>);
         STATIC_REQUIRE(std::is_same_v<decltype(c_buf[0]), Elem const&>);
@@ -103,17 +103,17 @@ static auto testConstBuffer(alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> co
 }
 
 template<typename TAcc>
-static auto testConstBufLifetime(alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> const& extent) -> void
+static auto testConstBufLifetime(aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const& extent) -> void
 {
-    using Dev = alpaka::Dev<TAcc>;
-    using Queue = alpaka::test::DefaultQueue<Dev>;
+    using Dev = aV2P::Dev<TAcc>;
+    using Queue = aV2P::test::DefaultQueue<Dev>;
 
     using Elem = std::uint32_t;
-    using Dim = alpaka::Dim<TAcc>;
-    using Idx = alpaka::Idx<TAcc>;
+    using Dim = aV2P::Dim<TAcc>;
+    using Idx = aV2P::Idx<TAcc>;
 
-    auto const platformAcc = alpaka::Platform<TAcc>{};
-    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<TAcc>{};
+    auto const dev = aV2P::getDevByIdx(platformAcc, 0);
 
     // init and return a const buffer filled with all ones
     auto const c_buf = buftest::initConstBuf<Dev, Dim, Elem, Idx>(dev, extent);
@@ -121,14 +121,14 @@ static auto testConstBufLifetime(alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc
     Queue queue{dev};
 
     // create local buffer filled with all ones
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
     std::vector<Elem> dataHost(static_cast<std::size_t>(getExtentProduct(extent)), static_cast<Elem>(1));
-    auto bufHost = alpaka::createView(devHost, dataHost.data(), extent);
+    auto bufHost = aV2P::createView(devHost, dataHost.data(), extent);
 
-    auto copiedBack = alpaka::allocBuf<Elem, Idx>(devHost, extent);
-    alpaka::memcpy(queue, copiedBack, c_buf);
-    alpaka::wait(queue);
+    auto copiedBack = aV2P::allocBuf<Elem, Idx>(devHost, extent);
+    aV2P::memcpy(queue, copiedBack, c_buf);
+    aV2P::wait(queue);
 
     bool resultCorrect = true;
     auto const pHostData = std::data(bufHost);
@@ -144,11 +144,11 @@ static auto testConstBufLifetime(alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc
     REQUIRE(resultCorrect);
 }
 
-TEMPLATE_LIST_TEST_CASE("constMemBufBasicTest", "[memBuf]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("constMemBufBasicTest", "[memBuf]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
-    testConstBuffer<Acc>(alpaka::test::extentBuf<Dim, Idx>);
-    testConstBufLifetime<Acc>(alpaka::test::extentBuf<Dim, Idx>);
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
+    testConstBuffer<Acc>(aV2P::test::extentBuf<Dim, Idx>);
+    testConstBufLifetime<Acc>(aV2P::test::extentBuf<Dim, Idx>);
 }

@@ -2,12 +2,12 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/mem/buf/Traits.hpp>
-#include <alpaka/mem/view/Traits.hpp>
-#include <alpaka/test/Extent.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/mem/view/ViewTest.hpp>
-#include <alpaka/test/queue/Queue.hpp>
+#include <aV2P/mem/buf/Traits.hpp>
+#include <aV2P/mem/view/Traits.hpp>
+#include <aV2P/test/Extent.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/mem/view/ViewTest.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
 #include <catch2/catch_message.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -16,40 +16,40 @@
 #include <numeric>
 #include <type_traits>
 
-TEMPLATE_LIST_TEST_CASE("memBufFillPrimitiveValuesTest", "[memBuf]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("memBufFillPrimitiveValuesTest", "[memBuf]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dev = alpaka::Dev<Acc>;
-    using Queue = alpaka::test::DefaultQueue<Dev>;
+    using Dev = aV2P::Dev<Acc>;
+    using Queue = aV2P::test::DefaultQueue<Dev>;
     using Elem = int;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const dev = aV2P::getDevByIdx(platformAcc, 0);
 
     INFO("Test fill function on device");
-    INFO(alpaka::getName(dev));
+    INFO(aV2P::getName(dev));
 
     Queue queue(dev);
 
-    auto const extent = alpaka::test::extentBuf<Dim, Idx>;
+    auto const extent = aV2P::test::extentBuf<Dim, Idx>;
 
-    auto buf = alpaka::allocBuf<Elem, Idx>(dev, extent);
+    auto buf = aV2P::allocBuf<Elem, Idx>(dev, extent);
 
     constexpr Elem fillVal = 42;
-    alpaka::fill(queue, buf, fillVal);
+    aV2P::fill(queue, buf, fillVal);
 
     // Copy result to host and check
-    auto bufHost = alpaka::allocBuf<Elem, Idx>(devHost, extent);
-    alpaka::memcpy(queue, bufHost, buf);
-    alpaka::wait(queue);
+    auto bufHost = aV2P::allocBuf<Elem, Idx>(devHost, extent);
+    aV2P::memcpy(queue, bufHost, buf);
+    aV2P::wait(queue);
 
     Elem const* ptr = std::data(bufHost);
-    Idx const size = alpaka::getExtentProduct(bufHost);
+    Idx const size = aV2P::getExtentProduct(bufHost);
     bool passed = true;
     for(Idx i = 0; i < size; ++i)
     {
@@ -72,40 +72,40 @@ struct Elem
     }
 };
 
-TEMPLATE_LIST_TEST_CASE("memBufFillNonPrimitiveValuesTest", "[memBuf]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("memBufFillNonPrimitiveValuesTest", "[memBuf]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dev = alpaka::Dev<Acc>;
-    using Queue = alpaka::test::DefaultQueue<Dev>;
+    using Dev = aV2P::Dev<Acc>;
+    using Queue = aV2P::test::DefaultQueue<Dev>;
 
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const dev = aV2P::getDevByIdx(platformAcc, 0);
 
     INFO("Test fill function on device");
-    INFO(alpaka::getName(dev));
+    INFO(aV2P::getName(dev));
 
     Queue queue(dev);
 
-    auto const extent = alpaka::test::extentBuf<Dim, Idx>;
+    auto const extent = aV2P::test::extentBuf<Dim, Idx>;
 
-    auto buf = alpaka::allocBuf<Elem, Idx>(dev, extent);
+    auto buf = aV2P::allocBuf<Elem, Idx>(dev, extent);
 
     constexpr Elem fillVal = {42, 99.0f};
-    alpaka::fill(queue, buf, fillVal);
+    aV2P::fill(queue, buf, fillVal);
 
     // Copy result to host and check
-    auto bufHost = alpaka::allocBuf<Elem, Idx>(devHost, extent);
-    alpaka::memcpy(queue, bufHost, buf);
-    alpaka::wait(queue);
+    auto bufHost = aV2P::allocBuf<Elem, Idx>(devHost, extent);
+    aV2P::memcpy(queue, bufHost, buf);
+    aV2P::wait(queue);
 
     Elem const* ptr = std::data(bufHost);
-    Idx const size = alpaka::getExtentProduct(bufHost);
+    Idx const size = aV2P::getExtentProduct(bufHost);
     bool passed = true;
     for(Idx i = 0; i < size; ++i)
     {
@@ -117,38 +117,38 @@ TEMPLATE_LIST_TEST_CASE("memBufFillNonPrimitiveValuesTest", "[memBuf]", alpaka::
     CHECK(passed);
 }
 
-TEMPLATE_LIST_TEST_CASE("memBufFillScalarFloatTest", "[memBuf]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("memBufFillScalarFloatTest", "[memBuf]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dev = alpaka::Dev<Acc>;
-    using Queue = alpaka::test::DefaultQueue<Dev>;
+    using Dev = aV2P::Dev<Acc>;
+    using Queue = aV2P::test::DefaultQueue<Dev>;
     using ElemT = float;
-    using Idx = alpaka::Idx<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
     float epsilon = 1e-9f;
 
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const dev = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const dev = aV2P::getDevByIdx(platformAcc, 0);
 
     INFO("Test fill function on device");
-    INFO(alpaka::getName(dev));
+    INFO(aV2P::getName(dev));
 
     Queue queue(dev);
 
-    auto const extent = alpaka::test::extentBuf<alpaka::DimInt<0u>, Idx>;
+    auto const extent = aV2P::test::extentBuf<aV2P::DimInt<0u>, Idx>;
 
-    auto buf = alpaka::allocBuf<ElemT, Idx>(dev, extent);
+    auto buf = aV2P::allocBuf<ElemT, Idx>(dev, extent);
 
     constexpr ElemT fillVal = 42.0f;
-    alpaka::fill(queue, buf, fillVal);
+    aV2P::fill(queue, buf, fillVal);
 
     // Copy result to host and check
-    auto bufHost = alpaka::allocBuf<ElemT, Idx>(devHost, extent);
-    alpaka::memcpy(queue, bufHost, buf);
-    alpaka::wait(queue);
+    auto bufHost = aV2P::allocBuf<ElemT, Idx>(devHost, extent);
+    aV2P::memcpy(queue, bufHost, buf);
+    aV2P::wait(queue);
 
     ElemT const* ptr = std::data(bufHost);
     CHECK(std::fabs(ptr[0] - fillVal) < epsilon);

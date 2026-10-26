@@ -2,15 +2,15 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
-#if defined(ALPAKA_ACC_GPU_CUDA_ONLY_MODE) && defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA
+#if defined(AV2P_ACC_GPU_CUDA_ONLY_MODE) && defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA
 
 //! Native CUDA function.
-#    if ALPAKA_COMP_CLANG
+#    if AV2P_COMP_CLANG
 #        pragma clang diagnostic push
 #        pragma clang diagnostic ignored "-Wmissing-prototypes"
 #    endif
@@ -18,7 +18,7 @@ __device__ static auto userDefinedThreadFence() -> void
 {
     __threadfence();
 }
-#    if ALPAKA_COMP_CLANG
+#    if AV2P_COMP_CLANG
 #        pragma clang diagnostic pop
 #    endif
 
@@ -26,9 +26,9 @@ class CudaOnlyTestKernel
 {
 public:
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& /* acc */, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& /* acc */, bool* success) const -> void
     {
-        // We should be able to call some native CUDA functions when ALPAKA_ACC_GPU_CUDA_ONLY_MODE is enabled.
+        // We should be able to call some native CUDA functions when AV2P_ACC_GPU_CUDA_ONLY_MODE is enabled.
         __threadfence_block();
         userDefinedThreadFence();
         __threadfence_system();
@@ -39,11 +39,11 @@ public:
 
 TEST_CASE("cudaOnlyModeWorking", "[cudaOnly]")
 {
-    using TAcc = alpaka::AccGpuCudaRt<alpaka::DimInt<1u>, std::uint32_t>;
-    using Dim = alpaka::Dim<TAcc>;
-    using Idx = alpaka::Idx<TAcc>;
+    using TAcc = aV2P::AccGpuCudaRt<aV2P::DimInt<1u>, std::uint32_t>;
+    using Dim = aV2P::Dim<TAcc>;
+    using Idx = aV2P::Idx<TAcc>;
 
-    alpaka::test::KernelExecutionFixture<TAcc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<TAcc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     CudaOnlyTestKernel kernel;
 

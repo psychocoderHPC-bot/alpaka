@@ -1,0 +1,980 @@
+#
+# Copyright 2023 Benjamin Worpitz, Erik Zenker, Axel Hübl, Jan Stephan, René Widera, Jeffrey Kelling, Andrea Bocci,
+#                Bernhard Manfred Gruber, Aurora Perego
+# SPDX-License-Identifier: MPL-2.0
+#
+
+include(CheckLanguage) # check for CUDA/HIP language support
+include(CMakePrintHelpers) # for easier printing of variables and properties
+include(CMakeDependentOption) # Make options depend on other options
+
+#-------------------------------------------------------------------------------
+# Options.
+
+# Compiler options
+macro(aV2P_compiler_option name description default)
+    if(NOT DEFINED aV2P_${name})
+        set(aV2P_${name} ${default} CACHE STRING "${description}")
+        set_property(CACHE aV2P_${name} PROPERTY STRINGS "DEFAULT;ON;OFF")
+    endif()
+endmacro()
+
+# Add append compiler flags to a variable or target
+#
+# This method is automatically documenting all compile flags added into the variables
+# aV2P_COMPILER_OPTIONS_HOST, aV2P_COMPILER_OPTIONS_DEVICE.
+#
+# scope - which compiler is effected: DEVICE, HOST, or HOST_DEVICE
+# type - type of 'name': var, list, or target
+#        var: space separated list
+#        list: is semicolon separated
+# name - name of the variable or target
+# ... - parameter to appended to the variable or target 'name'
+function(aV2P_set_compiler_options scope type name)
+    if(scope STREQUAL HOST)
+        set(aV2P_COMPILER_OPTIONS_HOST ${aV2P_COMPILER_OPTIONS_HOST} ${ARGN} PARENT_SCOPE)
+    elseif(scope STREQUAL DEVICE)
+        set(aV2P_COMPILER_OPTIONS_DEVICE ${aV2P_COMPILER_OPTIONS_DEVICE} ${ARGN} PARENT_SCOPE)
+    elseif(scope STREQUAL HOST_DEVICE)
+        set(aV2P_COMPILER_OPTIONS_HOST ${aV2P_COMPILER_OPTIONS_HOST} ${ARGN} PARENT_SCOPE)
+        set(aV2P_COMPILER_OPTIONS_DEVICE ${aV2P_COMPILER_OPTIONS_DEVICE} ${ARGN} PARENT_SCOPE)
+    else()
+        message(FATAL_ERROR "aV2P_set_compiler_option 'scope' unknown, value must be 'HOST', 'DEVICE', or 'HOST_DEVICE'.")
+    endif()
+    if(type STREQUAL "list")
+        set(${name} ${${name}} ${ARGN} PARENT_SCOPE)
+    elseif(type STREQUAL "var")
+        foreach(arg IN LISTS ARGN)
+            set(tmp "${tmp} ${arg}")
+        endforeach()
+        set(${name} "${${name}} ${tmp}" PARENT_SCOPE)
+    elseif(type STREQUAL "target")
+        foreach(arg IN LISTS ARGN)
+            target_compile_options(${name} INTERFACE ${arg})
+        endforeach()
+    else()
+        message(FATAL_ERROR "aV2P_set_compiler_option 'type=${type}' unknown, value must be 'list', 'var', or 'target'.")
+    endif()
+endfunction()
+
+# Check if compiler supports required C++ standard.
+#
+# language - can be CXX, HIP or CUDA
+# min_cxx_standard - C++ standard which is the minimum requirement
+function(checkCompilerCXXSupport language min_cxx_standard)
+    string(TOUPPER "${language}" language_upper_case)
+    string(TOLOWER "${language}" language_lower_case)
+
+    if(NOT "${language_lower_case}_std_${min_cxx_standard}" IN_LIST CMAKE_${language_upper_case}_COMPILE_FEATURES)
+        message(FATAL_ERROR "The ${language_upper_case} compiler does not support C++ ${min_cxx_standard}. \
+        Please upgrade your compiler or use alpaka 1.2 which supports C++17.")
+    endif()
+endfunction()
+
+# HIP and platform selection and warning about unsupported features
+option(aV2P_ACC_GPU_HIP_ENABLE "Enable the HIP back-end (all other back-ends must be disabled)" OFF)
+option(aV2P_ACC_GPU_HIP_ONLY_MODE "Only back-ends using HIP can be enabled in this mode." OFF) # HIP only runs without other back-ends
+
+option(aV2P_ACC_GPU_CUDA_ENABLE "Enable the CUDA GPU back-end" OFF)
+option(aV2P_ACC_GPU_CUDA_ONLY_MODE "Only back-ends using CUDA can be enabled in this mode (This allows to mix alpaka code with native CUDA code)." OFF)
+
+if(aV2P_ACC_GPU_CUDA_ONLY_MODE AND NOT aV2P_ACC_GPU_CUDA_ENABLE)
+    message(FATAL_ERROR "If aV2P_ACC_GPU_CUDA_ONLY_MODE is enabled, aV2P_ACC_GPU_CUDA_ENABLE has to be enabled as well.")
+endif()
+if(aV2P_ACC_GPU_HIP_ONLY_MODE AND NOT aV2P_ACC_GPU_HIP_ENABLE)
+    message(FATAL_ERROR "If aV2P_ACC_GPU_HIP_ONLY_MODE is enabled, aV2P_ACC_GPU_HIP_ENABLE has to be enabled as well.")
+endif()
+
+option(aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE "Enable the serial CPU back-end" OFF)
+option(aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE "Enable the threads CPU block thread back-end" OFF)
+option(aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE "Enable the TBB CPU grid block back-end" OFF)
+option(aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE "Enable the OpenMP 2.0 CPU grid block back-end" OFF)
+option(aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE "Enable the OpenMP 2.0 CPU block thread back-end" OFF)
+option(aV2P_ACC_CPU_DISABLE_ATOMIC_REF "Disable atomic_ref for CPU back-ends" OFF)
+option(aV2P_ACC_SYCL_ENABLE "Enable the SYCL back-end" OFF)
+
+# Unified compiler options
+aV2P_compiler_option(FAST_MATH "Enable fast-math" DEFAULT)
+aV2P_compiler_option(FTZ "Set flush to zero" DEFAULT)
+
+if((aV2P_ACC_GPU_CUDA_ONLY_MODE OR aV2P_ACC_GPU_HIP_ONLY_MODE)
+   AND
+    (aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE OR
+    aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE OR
+    aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE OR
+    aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE OR
+    aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE OR
+    aV2P_ACC_SYCL_ENABLE))
+    if(aV2P_ACC_GPU_CUDA_ONLY_MODE)
+        message(FATAL_ERROR "If aV2P_ACC_GPU_CUDA_ONLY_MODE is enabled, only back-ends using CUDA can be enabled! This allows to mix alpaka code with native CUDA code. However, this prevents any non-CUDA back-ends from being enabled.")
+    endif()
+    if(aV2P_ACC_GPU_HIP_ONLY_MODE)
+        message(FATAL_ERROR "If aV2P_ACC_GPU_HIP_ONLY_MODE is enabled, only back-ends using HIP can be enabled!")
+    endif()
+    set(_aV2P_FOUND FALSE)
+endif()
+
+# avoids CUDA+HIP conflict
+if(aV2P_ACC_GPU_HIP_ENABLE AND aV2P_ACC_GPU_CUDA_ENABLE)
+    message(FATAL_ERROR "CUDA and HIP can not be enabled both at the same time.")
+endif()
+
+# HIP is only supported on Linux
+if(aV2P_ACC_GPU_HIP_ENABLE AND (MSVC OR WIN32))
+    message(FATAL_ERROR "Optional alpaka dependency HIP can not be built on Windows!")
+endif()
+
+# Drop-down combo box in cmake-gui.
+set(aV2P_DEBUG "0" CACHE STRING "Debug level")
+set_property(CACHE aV2P_DEBUG PROPERTY STRINGS "0;1;2")
+
+# minimum required C++ standard
+set(aV2P_MIN_CXX_STANDARD "20")
+set(aV2P_CXX_STANDARD_DEFAULT "20")
+# Check whether aV2P_CXX_STANDARD has already been defined as a non-cached variable.
+if(DEFINED aV2P_CXX_STANDARD)
+    set(aV2P_CXX_STANDARD_DEFAULT ${aV2P_CXX_STANDARD})
+endif()
+
+set(aV2P_CXX_STANDARD ${aV2P_CXX_STANDARD_DEFAULT} CACHE STRING "C++ standard version")
+set_property(CACHE aV2P_CXX_STANDARD PROPERTY STRINGS "20")
+
+if(${aV2P_CXX_STANDARD} VERSION_LESS ${aV2P_MIN_CXX_STANDARD})
+    message(FATAL_ERROR "The aV2P_CXX_STANDARD standard must be at least C++${aV2P_MIN_CXX_STANDARD}")
+endif()
+
+checkCompilerCXXSupport(CXX ${aV2P_MIN_CXX_STANDARD})
+
+if(NOT TARGET aV2P)
+    add_library(aV2P INTERFACE)
+
+    target_compile_features(aV2P INTERFACE cxx_std_${aV2P_CXX_STANDARD})
+
+    add_library(aV2P::aV2P ALIAS aV2P)
+endif()
+
+set(aV2P_BLOCK_SHARED_DYN_MEMBER_ALLOC_KIB "47" CACHE STRING "Kibibytes (1024B) of memory to allocate for block shared memory for backends requiring static allocation (includes CPU_B_OMP2_T_SEQ, CPU_B_TBB_T_SEQ, CPU_B_SEQ_T_SEQ, SYCL)")
+aV2P_compiler_option(RELOCATABLE_DEVICE_CODE "Enable relocatable device code for CUDA, HIP and SYCL devices" DEFAULT)
+
+# Random number generators
+option(aV2P_DISABLE_VENDOR_RNG "Disable the vendor specific random number generators (NVIDIA cuRAND, AMD rocRAND, Intel DPL)" OFF)
+if(aV2P_DISABLE_VENDOR_RNG)
+    target_compile_definitions(aV2P INTERFACE "AV2P_DISABLE_VENDOR_RNG")
+endif()
+
+# Device side assert
+option(aV2P_ASSERT_ACC_ENABLE "Enable device side asserts. In case  value is OFF device side asserts will be disabled even if NDEBUG is not defined." ON)
+if(!aV2P_ASSERT_ACC_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_DISABLE_ASSERT_ACC")
+endif()
+
+#-------------------------------------------------------------------------------
+# Debug output of common variables.
+if(${aV2P_DEBUG} GREATER 1)
+    cmake_print_variables(_aV2P_ROOT_DIR)
+    cmake_print_variables(_aV2P_COMMON_FILE)
+    cmake_print_variables(_aV2P_ADD_EXECUTABLE_FILE)
+    cmake_print_variables(_aV2P_ADD_LIBRARY_FILE)
+    cmake_print_variables(CMAKE_BUILD_TYPE)
+endif()
+
+#-------------------------------------------------------------------------------
+# Check supported compilers.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    message(FATAL_ERROR "Clang versions < 9 are not supported!")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    message(WARNING "The Intel Classic compiler (icpc) is no longer supported. Please upgrade to the Intel LLVM compiler (ipcx)!")
+endif()
+
+#-------------------------------------------------------------------------------
+# Compiler settings.
+
+if(MSVC)
+    # warning C4505: '__cudaUnregisterBinaryUtil': unreferenced local function has been removed
+    if(aV2P_ACC_GPU_CUDA_ONLY_MODE)
+        target_compile_options(aV2P INTERFACE "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler /wd4505>")
+    endif()
+else()
+    # For std::future we need to pass the correct pthread flag for the compiler and the linker:
+    # https://github.com/alpaka-group/cupla/pull/128#issuecomment-545078917
+
+    # Allow users to override the "-pthread" preference.
+    if(NOT THREADS_PREFER_PTHREAD_FLAG)
+        set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+    endif()
+
+    find_package(Threads REQUIRED)
+    target_link_libraries(aV2P INTERFACE Threads::Threads)
+
+    if(NOT APPLE)
+        # librt: undefined reference to `clock_gettime'
+        find_library(RT_LIBRARY rt)
+        if(RT_LIBRARY)
+            target_link_libraries(aV2P INTERFACE ${RT_LIBRARY})
+        endif()
+    endif()
+
+    # Add debug optimization levels. CMake doesn't do this by default.
+    # Note that -Og is the recommended gcc optimization level for debug mode but is equivalent to -O1 for clang (and its derivates).
+    aV2P_set_compiler_options(HOST_DEVICE target aV2P "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>,$<COMPILE_LANGUAGE:CXX>>:SHELL:-Og>"
+                                                          "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>,$<COMPILE_LANGUAGE:CUDA>>:SHELL:-Xcompiler -Og>"
+                                                          "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang,AppleClang,IntelLLVM>>:SHELL:-O0>"
+                                                          "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:SHELL:/Od>")
+
+    target_link_options(aV2P INTERFACE "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:SHELL:-Og>"
+                                         "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang,AppleClang,IntelLLVM>>:SHELL:-O0>")
+endif()
+
+if(aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE OR
+   aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE OR
+   aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE OR
+   aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE OR
+   aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE)
+
+    if(NOT aV2P_ACC_CPU_DISABLE_ATOMIC_REF)
+        # Check for C++20 std::atomic_ref first
+        if(${aV2P_CXX_STANDARD} VERSION_GREATER_EQUAL "20")
+            try_compile(aV2P_HAS_STD_ATOMIC_REF # Result stored here
+                        "${PROJECT_BINARY_DIR}/aV2PFeatureTests" # Binary directory for output file
+                        SOURCES "${_aV2P_FEATURE_TESTS_DIR}/StdAtomicRef.cpp" # Source file
+                        CXX_STANDARD 20
+                        CXX_STANDARD_REQUIRED TRUE
+                        CXX_EXTENSIONS FALSE)
+            if(aV2P_HAS_STD_ATOMIC_REF AND (NOT aV2P_ACC_CPU_DISABLE_ATOMIC_REF))
+                message(STATUS "std::atomic_ref<T> found")
+                target_compile_definitions(aV2P INTERFACE AV2P_HAS_STD_ATOMIC_REF)
+            else()
+                message(STATUS "std::atomic_ref<T> NOT found")
+            endif()
+        endif()
+
+        if (NOT aV2P_HAS_STD_ATOMIC_REF)
+            # search for boost only if std::atomic_ref is not supported
+            set(_aV2P_BOOST_MIN_VER "1.74.0")
+            find_package(Boost ${_aV2P_BOOST_MIN_VER} REQUIRED CONFIG
+                    OPTIONAL_COMPONENTS atomic)
+            target_link_libraries(aV2P INTERFACE Boost::headers)
+
+            if (Boost_ATOMIC_FOUND)
+                message(STATUS "boost::atomic_ref<T> found")
+                target_link_libraries(aV2P INTERFACE Boost::atomic)
+            else ()
+                message(STATUS "boost::atomic_ref<T> NOT found")
+            endif ()
+        endif ()
+    endif()
+
+    if(aV2P_ACC_CPU_DISABLE_ATOMIC_REF OR ((NOT aV2P_HAS_STD_ATOMIC_REF) AND (NOT Boost_ATOMIC_FOUND)))
+        message(STATUS "atomic_ref<T> was not found or manually disabled. Falling back to lock-based CPU atomics.")
+        target_compile_definitions(aV2P INTERFACE AV2P_DISABLE_ATOMIC_ATOMICREF)
+    endif()
+endif()
+
+#-------------------------------------------------------------------------------
+# If available, use C++20 math constants. Otherwise, fall back to M_PI etc.
+if(${aV2P_CXX_STANDARD} VERSION_LESS "20")
+    set(aV2P_HAS_STD_MATH_CONSTANTS FALSE)
+else()
+    try_compile(aV2P_HAS_STD_MATH_CONSTANTS # Result stored here
+                "${PROJECT_BINARY_DIR}/aV2PFeatureTests" # Binary directory for output file
+                SOURCES "${_aV2P_FEATURE_TESTS_DIR}/MathConstants.cpp" # Source file
+                CXX_STANDARD 20
+                CXX_STANDARD_REQUIRED TRUE
+                CXX_EXTENSIONS FALSE)
+endif()
+
+if(NOT aV2P_HAS_STD_MATH_CONSTANTS)
+    message(STATUS "C++20 math constants not found. Falling back to non-standard constants.")
+    # Enable non-standard constants for MSVC.
+    target_compile_definitions(aV2P INTERFACE "$<$<OR:$<CXX_COMPILER_ID:MSVC>,$<AND:$<COMPILE_LANGUAGE:CUDA>,$<PLATFORM_ID:Windows>>>:_USE_MATH_DEFINES>")
+endif()
+
+#-------------------------------------------------------------------------------
+# Find TBB.
+if(aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE)
+    find_package(TBB 2021.4.0.0 REQUIRED)
+    if(aV2P_ACC_SYCL_ENABLE)
+        # The oneAPI OpenCL CPU runtime, loaded by the SYCL runtime, links the release TBB library (libtbb.so.12).
+        # Linking the debug TBB library (libtbb_debug.so.12) in Debug builds would load both libraries in the same
+        # process, which may crash at exit (e.g. with oneTBB 2022.3). Use the release TBB library also in Debug builds.
+        set_target_properties(TBB::tbb PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "RELEASE;DEBUG")
+    endif()
+    target_link_libraries(aV2P INTERFACE TBB::tbb)
+endif()
+
+#-------------------------------------------------------------------------------
+# Find OpenMP.
+if(aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE OR aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE)
+    if(APPLE)
+        # Starting from Xcode 14.3.1 our self-compiled OpenMP libraries are no longer visible by default. We need to specify a few paths first.
+        find_package(OpenMP COMPONENTS CXX)
+        if(NOT OpenMP_CXX_FOUND)
+            execute_process(COMMAND brew --prefix libomp
+                            OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
+                            OUTPUT_STRIP_TRAILING_WHITESPACE)
+            set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${HOMEBREW_LIBOMP_PREFIX}/include")
+            set(OpenMP_CXX_LIB_NAMES "omp")
+            set(OpenMP_omp_LIBRARY ${HOMEBREW_LIBOMP_PREFIX}/lib/libomp.dylib)
+
+            find_package(OpenMP REQUIRED COMPONENTS CXX)
+        endif()
+        target_link_libraries(aV2P INTERFACE OpenMP::OpenMP_CXX)
+    else()
+        find_package(OpenMP REQUIRED COMPONENTS CXX)
+        target_link_libraries(aV2P INTERFACE OpenMP::OpenMP_CXX)
+        # shown with CMake 3.29 and cray clang 17
+        # workaround: cmake is missing to add '-fopenmp' to the linker flags
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "CrayClang")
+            target_link_libraries(aV2P INTERFACE -fopenmp)
+        endif()
+    endif()
+endif()
+
+#-------------------------------------------------------------------------------
+# Find CUDA.
+if(aV2P_ACC_GPU_CUDA_ENABLE)
+    # Save the user-defined host compiler (if any)
+    set(_aV2P_CUDA_HOST_COMPILER ${CMAKE_CUDA_HOST_COMPILER})
+
+    check_language(CUDA)
+
+    if(CMAKE_CUDA_COMPILER)
+        if(NOT CMAKE_CUDA_COMPILER_ID STREQUAL "Clang")
+            # Use user selected CMake CXX compiler or CMAKE_CUDA_HOST_COMPILER as cuda host compiler to avoid fallback to the default system CXX host compiler.
+            # CMAKE_CUDA_HOST_COMPILER is reset by check_language(CUDA) therefore definitions passed by the user via -DCMAKE_CUDA_HOST_COMPILER are
+            # ignored by CMake (looks like a CMake bug).
+            if(_aV2P_CUDA_HOST_COMPILER)
+                set(CMAKE_CUDA_HOST_COMPILER ${_aV2P_CUDA_HOST_COMPILER})
+            elseif("$ENV{CUDAHOSTCXX}" STREQUAL "")
+                set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
+            endif()
+        endif()
+
+        # the CMake compiler detection of clang 17 and 18 as CUDA compiler is broken
+        # the detection try to compile an empty file with the default C++ standard of clang, which is -std=gnu++17
+        # but CUDA does not support the 128 bit float extension, therefore the test failes
+        # more details: https://gitlab.kitware.com/cmake/cmake/-/issues/25861
+        # this workaround disable the gnu extensions for the compiler detection
+        # the bug is fixed in clang 19: https://github.com/llvm/llvm-project/issues/88695
+        if("${CMAKE_CUDA_COMPILER}" MATCHES "clang*")
+            # get compiler version without enable_language()
+            execute_process(COMMAND ${CMAKE_CUDA_COMPILER} -dumpversion
+                   OUTPUT_VARIABLE _CLANG_CUDA_VERSION
+                   RESULT_VARIABLE _CLANG_CUDA_VERSION_ERROR_CODE)
+
+            if(NOT "${_CLANG_CUDA_VERSION_ERROR_CODE}" STREQUAL "0")
+                message(FATAL_ERROR "running '${CMAKE_CUDA_COMPILER} -dumpversion' failed: ${_CLANG_CUDA_VERSION_ERROR_CODE}")
+            endif()
+
+            string(STRIP ${_CLANG_CUDA_VERSION} _CLANG_CUDA_VERSION)
+            message(DEBUG "Workaround: manual checked Clang-CUDA version: ${_CLANG_CUDA_VERSION}")
+
+            if(${_CLANG_CUDA_VERSION} VERSION_GREATER_EQUAL 17 AND ${_CLANG_CUDA_VERSION} VERSION_LESS 19)
+                message(DEBUG "Workaround: apply -std=c++98 for clang as cuda compiler")
+                set(_CMAKE_CUDA_FLAGS_BEFORE ${CMAKE_CUDA_FLAGS})
+                # we need to use C++ 98 for the detection test, because from new, disabling the extension is ignored for C++ 98
+                set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++98")
+            endif()
+        endif()
+
+        enable_language(CUDA)
+        checkCompilerCXXSupport(CUDA ${aV2P_MIN_CXX_STANDARD})
+
+        if(DEFINED _CLANG_CUDA_VERSION)
+            message(DEBUG "Workaround: reset variables for clang as cuda compiler -std=c++98 fix")
+            # remove the flag compiler -std=c++98
+            set(CMAKE_CUDA_FLAGS ${_CMAKE_CUDA_FLAGS_BEFORE})
+            unset(_CMAKE_CUDA_FLAGS_BEFORE)
+            unset(_CLANG_CUDA_VERSION)
+            unset(_CLANG_CUDA_VERSION_ERROR_CODE)
+        endif()
+
+        find_package(CUDAToolkit REQUIRED)
+
+        target_compile_features(aV2P INTERFACE cuda_std_${aV2P_CXX_STANDARD})
+
+        aV2P_compiler_option(CUDA_SHOW_REGISTER "Show kernel registers and create device ASM" DEFAULT)
+        aV2P_compiler_option(CUDA_KEEP_FILES "Keep all intermediate files that are generated during internal compilation steps 'CMakeFiles/<targetname>.dir'" DEFAULT)
+        aV2P_compiler_option(CUDA_EXPT_EXTENDED_LAMBDA "Enable experimental, extended host-device lambdas in CUDA with nvcc" ON)
+
+        if(CMAKE_CUDA_COMPILER_ID STREQUAL "Clang")
+            message(STATUS "clang is used as CUDA compiler")
+
+            if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 17.0)
+                # clang-17 is the first version to support CUDA 12.x
+                message(FATAL_ERROR "clang as CUDA compiler requires at least clang-17.")
+            endif()
+
+            # workaround: ISA code parsing when compiling as debug with clang as CUDA compiler
+            # https://github.com/llvm/llvm-project/issues/58491, fixed in clang 20.1.0
+            # workaround: ptxas from CUDA 12.2 and older crashes on the device debug information for sm_90
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug"
+               AND (CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 20.1.0 OR CUDAToolkit_VERSION VERSION_LESS 12.3))
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-g -Xarch_device -g0>")
+            endif()
+
+            # CUDA 13 moved the CCCL headers (libcu++, CUB, Thrust) to include/cccl: nvcc adds it to the include
+            # path automatically, clang does not
+            if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL 13.0)
+                foreach(_CUDA_INCLUDE_DIR IN LISTS CUDAToolkit_INCLUDE_DIRS)
+                    if(IS_DIRECTORY "${_CUDA_INCLUDE_DIR}/cccl")
+                        target_include_directories(aV2P SYSTEM INTERFACE "${_CUDA_INCLUDE_DIR}/cccl")
+                    endif()
+                endforeach()
+                unset(_CUDA_INCLUDE_DIR)
+            endif()
+
+            if(aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE OR aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE)
+                message(FATAL_ERROR "Clang as a CUDA compiler does not support OpenMP 2!")
+            endif()
+
+            target_compile_options(aV2P INTERFACE "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Wno-unknown-cuda-version>")
+
+            # This flag silences the warning produced by the Dummy.cpp files:
+            # clang: warning: argument unused during compilation: '--cuda-gpu-arch=sm_XX'
+            # This seems to be a false positive as all flags are 'unused' for an empty file.
+            aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Qunused-arguments>")
+
+            if(aV2P_FAST_MATH STREQUAL ON)
+                # -ffp-contract=fast enables the usage of FMA
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-ffast-math -ffp-contract=fast>")
+            endif()
+
+            if(aV2P_FTZ STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-fcuda-flush-denormals-to-zero>")
+            endif()
+
+            if(aV2P_CUDA_SHOW_REGISTER STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcuda-ptxas=-v>")
+            endif()
+
+            if(aV2P_CUDA_KEEP_FILES STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-save-temps>")
+            endif()
+
+        elseif(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
+            message(STATUS "nvcc is used as CUDA compiler")
+
+            # nvcc sets no linux/__linux macros on OpenPOWER linux
+            # nvidia bug id: 2448610
+            if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+                if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
+                    aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Dlinux>")
+                endif()
+            endif()
+
+            if(aV2P_CUDA_EXPT_EXTENDED_LAMBDA STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--extended-lambda>")
+            endif()
+            # This is mandatory because with C++20 many standard library functions we rely on are constexpr (std::min, std::multiplies, ...)
+            aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--expt-relaxed-constexpr>")
+
+            # workaround: ptxas from CUDA 12.0 recurses without bound on the line information for sm_90, until it
+            # crashes or runs out of memory
+            set(_aV2P_CUDA_LINEINFO "-lineinfo")
+            if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 12.1 AND CMAKE_CUDA_ARCHITECTURES MATCHES "(^|;)(90|all)")
+                message(WARNING "nvcc 12.0 with sm_90 detected. Disabling the line information in RelWithDebInfo builds.")
+                set(_aV2P_CUDA_LINEINFO "")
+            endif()
+
+            # CMake automatically sets '-g' in debug mode
+            aV2P_set_compiler_options(DEVICE target aV2P "$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:SHELL:-G>" # -G overrides -lineinfo
+                                                             "$<$<AND:$<CONFIG:RelWithDebInfo>,$<COMPILE_LANGUAGE:CUDA>>:SHELL:-g ${_aV2P_CUDA_LINEINFO}>")
+            unset(_aV2P_CUDA_LINEINFO)
+
+            if(aV2P_FAST_MATH STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--use_fast_math>")
+            endif()
+
+            if(aV2P_FTZ STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--ftz=true>")
+            elseif(aV2P_FTZ STREQUAL OFF)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--ftz=false>")
+            endif()
+
+            if(aV2P_CUDA_SHOW_REGISTER STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xptxas -v>")
+            endif()
+
+            if(aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE OR aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE)
+                if(NOT MSVC)
+                    aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler -fopenmp>")
+
+                    # See https://github.com/alpaka-group/alpaka/issues/1755
+                    if((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang") AND
+                       (${CMAKE_CXX_COMPILER_VERSION} VERSION_GREATER_EQUAL 13))
+                       message(STATUS "clang >= 13 detected. Force-setting OpenMP to version 4.5.")
+                       aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler -fopenmp-version=45>")
+                    endif()
+                else()
+                    aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler /openmp>")
+                endif()
+            endif()
+
+            # Always add warning/error numbers which can be used for suppressions
+            set(AV2P_CUDA_DISPLAY_ERROR_NUM "$<IF:$<VERSION_LESS:$<CUDA_COMPILER_VERSION>,11.2.0>,-Xcudafe=--display_error_number,--display-error-number>")
+            aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:${AV2P_CUDA_DISPLAY_ERROR_NUM}>")
+
+            if(aV2P_CUDA_KEEP_FILES STREQUAL ON)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--keep>")
+            endif()
+
+            option(aV2P_CUDA_SHOW_CODELINES "Show kernel lines in cuda-gdb and cuda-memcheck. If aV2P_CUDA_KEEP_FILES is enabled source code will be inlined in ptx." OFF)
+            if(aV2P_CUDA_SHOW_CODELINES)
+                aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--source-in-ptx -lineinfo>")
+
+                # This is shaky - We currently don't have a way of checking for the host compiler ID.
+                # See https://gitlab.kitware.com/cmake/cmake/-/issues/20901
+                if(NOT MSVC)
+                    aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler -rdynamic>")
+                endif()
+                set(aV2P_CUDA_KEEP_FILES ON CACHE BOOL "activate keep files" FORCE)
+            endif()
+        endif()
+
+        # Use the Shared CUDA Runtime library by default
+        if(NOT DEFINED CMAKE_CUDA_RUNTIME_LIBRARY)
+            set(CMAKE_CUDA_RUNTIME_LIBRARY "Shared")
+        endif()
+
+        # Link the CUDA Runtime library
+        if(CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "Shared")
+            target_link_libraries(aV2P INTERFACE CUDA::cudart)
+        elseif(CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "Static")
+            target_link_libraries(aV2P INTERFACE CUDA::cudart_static)
+        elseif(CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "None")
+            message(WARNING "Building alpaka applications with CMAKE_CUDA_RUNTIME_LIBRARY=None is not supported.")
+        else()
+            message(FATAL_ERROR "Invalid setting for CMAKE_CUDA_RUNTIME_LIBRARY.")
+        endif()
+
+        if(NOT aV2P_DISABLE_VENDOR_RNG)
+            # Use cuRAND random number generators
+            if(CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "Shared")
+                target_link_libraries(aV2P INTERFACE CUDA::curand)
+            elseif(CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "Static")
+                target_link_libraries(aV2P INTERFACE CUDA::curand_static)
+            elseif(CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "None")
+                message(FATAL_ERROR "cuRAND requires the CUDA runtime library.")
+            endif()
+        endif()
+    else()
+        message(FATAL_ERROR "Optional alpaka dependency CUDA could not be found!")
+    endif()
+endif()
+
+#-------------------------------------------------------------------------------
+# Find HIP.
+if(aV2P_ACC_GPU_HIP_ENABLE)
+
+    check_language(HIP)
+
+    if(CMAKE_HIP_COMPILER)
+        enable_language(HIP)
+        find_package(hip REQUIRED)
+
+        set(_aV2P_HIP_MIN_VER 6.0)
+        set(_aV2P_HIP_MAX_VER 10.0)
+
+        checkCompilerCXXSupport(HIP ${aV2P_MIN_CXX_STANDARD})
+
+        # construct hip version only with major and minor level
+        # cannot use hip_VERSION because of the patch level
+        # 6.0 is smaller than 6.0.1234, so _aV2P_HIP_MAX_VER would have to be defined with a large patch level or
+        # the next minor level, e.g. 6.1, would have to be used.
+        set(_hip_MAJOR_MINOR_VERSION "${hip_VERSION_MAJOR}.${hip_VERSION_MINOR}")
+
+        if(${_hip_MAJOR_MINOR_VERSION} VERSION_LESS ${_aV2P_HIP_MIN_VER} OR ${_hip_MAJOR_MINOR_VERSION} VERSION_GREATER ${_aV2P_HIP_MAX_VER})
+            message(WARNING "HIP ${_hip_MAJOR_MINOR_VERSION} is not official supported by alpaka. Supported versions: ${_aV2P_HIP_MIN_VER} - ${_aV2P_HIP_MAX_VER}")
+        endif()
+
+        # let the compiler find the HIP headers also when building host-only code
+        target_include_directories(aV2P SYSTEM INTERFACE ${hip_INCLUDE_DIR})
+
+        target_link_libraries(aV2P INTERFACE "$<$<LINK_LANGUAGE:CXX>:hip::host>")
+        aV2P_set_compiler_options(HOST_DEVICE target aV2P "$<$<COMPILE_LANGUAGE:CXX>:-D__HIP_PLATFORM_AMD__>")
+
+        aV2P_compiler_option(HIP_KEEP_FILES "Keep all intermediate files that are generated during internal compilation steps 'CMakeFiles/<targetname>.dir'" OFF)
+        if(aV2P_HIP_KEEP_FILES)
+            aV2P_set_compiler_options(HOST_DEVICE target aV2P "$<$<COMPILE_LANGUAGE:HIP>:SHELL:-save-temps>")
+        endif()
+
+        if(aV2P_FAST_MATH STREQUAL ON)
+            aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:HIP>:SHELL:-ffast-math>")
+        endif()
+
+        if(NOT aV2P_DISABLE_VENDOR_RNG)
+            # hiprand requires ROCm implementation of random numbers by rocrand
+            # hip::hiprand is currently not expressing this dependency
+            find_package(rocrand REQUIRED CONFIG
+                    HINTS "${ROCM_ROOT_DIR}/rocrand"
+                    HINTS "/opt/rocm/rocrand")
+            if(rocrand_FOUND)
+                target_link_libraries(aV2P INTERFACE roc::rocrand)
+            else()
+                MESSAGE(FATAL_ERROR "Could not find rocRAND (also searched in: ROCM_ROOT_DIR=${ROCM_ROOT_DIR}/rocrand).")
+            endif()
+
+            # HIP random numbers
+            find_package(hiprand REQUIRED CONFIG
+                    HINTS "${HIP_ROOT_DIR}/hiprand"
+                    HINTS "/opt/rocm/hiprand")
+            if(hiprand_FOUND)
+                target_link_libraries(aV2P INTERFACE hip::hiprand)
+            else()
+                MESSAGE(FATAL_ERROR "Could not find hipRAND (also searched in: HIP_ROOT_DIR=${HIP_ROOT_DIR}/hiprand).")
+            endif()
+        endif()
+
+        if(aV2P_RELOCATABLE_DEVICE_CODE STREQUAL ON)
+            aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:HIP>:SHELL:-fgpu-rdc>")
+            target_link_options(aV2P INTERFACE "$<$<LINK_LANGUAGE:HIP>:SHELL:-fgpu-rdc --hip-link>")
+        elseif(aV2P_RELOCATABLE_DEVICE_CODE STREQUAL OFF)
+            aV2P_set_compiler_options(DEVICE target aV2P "$<$<COMPILE_LANGUAGE:HIP>:SHELL:-fno-gpu-rdc>")
+        endif()
+    else()
+        message(FATAL_ERROR "Optional alpaka dependency HIP could not be found!")
+    endif()
+endif() # HIP
+
+#-------------------------------------------------------------------------------
+# SYCL settings
+if(aV2P_ACC_SYCL_ENABLE)
+    if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
+        # Possible oneAPI targets
+        cmake_dependent_option(aV2P_SYCL_ONEAPI_CPU "Enable oneAPI CPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
+        cmake_dependent_option(aV2P_SYCL_ONEAPI_FPGA "Enable oneAPI FPGA targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
+        cmake_dependent_option(aV2P_SYCL_ONEAPI_GPU "Enable oneAPI GPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
+        cmake_dependent_option(aV2P_SYCL_ONEAPI_GPU_NVIDIA "Enable NVIDIA GPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
+        cmake_dependent_option(aV2P_SYCL_ONEAPI_GPU_AMD "Enable AMD GPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
+        # Intel FPGA emulation / simulation
+        if(aV2P_SYCL_ONEAPI_FPGA)
+            set(aV2P_SYCL_ONEAPI_FPGA_MODE "emulation" CACHE STRING "Synthesis type for oneAPI FPGA targets")
+            set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_MODE PROPERTY STRINGS "emulation;simulation;hardware")
+        endif()
+
+        aV2P_set_compiler_options(HOST_DEVICE target aV2P "-fsycl")
+        target_link_options(aV2P INTERFACE "-fsycl")
+        aV2P_set_compiler_options(HOST_DEVICE target aV2P "-sycl-std=2020")
+
+        #-----------------------------------------------------------------------------------------------------------------
+        # Determine SYCL targets
+        set(aV2P_SYCL_ONEAPI_CPU_TARGET "spir64_x86_64")
+        set(aV2P_SYCL_ONEAPI_FPGA_TARGET "spir64_fpga")
+        set(aV2P_SYCL_ONEAPI_GPU_TARGET ${aV2P_SYCL_ONEAPI_GPU_DEVICES})
+
+        if(aV2P_SYCL_ONEAPI_CPU)
+            list(APPEND aV2P_SYCL_TARGETS ${aV2P_SYCL_ONEAPI_CPU_TARGET})
+        endif()
+
+        if(aV2P_SYCL_ONEAPI_FPGA)
+            list(APPEND aV2P_SYCL_TARGETS ${aV2P_SYCL_ONEAPI_FPGA_TARGET})
+        endif()
+
+        if(aV2P_SYCL_ONEAPI_GPU OR aV2P_SYCL_ONEAPI_GPU_NVIDIA OR aV2P_SYCL_ONEAPI_GPU_AMD)
+            list(APPEND aV2P_SYCL_TARGETS ${aV2P_SYCL_ONEAPI_GPU_TARGET})
+        endif()
+
+        if(NOT aV2P_SYCL_TARGETS)
+            message(FATAL_ERROR "You must specify at least one oneAPI hardware target!")
+        endif()
+
+        list(JOIN aV2P_SYCL_TARGETS "," aV2P_SYCL_TARGETS_CONCAT)
+        aV2P_set_compiler_options(HOST_DEVICE target aV2P "-fsycl-targets=${aV2P_SYCL_TARGETS_CONCAT}")
+        target_link_options(aV2P INTERFACE "-fsycl-targets=${aV2P_SYCL_TARGETS_CONCAT}")
+
+        #-----------------------------------------------------------------------------------------------------------------
+        # Determine actual hardware to compile for
+        if(aV2P_SYCL_ONEAPI_CPU)
+            set(aV2P_SYCL_ONEAPI_CPU_ISA "avx2" CACHE STRING "Intel ISA to compile for")
+            set_property(CACHE aV2P_SYCL_ONEAPI_CPU_ISA PROPERTY STRINGS "sse4.2;avx;avx2;avx512")
+
+            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_CPU")
+            target_link_options(aV2P INTERFACE "SHELL:-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_CPU_TARGET} \"-march=${aV2P_SYCL_ONEAPI_CPU_ISA}\"")
+        endif()
+
+        if(aV2P_SYCL_ONEAPI_FPGA)
+            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_FPGA")
+
+            if(aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "emulation")
+                target_compile_definitions(aV2P INTERFACE "AV2P_FPGA_EMULATION")
+                aV2P_set_compiler_options(DEVICE target aV2P "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-emulator")
+                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-emulator")
+            elseif(aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "simulation")
+                aV2P_set_compiler_options(DEVICE target aV2P "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-simulation")
+                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-simulation")
+            elseif(aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "hardware")
+                aV2P_set_compiler_options(DEVICE target aV2P "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-hardware")
+                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-hardware")
+            endif()
+
+            if(NOT aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "emulation")
+                set(aV2P_SYCL_ONEAPI_FPGA_BOARD "pac_a10" CACHE STRING "Intel FPGA board to compile for")
+                set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_BOARD PROPERTY STRINGS "pac_a10;pac_s10;pac_s10_usm")
+
+                set(aV2P_SYCL_ONEAPI_FPGA_BSP "intel_a10gx_pac" CACHE STRING "Path to or name of the Intel FPGA board support package")
+                set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_BSP PROPERTY STRINGS "intel_a10gx_pac;intel_s10sx_pac")
+                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-board=${aV2P_SYCL_ONEAPI_FPGA_BSP}:${aV2P_SYCL_ONEAPI_FPGA_BOARD}")
+            endif()
+        endif()
+
+        if(aV2P_SYCL_ONEAPI_GPU)
+            # Create a drop-down list (in cmake-gui) of valid Intel GPU targets. On the command line the user can specifiy
+            # additional targets, such as ranges: "Gen8-Gen12LP" or lists: "icllp;skl".
+            set(aV2P_SYCL_ONEAPI_GPU_DEVICES "intel_gpu_pvc" CACHE STRING "Intel GPU devices / generations to compile for")
+            set_property(CACHE aV2P_SYCL_ONEAPI_GPU_DEVICES
+                        PROPERTY STRINGS "intel_gpu_pvc;intel_gpu_acm_g12;intel_gpu_acm_g11;intel_gpu_acm_g10;intel_gpu_dg1;intel_gpu_adl_n;intel_gpu_adl_p;intel_gpu_rpl_s;intel_gpu_adl_s;intel_gpu_rkl;intel_gpu_tgllp;intel_gpu_icllp;intel_gpu_cml;intel_gpu_aml;intel_gpu_whl;intel_gpu_glk;intel_gpu_apl;intel_gpu_cfl;intel_gpu_kbl;intel_gpu_skl;intel_gpu_bdw")
+            # If the user has given us a list turn all ';' into ',' to pacify the Intel OpenCL compiler.
+            string(REPLACE ";" "," aV2P_SYCL_ONEAPI_GPU_DEVICES "${aV2P_SYCL_ONEAPI_GPU_DEVICES}")
+
+            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU")
+        endif()
+
+        if(aV2P_SYCL_ONEAPI_GPU_NVIDIA)
+            # Create a drop-down list (in cmake-gui) of valid Intel GPU targets. On the command line the user can specifiy
+            # additional targets, such as ranges: "Gen8-Gen12LP" or lists: "icllp;skl".
+            set(aV2P_SYCL_ONEAPI_GPU_DEVICES "nvidia_gpu_sm_89" CACHE STRING "NVIDIA GPU devices / generations to compile for")
+            set_property(CACHE aV2P_SYCL_ONEAPI_GPU_DEVICES
+                        PROPERTY STRINGS "nvidia_gpu_sm_50;nvidia_gpu_sm_52;nvidia_gpu_sm_53;nvidia_gpu_sm_60;nvidia_gpu_sm_61;nvidia_gpu_sm_62;nvidia_gpu_sm_70;nvidia_gpu_sm_72;nvidia_gpu_sm_75;nvidia_gpu_sm_80;nvidia_gpu_sm_86;nvidia_gpu_sm_87;nvidia_gpu_sm_89;nvidia_gpu_sm_90")
+            # If the user has given us a list turn all ';' into ',' to pacify the Intel OpenCL compiler.
+            string(REPLACE ";" "," aV2P_SYCL_ONEAPI_GPU_DEVICES "${aV2P_SYCL_ONEAPI_GPU_DEVICES}")
+
+            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU_NVIDIA")
+
+            # oneAPI 2025.0 cannot compile the CUDA device code with debug symbols: ptxas fails on the debug information
+            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 2025.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 2025.1)
+                if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                    message(FATAL_ERROR "The SYCL backend for NVIDIA GPUs does not support Debug builds with oneAPI ${CMAKE_CXX_COMPILER_VERSION}, because ptxas fails on the device debug information. Use a different build type or a different version of oneAPI.")
+                endif()
+                # with multi-config generators the build type is known only at build time
+                target_compile_definitions(aV2P INTERFACE "$<$<CONFIG:Debug>:AV2P_SYCL_ONEAPI_GPU_NVIDIA_DEBUG_UNSUPPORTED>")
+            endif()
+        endif()
+
+        if(aV2P_SYCL_ONEAPI_GPU_AMD)
+            # Create a drop-down list (in cmake-gui) of valid Intel GPU targets. On the command line the user can specifiy
+            # additional targets, such as ranges: "Gen8-Gen12LP" or lists: "icllp;skl".
+            set(aV2P_SYCL_ONEAPI_GPU_DEVICES "amd_gpu_gfx1200" CACHE STRING "AMD GPU devices / generations to compile for")
+            set_property(CACHE aV2P_SYCL_ONEAPI_GPU_DEVICES
+                        PROPERTY STRINGS "amd_gpu_gfx700;amd_gpu_gfx701;amd_gpu_gfx702;amd_gpu_gfx801;amd_gpu_gfx802;amd_gpu_gfx803;amd_gpu_gfx805;amd_gpu_gfx810;amd_gpu_gfx900;amd_gpu_gfx902;amd_gpu_gfx904;amd_gpu_gfx906;amd_gpu_gfx908;amd_gpu_gfx909;amd_gpu_gfx90a;amd_gpu_gfx90c;amd_gpu_gfx940;amd_gpu_gfx941;amd_gpu_gfx942;amd_gpu_gfx1010;amd_gpu_gfx1011;amd_gpu_gfx1012;amd_gpu_gfx1013;amd_gpu_gfx1030;amd_gpu_gfx1031;amd_gpu_gfx1032;amd_gpu_gfx1033;amd_gpu_gfx1034;amd_gpu_gfx1035;amd_gpu_gfx1036;amd_gpu_gfx1100;amd_gpu_gfx1101;amd_gpu_gfx1102;amd_gpu_gfx1103;amd_gpu_gfx1150;amd_gpu_gfx1151;amd_gpu_gfx1200;amd_gpu_gfx1201")
+            # If the user has given us a list turn all ';' into ',' to pacify the Intel OpenCL compiler.
+            string(REPLACE ";" "," aV2P_SYCL_ONEAPI_GPU_DEVICES "${aV2P_SYCL_ONEAPI_GPU_DEVICES}")
+
+            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU_AMD")
+        endif()
+
+        #-----------------------------------------------------------------------------------------------------------------
+        # Generic SYCL options
+        aV2P_set_compiler_options(DEVICE target aV2P "-fsycl-unnamed-lambda") # Compiler default but made explicit here
+
+        if(aV2P_RELOCATABLE_DEVICE_CODE STREQUAL ON)
+            aV2P_set_compiler_options(DEVICE target aV2P "-fsycl-rdc")
+            target_link_options(aV2P INTERFACE "-fsycl-rdc")
+        elseif(aV2P_RELOCATABLE_DEVICE_CODE STREQUAL OFF)
+            aV2P_set_compiler_options(DEVICE target aV2P "-fno-sycl-rdc")
+            target_link_options(aV2P INTERFACE "-fno-sycl-rdc")
+        endif()
+    else()
+        message(FATAL_ERROR "alpaka currently does not support SYCL implementations other than oneAPI: ${CMAKE_CXX_COMPILER_ID}.")
+    endif()
+
+    if(NOT aV2P_DISABLE_VENDOR_RNG)
+        # Use oneDPL random number generators
+        find_package(oneDPL REQUIRED)
+        target_link_libraries(aV2P INTERFACE oneDPL)
+    endif()
+endif()
+
+#-------------------------------------------------------------------------------
+# alpaka.
+if(aV2P_ACC_GPU_CUDA_ONLY_MODE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_GPU_CUDA_ONLY_MODE")
+    message(STATUS aV2P_ACC_GPU_CUDA_ONLY_MODE)
+endif()
+
+if(aV2P_ACC_GPU_HIP_ONLY_MODE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_GPU_HIP_ONLY_MODE")
+    message(STATUS aV2P_ACC_GPU_HIP_ONLY_MODE)
+endif()
+
+if(aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED")
+    message(STATUS aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED)
+endif()
+
+if(aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED")
+    message(STATUS aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED)
+endif()
+if(aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED")
+    message(STATUS aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED)
+endif()
+if(aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED")
+    message(STATUS aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED)
+endif()
+if(aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLED")
+    message(STATUS aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLED)
+endif()
+if(aV2P_ACC_GPU_CUDA_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_GPU_CUDA_ENABLED")
+    message(STATUS aV2P_ACC_GPU_CUDA_ENABLED)
+endif()
+if(aV2P_ACC_GPU_HIP_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_GPU_HIP_ENABLED")
+    message(STATUS aV2P_ACC_GPU_HIP_ENABLED)
+endif()
+
+if(aV2P_ACC_SYCL_ENABLE)
+    target_compile_definitions(aV2P INTERFACE "AV2P_ACC_SYCL_ENABLED")
+
+    if(aV2P_SYCL_ONEAPI_CPU)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_CPU")
+    endif()
+    if(aV2P_SYCL_ONEAPI_FPGA)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_FPGA")
+    endif()
+    if(aV2P_SYCL_ONEAPI_GPU)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_GPU")
+    endif()
+    if(aV2P_SYCL_ONEAPI_GPU_NVIDIA)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_GPU_NVIDIA")
+    endif()
+    if(aV2P_SYCL_ONEAPI_GPU_AMD)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_GPU_AMD")
+    endif()
+
+    message(STATUS aV2P_ACC_SYCL_ENABLED)
+endif()
+
+target_compile_definitions(aV2P INTERFACE "AV2P_DEBUG=${aV2P_DEBUG}")
+
+target_compile_definitions(aV2P INTERFACE "AV2P_BLOCK_SHARED_DYN_MEMBER_ALLOC_KIB=${aV2P_BLOCK_SHARED_DYN_MEMBER_ALLOC_KIB}")
+
+if(aV2P_CI)
+    target_compile_definitions(aV2P INTERFACE "AV2P_CI")
+endif()
+
+#-------------------------------------------------------------------------------
+# Target.
+if(TARGET aV2P)
+
+    if(${aV2P_DEBUG} GREATER 1)
+        # Compile options.
+        get_property(_aV2P_COMPILE_OPTIONS_PUBLIC
+                     TARGET aV2P
+                     PROPERTY INTERFACE_COMPILE_OPTIONS)
+        cmake_print_variables(_aV2P_COMPILE_OPTIONS_PUBLIC)
+
+        # Compile definitions
+        get_property(_aV2P_COMPILE_DEFINITIONS_PUBLIC
+                     TARGET aV2P
+                     PROPERTY INTERFACE_COMPILE_DEFINITIONS)
+        cmake_print_variables(_aV2P_COMPILE_DEFINITIONS_PUBLIC)
+
+        # Include directories.
+        get_property(_aV2P_INCLUDE_DIRECTORIES_PUBLIC
+                     TARGET aV2P
+                     PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+        cmake_print_variables(_aV2P_INCLUDE_DIRECTORIES_PUBLIC)
+    endif()
+
+    # the alpaka library itself
+    # SYSTEM voids showing warnings produced by alpaka when used in user applications.
+    if(BUILD_TESTING)
+        target_include_directories(aV2P
+          INTERFACE
+            $<BUILD_INTERFACE:${_aV2P_INCLUDE_DIRECTORY}>
+            $<INSTALL_INTERFACE:include>)
+    else()
+        target_include_directories(aV2P
+          SYSTEM INTERFACE
+            $<BUILD_INTERFACE:${_aV2P_INCLUDE_DIRECTORY}>
+            $<INSTALL_INTERFACE:include>)
+    endif()
+
+    if(${aV2P_DEBUG} GREATER 1)
+        # Link libraries.
+        # There are no PUBLIC_LINK_FLAGS in CMAKE:
+        # http://stackoverflow.com/questions/26850889/cmake-keeping-link-flags-of-internal-libs
+        get_property(_aV2P_LINK_LIBRARIES_PUBLIC
+                     TARGET aV2P
+                     PROPERTY INTERFACE_LINK_LIBRARIES)
+        cmake_print_variables(_aV2P_LINK_LIBRARIES_PUBLIC)
+
+        get_property(_aV2P_LINK_FLAGS_PUBLIC
+                     TARGET aV2P
+                     PROPERTY INTERFACE_LINK_OPTIONS)
+        cmake_print_variables(_aV2P_LINK_FLAGS_PUBLIC)
+    endif()
+endif()
+
+# Compile options summary
+if(aV2P_COMPILER_OPTIONS_DEVICE OR aV2P_COMPILER_OPTIONS_DEVICE)
+    message("")
+    message("List of compiler flags added by alpaka")
+    if(aV2P_COMPILER_OPTIONS_HOST)
+        message("host compiler:")
+        message("    ${aV2P_COMPILER_OPTIONS_HOST}")
+    endif()
+    if(aV2P_COMPILER_OPTIONS_DEVICE)
+        message("device compiler:")
+        message("    ${aV2P_COMPILER_OPTIONS_DEVICE}")
+    endif()
+    message("")
+endif()
+
+#-------------------------------------------------------------------------------
+# Include mdspan
+
+set(aV2P_USE_MDSPAN "OFF" CACHE STRING "Use std::mdspan with alpaka")
+set_property(CACHE aV2P_USE_MDSPAN PROPERTY STRINGS "SYSTEM;FETCH;OFF")
+
+if (aV2P_USE_MDSPAN STREQUAL "SYSTEM")
+    find_package(mdspan REQUIRED)
+    target_link_libraries(aV2P INTERFACE std::mdspan)
+    target_compile_definitions(aV2P INTERFACE AV2P_USE_MDSPAN)
+elseif (aV2P_USE_MDSPAN STREQUAL "FETCH")
+    include(FetchContent)
+    FetchContent_Declare(
+        # kokkos/mdspan as of 2026.08.19
+        mdspan
+        GIT_REPOSITORY https://github.com/kokkos/mdspan.git
+        GIT_TAG ef0adc1ca08b6eda520a7fd3fcfd8125662518e7
+    )
+    # we don't use FetchContent_MakeAvailable(mdspan) since it would also install mdspan
+    # see also: https://stackoverflow.com/questions/65527126/how-to-disable-installation-a-fetchcontent-dependency
+    FetchContent_GetProperties(mdspan)
+    if(NOT mdspan_POPULATED)
+        FetchContent_Populate(mdspan)
+        if(${CMAKE_VERSION} VERSION_LESS "3.25.0")
+            add_subdirectory(${mdspan_SOURCE_DIR} ${mdspan_BINARY_DIR} EXCLUDE_FROM_ALL)
+        else()
+            add_subdirectory(${mdspan_SOURCE_DIR} ${mdspan_BINARY_DIR} EXCLUDE_FROM_ALL SYSTEM)
+        endif()
+    endif()
+    if(${CMAKE_VERSION} VERSION_LESS "3.25.0")
+        get_target_property(mdspan_include_dir mdspan::mdspan INTERFACE_INCLUDE_DIRECTORIES)
+        target_include_directories(aV2P SYSTEM INTERFACE ${mdspan_include_dir})
+    else()
+        target_link_libraries(aV2P INTERFACE mdspan::mdspan)
+    endif()
+    target_compile_definitions(aV2P INTERFACE AV2P_USE_MDSPAN)
+elseif (aV2P_USE_MDSPAN STREQUAL "OFF")
+else()
+    message(FATAL_ERROR "Invalid option for aV2P_USE_MDSPAN")
+endif()
+
+if (NOT aV2P_USE_MDSPAN STREQUAL "OFF")
+    if (MSVC AND (aV2P_CXX_STANDARD LESS 20))
+        message(FATAL_ERROR "std::mdspan on MSVC requires C++20. Please enable C++20 via aV2P_CXX_STANDARD. Use of std::mdspan has been disabled.")
+    endif ()
+
+    if (aV2P_ACC_GPU_CUDA_ENABLE AND CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND (NOT aV2P_CUDA_EXPT_EXTENDED_LAMBDA STREQUAL ON))
+        message(FATAL_ERROR "std::mdspan requires nvcc's extended lambdas.")
+    endif()
+endif()

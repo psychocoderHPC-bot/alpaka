@@ -2,13 +2,13 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/core/ApiCudaRt.hpp>
-#include <alpaka/core/ApiHipRt.hpp>
-#include <alpaka/meta/Concatenate.hpp>
-#include <alpaka/queue/Traits.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-#include <alpaka/test/queue/QueueCpuOmp2Collective.hpp>
-#include <alpaka/test/queue/QueueTestFixture.hpp>
+#include <aV2P/core/ApiCudaRt.hpp>
+#include <aV2P/core/ApiHipRt.hpp>
+#include <aV2P/meta/Concatenate.hpp>
+#include <aV2P/queue/Traits.hpp>
+#include <aV2P/test/queue/Queue.hpp>
+#include <aV2P/test/queue/QueueCpuOmp2Collective.hpp>
+#include <aV2P/test/queue/QueueTestFixture.hpp>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -19,33 +19,33 @@
 #include <thread>
 #include <typeinfo>
 
-using TestQueues = alpaka::meta::Concatenate<
-    alpaka::test::TestQueues
-#ifdef ALPAKA_ACC_CPU_B_OMP2_T_SEQ_ENABLED
+using TestQueues = aV2P::meta::Concatenate<
+    aV2P::test::TestQueues
+#ifdef AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED
     ,
-    std::tuple<std::tuple<alpaka::DevCpu, alpaka::QueueCpuOmp2Collective>>
+    std::tuple<std::tuple<aV2P::DevCpu, aV2P::QueueCpuOmp2Collective>>
 #endif
     >;
 
 TEMPLATE_LIST_TEST_CASE("queueIsInitiallyEmpty", "[queue]", TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
-    CHECK(alpaka::empty(f.m_queue));
+    CHECK(aV2P::empty(f.m_queue));
 }
 
 TEMPLATE_LIST_TEST_CASE("queueCallbackIsWorking", "[queue]", TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
     // Lambda callable
     {
         std::promise<bool> promise;
-        alpaka::enqueue(f.m_queue, [&]() { promise.set_value(true); });
+        aV2P::enqueue(f.m_queue, [&]() { promise.set_value(true); });
         CHECK(promise.get_future().get());
     }
 
@@ -53,7 +53,7 @@ TEMPLATE_LIST_TEST_CASE("queueCallbackIsWorking", "[queue]", TestQueues)
     {
         std::promise<bool> promise;
         std::function<void()> callback = [&]() { promise.set_value(true); };
-        alpaka::enqueue(f.m_queue, std::move(callback));
+        aV2P::enqueue(f.m_queue, std::move(callback));
         CHECK(promise.get_future().get());
     }
 
@@ -61,7 +61,7 @@ TEMPLATE_LIST_TEST_CASE("queueCallbackIsWorking", "[queue]", TestQueues)
     {
         std::promise<bool> promise;
         std::function<void()> callback = [&]() { promise.set_value(true); };
-        alpaka::enqueue(f.m_queue, callback);
+        aV2P::enqueue(f.m_queue, callback);
         CHECK(promise.get_future().get());
     }
 }
@@ -69,34 +69,34 @@ TEMPLATE_LIST_TEST_CASE("queueCallbackIsWorking", "[queue]", TestQueues)
 TEMPLATE_LIST_TEST_CASE("queueTaskValueCategories", "[queue]", TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
     bool flag = false;
     auto task = [&] { flag = true; };
-    alpaka::enqueue(f.m_queue, task); // lvalue
-    alpaka::wait(f.m_queue);
+    aV2P::enqueue(f.m_queue, task); // lvalue
+    aV2P::wait(f.m_queue);
     CHECK(flag == true);
 
     flag = false;
-    alpaka::enqueue(f.m_queue, std::move(task)); // xvalue
-    alpaka::wait(f.m_queue);
+    aV2P::enqueue(f.m_queue, std::move(task)); // xvalue
+    aV2P::wait(f.m_queue);
     CHECK(flag == true);
 
     flag = false;
-    alpaka::enqueue(f.m_queue, [&] { flag = true; }); // prvalue
-    alpaka::wait(f.m_queue);
+    aV2P::enqueue(f.m_queue, [&] { flag = true; }); // prvalue
+    aV2P::wait(f.m_queue);
     CHECK(flag == true);
 }
 
 TEMPLATE_LIST_TEST_CASE("queueWaitShouldWork", "[queue]", TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
     std::atomic<bool> callbackFinished{false};
-    alpaka::enqueue(
+    aV2P::enqueue(
         f.m_queue,
         [&callbackFinished]() noexcept
         {
@@ -104,7 +104,7 @@ TEMPLATE_LIST_TEST_CASE("queueWaitShouldWork", "[queue]", TestQueues)
             callbackFinished = true;
         });
 
-    alpaka::wait(f.m_queue);
+    aV2P::wait(f.m_queue);
     CHECK(callbackFinished.load() == true);
 }
 
@@ -114,29 +114,29 @@ TEMPLATE_LIST_TEST_CASE(
     TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
     std::atomic<bool> callbackFinished{false};
     std::atomic<bool> inKernelIsNotEmptyBeforeSleep{false};
     std::atomic<bool> inKernelIsNotEmptyAfterSleep{false};
 
-    alpaka::enqueue(
+    aV2P::enqueue(
         f.m_queue,
         [&]() noexcept
         {
             // This callback function is in the queue therefore the queue can not be empty.
-            inKernelIsNotEmptyBeforeSleep = !alpaka::empty(f.m_queue);
+            inKernelIsNotEmptyBeforeSleep = !aV2P::empty(f.m_queue);
             std::this_thread::sleep_for(std::chrono::milliseconds(100u));
             // Check again, the queue must stay not empty.
-            inKernelIsNotEmptyAfterSleep = !alpaka::empty(f.m_queue);
+            inKernelIsNotEmptyAfterSleep = !aV2P::empty(f.m_queue);
             callbackFinished = true;
         });
 
     // A non-blocking queue will always stay empty because the task has been executed immediately.
-    if(!alpaka::test::IsBlockingQueue<typename Fixture::Queue>::value)
+    if(!aV2P::test::IsBlockingQueue<typename Fixture::Queue>::value)
     {
-        alpaka::wait(f.m_queue);
+        aV2P::wait(f.m_queue);
     }
 
     CHECK(callbackFinished.load() == true);
@@ -145,7 +145,7 @@ TEMPLATE_LIST_TEST_CASE(
 
     // The blocking queue must be empty because we wait for the non-blocking queue and the blocking on is synchronized
     // implicitly.
-    CHECK(alpaka::empty(f.m_queue));
+    CHECK(aV2P::empty(f.m_queue));
 }
 
 TEMPLATE_LIST_TEST_CASE("taskIsDestroyedAfterExecution", "[queue]", TestQueues)
@@ -172,21 +172,21 @@ TEMPLATE_LIST_TEST_CASE("taskIsDestroyedAfterExecution", "[queue]", TestQueues)
     };
 
     using DevQueue = TestType;
-    auto f = alpaka::test::QueueTestFixture<DevQueue>{};
+    auto f = aV2P::test::QueueTestFixture<DevQueue>{};
 
     std::atomic<bool> destroyed{false};
-    alpaka::enqueue(f.m_queue, Kernel{destroyed});
+    aV2P::enqueue(f.m_queue, Kernel{destroyed});
 
-    if(!alpaka::test::IsBlockingQueue<decltype(f.m_queue)>::value)
-        alpaka::wait(f.m_queue);
+    if(!aV2P::test::IsBlockingQueue<decltype(f.m_queue)>::value)
+        aV2P::wait(f.m_queue);
     CHECK(destroyed == true);
-    CHECK(alpaka::empty(f.m_queue));
+    CHECK(aV2P::empty(f.m_queue));
 }
 
 TEMPLATE_LIST_TEST_CASE("queueShouldNotExecuteTasksInParallel", "[queue]", TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
     std::atomic<bool> taskIsExecuting(false);
@@ -202,7 +202,7 @@ TEMPLATE_LIST_TEST_CASE("queueShouldNotExecuteTasksInParallel", "[queue]", TestQ
     std::thread thread1(
         [&]()
         {
-            alpaka::enqueue(
+            aV2P::enqueue(
                 f.m_queue,
                 [&]() noexcept
                 {
@@ -216,7 +216,7 @@ TEMPLATE_LIST_TEST_CASE("queueShouldNotExecuteTasksInParallel", "[queue]", TestQ
     std::thread thread2(
         [&]()
         {
-            alpaka::enqueue(
+            aV2P::enqueue(
                 f.m_queue,
                 [&]() noexcept
                 {
@@ -231,7 +231,7 @@ TEMPLATE_LIST_TEST_CASE("queueShouldNotExecuteTasksInParallel", "[queue]", TestQ
     thread1.join();
     thread2.join();
 
-    alpaka::wait(f.m_queue);
+    aV2P::wait(f.m_queue);
     CHECK(firstTaskInKernelIsExecutingBeforeSleep.load() == true);
     CHECK(firstTaskInKernelIsExecutingAfterSleep.load() == true);
     CHECK(secondTaskInKernelIsExecutingBeforeSleep.load() == true);
@@ -253,15 +253,15 @@ TEMPLATE_LIST_TEST_CASE("queueShouldNotExecuteTasksInParallel", "[queue]", TestQ
 TEMPLATE_LIST_TEST_CASE("nonBlockingQueueShouldNotRunPastProgramTermination", "[queue]", TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
-    if(!alpaka::test::IsBlockingQueue<typename Fixture::Queue>::value)
+    if(!aV2P::test::IsBlockingQueue<typename Fixture::Queue>::value)
     {
         // enqueue long task, destroy queue, see what happens
-        alpaka::enqueue(
+        aV2P::enqueue(
             f.m_queue,
-            [name = alpaka::core::demangled<decltype(f.m_queue)>]
+            [name = aV2P::core::demangled<decltype(f.m_queue)>]
             {
                 std::cout << "BEGIN not-awaited task in Queue '" << name
                           << "' (if there is no matching 'END' line, the task ran past program termination)"
@@ -272,10 +272,10 @@ TEMPLATE_LIST_TEST_CASE("nonBlockingQueueShouldNotRunPastProgramTermination", "[
     }
 }
 
-TEMPLATE_LIST_TEST_CASE("enqueueBenchmark", "[queue]", alpaka::test::TestQueues)
+TEMPLATE_LIST_TEST_CASE("enqueueBenchmark", "[queue]", aV2P::test::TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
     constexpr auto reps = 1000;
@@ -283,35 +283,35 @@ TEMPLATE_LIST_TEST_CASE("enqueueBenchmark", "[queue]", alpaka::test::TestQueues)
     {
         std::atomic<int> count = 0;
         for(int i = 0; i < reps; i++)
-            alpaka::enqueue(f.m_queue, [&]() noexcept { ++count; });
-        alpaka::wait(f.m_queue);
+            aV2P::enqueue(f.m_queue, [&]() noexcept { ++count; });
+        aV2P::wait(f.m_queue);
         return count.load();
     };
 }
 
-TEMPLATE_LIST_TEST_CASE("concepts::Queue", "[queue]", alpaka::test::TestQueues)
+TEMPLATE_LIST_TEST_CASE("concepts::Queue", "[queue]", aV2P::test::TestQueues)
 {
     using DevQueue = TestType;
-    using Fixture = alpaka::test::QueueTestFixture<DevQueue>;
+    using Fixture = aV2P::test::QueueTestFixture<DevQueue>;
     Fixture f;
 
-    REQUIRE(alpaka::concepts::Queue<decltype(f.m_queue)>);
+    REQUIRE(aV2P::concepts::Queue<decltype(f.m_queue)>);
 }
 
-#if defined(ALPAKA_ACC_GPU_CUDA_ENABLED) || defined(ALPAKA_ACC_GPU_HIP_ENABLED)
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED) || defined(AV2P_ACC_GPU_HIP_ENABLED)
 
-#    if defined(ALPAKA_ACC_GPU_CUDA_ENABLED)
-using TApi = alpaka::ApiCudaRt;
-#    elif defined(ALPAKA_ACC_GPU_HIP_ENABLED)
-using TApi = alpaka::ApiHipRt;
+#    if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+using TApi = aV2P::ApiCudaRt;
+#    elif defined(AV2P_ACC_GPU_HIP_ENABLED)
+using TApi = aV2P::ApiHipRt;
 #    endif
 
-TEMPLATE_LIST_TEST_CASE("constructQueueWithStream", "[queue]", alpaka::test::TestQueues)
+TEMPLATE_LIST_TEST_CASE("constructQueueWithStream", "[queue]", aV2P::test::TestQueues)
 {
     TApi::Stream_t stream;
-    ALPAKA_UNIFORM_CUDA_HIP_RT_CHECK(TApi::streamCreate(&stream));
-    auto queue = alpaka::QueueUniformCudaHipRtBlocking<TApi>(stream);
-    ALPAKA_UNIFORM_CUDA_HIP_RT_CHECK(TApi::streamDestroy(stream));
+    AV2P_UNIFORM_CUDA_HIP_RT_CHECK(TApi::streamCreate(&stream));
+    auto queue = aV2P::QueueUniformCudaHipRtBlocking<TApi>(stream);
+    AV2P_UNIFORM_CUDA_HIP_RT_CHECK(TApi::streamDestroy(stream));
 }
 
 #endif

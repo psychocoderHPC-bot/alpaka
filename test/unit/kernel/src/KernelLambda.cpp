@@ -5,10 +5,10 @@
 // NVCC needs --expt-extended-lambda
 #if !defined(__NVCC__) || (defined(__NVCC__) && defined(__CUDACC_EXTENDED_LAMBDA__))
 
-#    include <alpaka/core/Config.hpp>
-#    include <alpaka/kernel/Traits.hpp>
-#    include <alpaka/test/KernelExecutionFixture.hpp>
-#    include <alpaka/test/acc/TestAccs.hpp>
+#    include <aV2P/core/Config.hpp>
+#    include <aV2P/kernel/Traits.hpp>
+#    include <aV2P/test/KernelExecutionFixture.hpp>
+#    include <aV2P/test/acc/TestAccs.hpp>
 
 #    include <catch2/catch_test_macros.hpp>
 
@@ -17,22 +17,22 @@ struct TestTemplateLambda
     template<typename TAcc>
     void operator()()
     {
-        using Dim = alpaka::Dim<TAcc>;
-        using Idx = alpaka::Idx<TAcc>;
+        using Dim = aV2P::Dim<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
-        alpaka::test::KernelExecutionFixture<TAcc> fixture(alpaka::Vec<Dim, Idx>::ones());
+        aV2P::test::KernelExecutionFixture<TAcc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
-#    if ALPAKA_COMP_MSVC
+#    if AV2P_COMP_MSVC
 #        pragma warning(push)
 #        pragma warning(disable : 4702) // warning C4702: unreachable code
 #    endif
-        auto kernel = [] ALPAKA_FN_ACC(TAcc const& acc, bool* success) -> void
+        auto kernel = [] AV2P_FN_ACC(TAcc const& acc, bool* success) -> void
         {
-            ALPAKA_CHECK(
+            AV2P_CHECK(
                 *success,
-                static_cast<alpaka::Idx<TAcc>>(1) == (alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)).prod());
+                static_cast<aV2P::Idx<TAcc>>(1) == (aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)).prod());
         };
-#    if ALPAKA_COMP_MSVC
+#    if AV2P_COMP_MSVC
 #        pragma warning(pop)
 #    endif
 
@@ -45,14 +45,14 @@ struct TestTemplateArg
     template<typename TAcc>
     void operator()()
     {
-        using Dim = alpaka::Dim<TAcc>;
-        using Idx = alpaka::Idx<TAcc>;
+        using Dim = aV2P::Dim<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
-        alpaka::test::KernelExecutionFixture<TAcc> fixture(alpaka::Vec<Dim, Idx>::ones());
+        aV2P::test::KernelExecutionFixture<TAcc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
         std::uint32_t const arg = 42u;
-        auto kernel = [] ALPAKA_FN_ACC(TAcc const& /* acc */, bool* success, std::uint32_t const& arg1) -> void
-        { ALPAKA_CHECK(*success, 42u == arg1); };
+        auto kernel = [] AV2P_FN_ACC(TAcc const& /* acc */, bool* success, std::uint32_t const& arg1) -> void
+        { AV2P_CHECK(*success, 42u == arg1); };
 
         REQUIRE(fixture(kernel, arg));
     }
@@ -63,15 +63,15 @@ struct TestTemplateCapture
     template<typename TAcc>
     void operator()()
     {
-        using Dim = alpaka::Dim<TAcc>;
-        using Idx = alpaka::Idx<TAcc>;
+        using Dim = aV2P::Dim<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
-        alpaka::test::KernelExecutionFixture<TAcc> fixture(alpaka::Vec<Dim, Idx>::ones());
+        aV2P::test::KernelExecutionFixture<TAcc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
         std::uint32_t arg = 42u;
 
-        auto kernel = [arg] ALPAKA_FN_ACC(TAcc const& /* acc */, bool* success) -> void
-        { ALPAKA_CHECK(*success, 42u == arg); };
+        auto kernel = [arg] AV2P_FN_ACC(TAcc const& /* acc */, bool* success) -> void
+        { AV2P_CHECK(*success, 42u == arg); };
 
         REQUIRE(fixture(kernel));
     }
@@ -79,17 +79,17 @@ struct TestTemplateCapture
 
 TEST_CASE("lambdaKernelIsWorking", "[kernel]")
 {
-    alpaka::meta::forEachType<alpaka::test::TestAccs>(TestTemplateLambda());
+    aV2P::meta::forEachType<aV2P::test::TestAccs>(TestTemplateLambda());
 }
 
 TEST_CASE("lambdaKernelWithArgumentIsWorking", "[kernel]")
 {
-    alpaka::meta::forEachType<alpaka::test::TestAccs>(TestTemplateArg());
+    aV2P::meta::forEachType<aV2P::test::TestAccs>(TestTemplateArg());
 }
 
 TEST_CASE("lambdaKernelWithCapturingIsWorking", "[kernel]")
 {
-    alpaka::meta::forEachType<alpaka::test::TestAccs>(TestTemplateCapture());
+    aV2P::meta::forEachType<aV2P::test::TestAccs>(TestTemplateCapture());
 }
 
 #endif

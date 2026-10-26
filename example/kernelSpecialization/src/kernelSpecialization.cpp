@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <iostream>
 
@@ -27,10 +27,10 @@ struct Kernel
     //!
     //! It will be called when no overload is a better match.
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc) const -> void
     {
         // For simplicity assume 1d thread indexing
-        auto const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
+        auto const globalThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0];
         if(globalThreadIdx == 0u)
             printf("Running the general kernel implementation\n");
     }
@@ -39,9 +39,9 @@ struct Kernel
     //!
     //! We have to guard it with #ifdef as the types of alpaka accelerators are only conditionally available.
     //! Overloading for other accelerators is similar, with another template name instead of AccGpuCudaRt.
-#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+#ifdef AV2P_ACC_GPU_CUDA_ENABLED
     template<typename TDim, typename TIdx>
-    ALPAKA_FN_ACC auto operator()(alpaka::AccGpuCudaRt<TDim, TIdx> const& acc) const -> void
+    AV2P_FN_ACC auto operator()(aV2P::AccGpuCudaRt<TDim, TIdx> const& acc) const -> void
     {
         // This overload is used when the kernel is run on the CUDA accelerator.
         // So inside we can use both alpaka and native CUDA directly.
@@ -57,21 +57,21 @@ struct Kernel
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Define the accelerator
     // For simplicity this examples always uses 1 dimensional indexing, and index type size_t
-    using Acc = alpaka::TagToAcc<TAccTag, alpaka::DimInt<1>, std::size_t>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<TAccTag, aV2P::DimInt<1>, std::size_t>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
 
     // Defines the synchronization behavior of a queue
-    using QueueProperty = alpaka::Blocking;
-    using Queue = alpaka::Queue<Acc, QueueProperty>;
+    using QueueProperty = aV2P::Blocking;
+    using Queue = aV2P::Queue<Acc, QueueProperty>;
 
     // Select a device
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Create a queue on the device
     Queue queue(devAcc);
@@ -81,14 +81,14 @@ auto example(TAccTag const&) -> int
     std::size_t const elementsPerThread = 1u;
     Kernel kernel;
 
-    alpaka::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
+    aV2P::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = alpaka::getValidWorkDiv(kernelCfg, devAcc, kernel);
+    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, kernel);
 
     // Run the kernel
-    alpaka::exec<Acc>(queue, workDiv, kernel);
-    alpaka::wait(queue);
+    aV2P::exec<Acc>(queue, workDiv, kernel);
+    aV2P::wait(queue);
 
     return EXIT_SUCCESS;
 }
@@ -96,7 +96,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -108,5 +108,5 @@ auto main() -> int
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
     //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

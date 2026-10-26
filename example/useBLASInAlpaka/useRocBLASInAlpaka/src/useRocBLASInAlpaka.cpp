@@ -7,7 +7,7 @@
  * backend flag is set for alpaka.
  */
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 
 #include <rocblas/rocblas.h>
 
@@ -36,7 +36,7 @@ void initializeMatrix(DataType* buffer, Idx rows, Idx cols)
 
 auto main() -> int
 {
-    using Dim1D = alpaka::DimInt<1>;
+    using Dim1D = aV2P::DimInt<1>;
 
     // Define matrix dimensions, A is MxK and B is KxN
     Idx const M = 4; // Rows in A and C
@@ -45,24 +45,24 @@ auto main() -> int
 
     // Define the accelerator and queue
     // Use Hip Accelerator. Cmake Acc flags should be set to Hip-Only
-    using Acc = alpaka::TagToAcc<alpaka::TagGpuHipRt, Dim1D, Idx>;
-    using Queue = alpaka::Queue<Acc, alpaka::Blocking>;
+    using Acc = aV2P::TagToAcc<aV2P::TagGpuHipRt, Dim1D, Idx>;
+    using Queue = aV2P::Queue<Acc, aV2P::Blocking>;
 
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     Queue queue(devAcc);
 
     // Allocate 1D host memory
-    auto bufHostA = alpaka::allocBuf<DataType, Idx>(devHost, M * K);
-    auto bufHostB = alpaka::allocBuf<DataType, Idx>(devHost, K * N);
-    auto bufHostC = alpaka::allocBuf<DataType, Idx>(devHost, M * N);
+    auto bufHostA = aV2P::allocBuf<DataType, Idx>(devHost, M * K);
+    auto bufHostB = aV2P::allocBuf<DataType, Idx>(devHost, K * N);
+    auto bufHostC = aV2P::allocBuf<DataType, Idx>(devHost, M * N);
 
-    DataType* hostA = alpaka::getPtrNative(bufHostA);
-    DataType* hostB = alpaka::getPtrNative(bufHostB);
-    DataType* hostC = alpaka::getPtrNative(bufHostC);
+    DataType* hostA = aV2P::getPtrNative(bufHostA);
+    DataType* hostB = aV2P::getPtrNative(bufHostB);
+    DataType* hostC = aV2P::getPtrNative(bufHostC);
 
     // Initialize host matrices with some values
     initializeMatrix(hostA, M, K);
@@ -70,18 +70,18 @@ auto main() -> int
     std::fill(hostC, hostC + (M * N), 0); // Initialize C with 0s
 
     // Allocate 1D device memory
-    auto bufDevA = alpaka::allocBuf<DataType, Idx>(devAcc, M * K);
-    auto bufDevB = alpaka::allocBuf<DataType, Idx>(devAcc, K * N);
-    auto bufDevC = alpaka::allocBuf<DataType, Idx>(devAcc, M * N);
+    auto bufDevA = aV2P::allocBuf<DataType, Idx>(devAcc, M * K);
+    auto bufDevB = aV2P::allocBuf<DataType, Idx>(devAcc, K * N);
+    auto bufDevC = aV2P::allocBuf<DataType, Idx>(devAcc, M * N);
 
     // Copy data to device
-    alpaka::memcpy(queue, bufDevA, bufHostA, M * K);
-    alpaka::memcpy(queue, bufDevB, bufHostB, K * N);
-    alpaka::memcpy(queue, bufDevC, bufHostC, M * N);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, bufDevA, bufHostA, M * K);
+    aV2P::memcpy(queue, bufDevB, bufHostB, K * N);
+    aV2P::memcpy(queue, bufDevC, bufHostC, M * N);
+    aV2P::wait(queue);
 
     // Obtain the native HIP stream from the Alpaka queue
-    auto rocStream = alpaka::getNativeHandle(queue);
+    auto rocStream = aV2P::getNativeHandle(queue);
     // rocBLAS setup
     rocblas_handle rocblasHandle;
     rocblas_status status = rocblas_create_handle(&rocblasHandle);
@@ -112,12 +112,12 @@ auto main() -> int
         N,
         K,
         &alpha,
-        alpaka::getPtrNative(bufDevA),
+        aV2P::getPtrNative(bufDevA),
         M, // Leading dimension of A
-        alpaka::getPtrNative(bufDevB),
+        aV2P::getPtrNative(bufDevB),
         K, // Leading dimension of B
         &beta,
-        alpaka::getPtrNative(bufDevC),
+        aV2P::getPtrNative(bufDevC),
         M // Leading dimension of C
     );
 
@@ -127,11 +127,11 @@ auto main() -> int
         rocblas_destroy_handle(rocblasHandle);
         return EXIT_FAILURE;
     }
-    alpaka::wait(queue);
+    aV2P::wait(queue);
 
     // Copy result back to host
-    alpaka::memcpy(queue, bufHostC, bufDevC, M * N);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, bufHostC, bufDevC, M * N);
+    aV2P::wait(queue);
 
     // Verify the result
     std::cout << "Matrix C (Host):" << std::endl;

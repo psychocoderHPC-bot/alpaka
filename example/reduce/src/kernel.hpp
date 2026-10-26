@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 
 //! A cheap wrapper around a C-style array in heap memory.
 template<typename T, uint64_t size>
@@ -17,7 +17,7 @@ struct cheapArray
     //! \param index The index of the element to be accessed.
     //!
     //! Returns the requested element per reference.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator[](uint64_t index) -> T&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator[](uint64_t index) -> T&
     {
         return data[index];
     }
@@ -27,7 +27,7 @@ struct cheapArray
     //! \param index The index of the element to be accessed.
     //!
     //! Returns the requested element per constant reference.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator[](uint64_t index) const -> T const&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator[](uint64_t index) const -> T const&
     {
         return data[index];
     }
@@ -41,7 +41,7 @@ struct cheapArray
 template<uint32_t TBlockSize, typename T, typename TFunc>
 struct ReduceKernel
 {
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
 
     //! The kernel entry point.
     //!
@@ -55,21 +55,21 @@ struct ReduceKernel
     //! \param n The problem size.
     //! \param func The reduction function.
     template<typename TAcc, typename TElem, typename TIdx>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         TElem const* const source,
         TElem* destination,
         TIdx const& n,
         TFunc func) const -> void
     {
-        auto& sdata(alpaka::declareSharedVar<cheapArray<T, TBlockSize>, __COUNTER__>(acc));
+        auto& sdata(aV2P::declareSharedVar<cheapArray<T, TBlockSize>, __COUNTER__>(acc));
 
-        auto const blockIndex(static_cast<uint32_t>(alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0]));
-        auto const threadIndex(static_cast<uint32_t>(alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0]));
-        auto const gridDimension(static_cast<uint32_t>(alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0]));
+        auto const blockIndex(static_cast<uint32_t>(aV2P::getIdx<aV2P::Grid, aV2P::Blocks>(acc)[0]));
+        auto const threadIndex(static_cast<uint32_t>(aV2P::getIdx<aV2P::Block, aV2P::Threads>(acc)[0]));
+        auto const gridDimension(static_cast<uint32_t>(aV2P::getWorkDiv<aV2P::Grid, aV2P::Blocks>(acc)[0]));
 
         // equivalent to blockIndex * TBlockSize + threadIndex
-        auto const linearizedIndex(static_cast<uint32_t>(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0]));
+        auto const linearizedIndex(static_cast<uint32_t>(aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0]));
 
         typename GetIterator<T, TElem, TAcc>::Iterator it(acc, source, linearizedIndex, gridDimension * TBlockSize, n);
 
@@ -100,13 +100,13 @@ struct ReduceKernel
         if(threadIndex < n)
             sdata[threadIndex] = result;
 
-        alpaka::syncBlockThreads(acc);
+        aV2P::syncBlockThreads(acc);
 
         // --------
         // Level 2: block + warp reduce, reading from shared memory
         // --------
 
-        ALPAKA_UNROLL()
+        AV2P_UNROLL()
         for(uint32_t currentBlockSize = TBlockSize,
                      currentBlockSizeUp = (TBlockSize + 1) / 2; // ceil(TBlockSize/2.0)
             currentBlockSize > 1;
@@ -122,7 +122,7 @@ struct ReduceKernel
             if(cond)
                 sdata[threadIndex] = func(sdata[threadIndex], sdata[threadIndex + currentBlockSizeUp]);
 
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
         }
 
         // store block result to gmem

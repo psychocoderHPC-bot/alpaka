@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <functional>
 
@@ -13,16 +13,16 @@
 //! to lift an existing function into a device
 //! function.
 template<typename TAcc>
-void ALPAKA_FN_ACC hiWorldFunction(TAcc const& acc, size_t const nExclamationMarks)
+void AV2P_FN_ACC hiWorldFunction(TAcc const& acc, size_t const nExclamationMarks)
 {
-    using Dim = alpaka::Dim<TAcc>;
-    using Idx = alpaka::Idx<TAcc>;
-    using Vec = alpaka::Vec<Dim, Idx>;
-    using Vec1 = alpaka::Vec<alpaka::DimInt<1u>, Idx>;
+    using Dim = aV2P::Dim<TAcc>;
+    using Idx = aV2P::Idx<TAcc>;
+    using Vec = aV2P::Vec<Dim, Idx>;
+    using Vec1 = aV2P::Vec<aV2P::DimInt<1u>, Idx>;
 
-    Vec const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
-    Vec const globalThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc);
-    Vec1 const linearizedGlobalThreadIdx = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent);
+    Vec const globalThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
+    Vec const globalThreadExtent = aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc);
+    Vec1 const linearizedGlobalThreadIdx = aV2P::mapIdx<1u>(globalThreadIdx, globalThreadExtent);
 
     printf(
         "[z:%u, y:%u, x:%u][linear:%u] Hi world from a function",
@@ -43,38 +43,38 @@ void ALPAKA_FN_ACC hiWorldFunction(TAcc const& acc, size_t const nExclamationMar
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
 // It requires support for extended lambdas when using nvcc as CUDA compiler.
 // Requires sequential backend if CI is used
 #if(!defined(__NVCC__) || (defined(__NVCC__) && defined(__CUDACC_EXTENDED_LAMBDA__)))                                 \
-    && (!defined(ALPAKA_CI) || defined(ALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED))
+    && (!defined(AV2P_CI) || defined(AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED))
 
     // Define the index domain
-    using Dim = alpaka::DimInt<3>;
+    using Dim = aV2P::DimInt<3>;
     using Idx = std::size_t;
 
     // Define the accelerator
     using Tag = TAccTag;
-    using Acc = alpaka::TagToAcc<Tag, Dim, Idx>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<Tag, Dim, Idx>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
 
     // Defines the synchronization behavior of a queue
     //
     // choose between Blocking and NonBlocking
-    using QueueProperty = alpaka::Blocking;
-    using Queue = alpaka::Queue<Acc, QueueProperty>;
+    using QueueProperty = aV2P::Blocking;
+    using Queue = aV2P::Queue<Acc, QueueProperty>;
 
     // Select a device
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Create a queue on the device
     Queue queue(devAcc);
 
     // Define the work division
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Vec = aV2P::Vec<Dim, Idx>;
     auto const elementsPerThread = Vec::all(static_cast<Idx>(1));
     auto const elementsPerGrid = Vec{4, 2, 4};
 
@@ -97,11 +97,11 @@ auto example(TAccTag const&) -> int
     // auto. The Nvidia nvcc does not support generic lambdas, so the
     // type is set to Acc.
 
-    auto kernelLambda = [] ALPAKA_FN_ACC(Acc const& acc, size_t const nExclamationMarksAsArg) -> void
+    auto kernelLambda = [] AV2P_FN_ACC(Acc const& acc, size_t const nExclamationMarksAsArg) -> void
     {
-        auto globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
-        auto globalThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc);
-        auto linearizedGlobalThreadIdx = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent);
+        auto globalThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
+        auto globalThreadExtent = aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc);
+        auto linearizedGlobalThreadIdx = aV2P::mapIdx<1u>(globalThreadIdx, globalThreadExtent);
 
         printf(
             "[z:%u, y:%u, x:%u][linear:%u] Hello world from a lambda",
@@ -118,13 +118,13 @@ auto example(TAccTag const&) -> int
         printf("\n");
     };
 
-    alpaka::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
+    aV2P::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = alpaka::getValidWorkDiv(kernelCfg, devAcc, kernelLambda, nExclamationMarks);
+    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, kernelLambda, nExclamationMarks);
 
-    alpaka::exec<Tag>(queue, workDiv, kernelLambda, nExclamationMarks);
-    alpaka::wait(queue);
+    aV2P::exec<Tag>(queue, workDiv, kernelLambda, nExclamationMarks);
+    aV2P::wait(queue);
 
     return EXIT_SUCCESS;
 
@@ -136,7 +136,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -148,5 +148,5 @@ auto main() -> int
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
     //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

@@ -8,12 +8,12 @@ set(_TARGET_NAME "mathTest")
 append_recursive_files_add_to_src_group("src/" "src/" "cpp" _FILES_SOURCE)
 append_recursive_files_add_to_src_group("src/" "src/" "hpp" _FILES_HEADER)
 
-if(alpaka_ACC_GPU_HIP_ENABLE)
+if(aV2P_ACC_GPU_HIP_ENABLE)
     list(REMOVE_ITEM
             HIP_NVCC_FLAGS "--ftz=true" "--prec-div=false" "--prec-sqrt=false" "--fmad=true" "--use_fast_math" "-use_fast_math")
 endif()
 
-alpaka_add_executable(
+aV2P_add_executable(
     ${_TARGET_NAME}
     ${_FILES_SOURCE}
     ${_FILES_HEADER})
@@ -27,4 +27,4 @@ target_link_libraries(
 set_target_properties(${_TARGET_NAME} PROPERTIES FOLDER "test/unit")
 target_compile_definitions(${_TARGET_NAME} PRIVATE "-DTEST_UNIT_MATH")
 
-add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_alpaka_TEST_OPTIONS})
+add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})

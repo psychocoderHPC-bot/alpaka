@@ -11,10 +11,10 @@ set(_COMMON_COMPILE_OPTIONS_FILE "devCompileOptions.cmake")
 add_library(${_COMMON_TARGET_NAME} INTERFACE)
 
 include(${_COMMON_COMPILE_OPTIONS_FILE})
-message(STATUS "alpaka_DEV_COMPILE_OPTIONS: ${alpaka_DEV_COMPILE_OPTIONS}")
-target_compile_options(${_COMMON_TARGET_NAME} INTERFACE ${alpaka_DEV_COMPILE_OPTIONS})
+message(STATUS "aV2P_DEV_COMPILE_OPTIONS: ${aV2P_DEV_COMPILE_OPTIONS}")
+target_compile_options(${_COMMON_TARGET_NAME} INTERFACE ${aV2P_DEV_COMPILE_OPTIONS})
 
-if(alpaka_ACC_SYCL_ENABLE AND CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+if(aV2P_ACC_SYCL_ENABLE AND CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     # Compile each SYCL kernel into its own device image. This works around a crash of the Intel OpenCL CPU device
     # compiler in the "sycl-kernel-wg-loop-bound" pass, when some kernels are compiled together in the same device
     # image (e.g. test/unit/exec/src/Once.cpp), see https://github.com/intel/llvm/issues/23364 .
@@ -35,13 +35,13 @@ if(MSVC)
                                                             "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler /bigobj>")
 endif()
 
-if(alpaka_ACC_GPU_CUDA_ENABLE)
+if(aV2P_ACC_GPU_CUDA_ENABLE)
     # CUDA driver API is used by EventHostManualTrigger
     target_link_libraries(${_COMMON_TARGET_NAME} INTERFACE CUDA::cuda_driver)
     target_compile_definitions(${_COMMON_TARGET_NAME} INTERFACE "CUDA_API_PER_THREAD_DEFAULT_STREAM")
 endif()
 
-target_link_libraries(${_COMMON_TARGET_NAME} INTERFACE alpaka::alpaka)
+target_link_libraries(${_COMMON_TARGET_NAME} INTERFACE aV2P::aV2P)
 
 # Prevent "unsafe buffer usage" warnings from clang >= 16
 if((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "16.0.0") OR
@@ -50,7 +50,7 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
     target_compile_options(${_COMMON_TARGET_NAME} INTERFACE "-Wno-unsafe-buffer-usage")
 
     # We have no way to determine if we are using amdclang++. So we will just decide this by checking for the HIP back-end.
-    if(alpaka_ACC_GPU_HIP_ENABLE)
+    if(aV2P_ACC_GPU_HIP_ENABLE)
         # amdclang++-5.5 pretends to be clang-16 but doesn't know all warnings.
         target_compile_options(${_COMMON_TARGET_NAME} INTERFACE "-Wno-unknown-warning-option")
     endif()
@@ -64,8 +64,8 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
 endif()
 
 # Prevent warnings from shady code inside Catch2
-get_target_property(alpaka_CATCH2_INCLUDE_DIRS Catch2::Catch2 INTERFACE_INCLUDE_DIRECTORIES)
-target_include_directories(${_COMMON_TARGET_NAME} SYSTEM INTERFACE ${alpaka_CATCH2_INCLUDE_DIRS})
+get_target_property(aV2P_CATCH2_INCLUDE_DIRS Catch2::Catch2 INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(${_COMMON_TARGET_NAME} SYSTEM INTERFACE ${aV2P_CATCH2_INCLUDE_DIRS})
 
 # Now we can safely link to Catch2
 target_link_libraries(${_COMMON_TARGET_NAME} INTERFACE Catch2::Catch2WithMain)

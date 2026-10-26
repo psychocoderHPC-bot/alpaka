@@ -1,0 +1,691 @@
+/* Copyright 2026 Axel Hübl, Benjamin Worpitz, Matthias Werner, Andrea Bocci, Jan Stephan, Bernhard Manfred Gruber,
+ *                Aurora Perego, Simone Balducci
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+#pragma once
+
+#include "aV2P/core/Common.hpp"
+#include "aV2P/core/Unreachable.hpp"
+#include "aV2P/core/mdspan.hpp"
+#include "aV2P/dev/Traits.hpp"
+#include "aV2P/dim/Traits.hpp"
+#include "aV2P/elem/Traits.hpp"
+#include "aV2P/extent/Traits.hpp"
+#include "aV2P/meta/Fold.hpp"
+#include "aV2P/meta/Integral.hpp"
+#include "aV2P/offset/Traits.hpp"
+#include "aV2P/queue/Traits.hpp"
+#include "aV2P/vec/Traits.hpp"
+#include "aV2P/vec/Vec.hpp"
+
+#include <array>
+#include <cassert>
+#include <cstddef>
+#include <iosfwd>
+#include <type_traits>
+#include <vector>
+
+namespace aV2P
+{
+    namespace detail
+    {
+        //! Calculate the pitches purely from the extents.
+        template<typename TElem, typename TDim, typename TIdx>
+        AV2P_FN_HOST_ACC inline constexpr auto calculatePitchesFromExtents(Vec<TDim, TIdx> const& extent)
+        {
+            Vec<TDim, TIdx> pitchBytes{};
+            constexpr auto dim = TIdx{TDim::value};
+            if constexpr(dim > 0)
+                pitchBytes.back() = static_cast<TIdx>(sizeof(TElem));
+            if constexpr(dim > 1)
+                for(TIdx i = TDim::value - 1; i > 0; i--)
+                    pitchBytes[i - 1] = extent[i] * pitchBytes[i];
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wnrvo"
+#endif
+            return pitchBytes;
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0)
+#    pragma clang diagnostic pop
+#endif
+        }
+
+        //! Calculate the pitches from the extents and the one-dimensional pitch.
+        template<typename TElem, typename TDim, typename TIdx>
+        AV2P_FN_HOST_ACC inline constexpr auto calculatePitchesFromExtentsAndPitch(
+            Vec<TDim, TIdx> const& extent,
+            std::size_t pitch)
+        {
+            Vec<TDim, TIdx> pitchBytes{};
+            constexpr auto dim = TIdx{TDim::value};
+            if constexpr(dim > 0)
+                pitchBytes.back() = static_cast<TIdx>(sizeof(TElem));
+            if constexpr(dim > 1)
+            {
+                if(pitch == 0)
+                    pitchBytes[TDim::value - 2] = extent.back() * pitchBytes.back();
+                else
+                    pitchBytes[TDim::value - 2] = static_cast<TIdx>(
+                        (static_cast<std::size_t>(extent.back() * pitchBytes.back()) + pitch - 1) / pitch * pitch);
+            }
+            if constexpr(dim > 2)
+                for(TIdx i = TDim::value - 2; i > 0; i--)
+                    pitchBytes[i - 1] = extent[i] * pitchBytes[i];
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wnrvo"
+#endif
+            return pitchBytes;
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0)
+#    pragma clang diagnostic pop
+#endif
+        }
+
+    } // namespace detail
+
+    //! The view traits.
+    namespace trait
+    {
+        //! The native pointer get trait.
+        template<typename TView, typename TSfinae = void>
+        struct GetPtrNative;
+
+        //! The pointer on device get trait.
+        template<typename TView, typename TDev, typename TSfinae = void>
+        struct GetPtrDev;
+
+        //! The pitch in bytes.
+        //! This is the distance in bytes in the linear memory between two consecutive elements in the next higher
+        //! dimension (TIdx-1).
+        //!
+        //! The default implementation uses the extent to calculate the pitch.
+        template<typename TIdx, typename TView, typename TSfinae = void>
+        struct [[deprecated("Use GetPitchesInBytes instead")]] GetPitchBytes
+        {
+            using ViewIdx = Idx<TView>;
+
+            AV2P_FN_HOST static auto getPitchBytes(TView const& view) -> ViewIdx
+            {
+                return getPitchBytesDefault(view);
+            }
+
+        private:
+            static auto getPitchBytesDefault(TView const& view) -> ViewIdx
+            {
+                constexpr auto idx = TIdx::value;
+                constexpr auto viewDim = Dim<TView>::value;
+                if constexpr(idx < viewDim - 1)
+                {
+#if AV2P_COMP_CLANG || AV2P_COMP_GNUC
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+                    return getExtents(view)[idx] * GetPitchBytes<DimInt<idx + 1>, TView>::getPitchBytes(view);
+#if AV2P_COMP_CLANG || AV2P_COMP_GNUC
+#    pragma GCC diagnostic pop
+#endif
+                }
+                else if constexpr(idx == viewDim - 1)
+                    return getExtents(view)[viewDim - 1] * static_cast<ViewIdx>(sizeof(Elem<TView>));
+                else
+                    return static_cast<ViewIdx>(sizeof(Elem<TView>));
+                AV2P_UNREACHABLE({});
+            }
+        };
+
+        //! Customization point for \ref getPitchesInBytes.
+        //! The default implementation uses the extent to calculate the pitches.
+        template<typename TView, typename TSfinae = void>
+        struct GetPitchesInBytes
+        {
+            AV2P_FN_HOST_ACC constexpr auto operator()(TView const& view) const
+            {
+                return aV2P::detail::calculatePitchesFromExtents<Elem<TView>>(getExtents(view));
+            }
+        };
+
+        //! The memory set task trait.
+        //!
+        //! Fills the view with data.
+        template<typename TDim, typename TDev, typename TSfinae = void>
+        struct CreateTaskMemset;
+
+        template<typename TDim, typename TDev, typename TSfinae = void>
+        struct CreateTaskFill;
+
+        //! The memory copy task trait.
+        //!
+        //! Copies memory from one view into another view possibly on a different device.
+        template<typename TDim, typename TDevDst, typename TDevSrc, typename TSfinae = void>
+        struct CreateTaskMemcpy;
+
+        //! The device memory view creation trait.
+        template<typename TDev, typename TSfinae = void>
+        struct CreateViewPlainPtr;
+
+        //! The sub view creation trait.
+        template<typename TDev, typename TSfinae = void>
+        struct CreateSubView;
+    } // namespace trait
+
+    //! Gets the native pointer of the memory view.
+    //!
+    //! \param view The memory view.
+    //! \return The native pointer.
+    template<typename TView>
+    AV2P_FN_HOST auto getPtrNative(TView const& view) -> Elem<TView> const*
+    {
+        return trait::GetPtrNative<TView>::getPtrNative(view);
+    }
+
+    //! Gets the native pointer of the memory view.
+    //!
+    //! \param view The memory view.
+    //! \return The native pointer.
+    template<typename TView>
+    AV2P_FN_HOST auto getPtrNative(TView& view) -> Elem<TView>*
+    {
+        return trait::GetPtrNative<TView>::getPtrNative(view);
+    }
+
+    //! Gets the pointer to the view on the given device.
+    //!
+    //! \param view The memory view.
+    //! \param dev The device.
+    //! \return The pointer on the device.
+    template<typename TView, typename TDev>
+    AV2P_FN_HOST auto getPtrDev(TView const& view, TDev const& dev) -> Elem<TView> const*
+    {
+        return trait::GetPtrDev<TView, TDev>::getPtrDev(view, dev);
+    }
+
+    //! Gets the pointer to the view on the given device.
+    //!
+    //! \param view The memory view.
+    //! \param dev The device.
+    //! \return The pointer on the device.
+    template<typename TView, typename TDev>
+    AV2P_FN_HOST auto getPtrDev(TView& view, TDev const& dev) -> Elem<TView>*
+    {
+        return trait::GetPtrDev<TView, TDev>::getPtrDev(view, dev);
+    }
+
+    //! \return The pitch in bytes. This is the distance in bytes between two consecutive elements in the given
+    //! dimension.
+    template<std::size_t Tidx, typename TView>
+    [[deprecated("Use getPitchesInBytes instead")]] AV2P_FN_HOST auto getPitchBytes(TView const& view) -> Idx<TView>
+    {
+#if AV2P_COMP_CLANG || AV2P_COMP_GNUC
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+        return trait::GetPitchBytes<DimInt<Tidx>, TView>::getPitchBytes(view);
+#if AV2P_COMP_CLANG || AV2P_COMP_GNUC
+#    pragma GCC diagnostic pop
+#endif
+    }
+
+    //! \return The pitches in bytes as an aV2P::Vec. This is the distance in bytes between two consecutive elements
+    //! in the given dimension.
+    //! E.g. for a 3D view without padding, the 0-dim pitch is the distance in bytes to jump from one element to the
+    //! next within the same row, the 1-dim pitch (aka. the row pitch) is the distance in bytes to jump from one
+    //! element to the neighboring element on the next row. The 2-dim pitch (aka. the slice pitch) is the distance in
+    //! bytes to jump from one element to the neighboring element on the next slice.
+    //! E.g. a 3D view of floats without padding and the extents {42, 10, 2}, would have a pitch vector of {80, 8, 4}.
+    template<typename TView>
+    AV2P_FN_HOST auto getPitchesInBytes(TView const& view) -> Vec<Dim<TView>, Idx<TView>>
+    {
+        return trait::GetPitchesInBytes<TView>{}(view);
+    }
+
+    //! Create a memory set task.
+    //!
+    //! \param view The memory view to fill.
+    //! \param byte Value to set for each element of the specified view.
+    //! \param extent The extent of the view to fill.
+    template<typename TExtent, typename TViewFwd>
+    AV2P_FN_HOST auto createTaskMemset(TViewFwd&& view, std::uint8_t const& byte, TExtent const& extent)
+    {
+        using TView = std::remove_reference_t<TViewFwd>;
+        static_assert(!std::is_const_v<TView>, "The view must not be const!");
+        static_assert(
+            Dim<TView>::value == Dim<TExtent>::value,
+            "The view and the extent are required to have the same dimensionality!");
+
+        assert((extent <= getExtents(view)).all() && "The memset extent must not be larger than the view's extent!");
+
+        return trait::CreateTaskMemset<Dim<TView>, Dev<TView>>::createTaskMemset(
+            std::forward<TViewFwd>(view),
+            byte,
+            extent);
+    }
+
+    template<typename TExtent, typename TViewFwd, typename TValue>
+    AV2P_FN_HOST auto createTaskFill(TViewFwd&& view, TValue const& value, TExtent const& extent)
+    {
+        using TView = std::remove_reference_t<TViewFwd>;
+        static_assert(!std::is_const_v<TView>, "The view must not be const!");
+        static_assert(
+            Dim<TView>::value == Dim<TExtent>::value,
+            "The view and the extent are required to have the same dimensionality!");
+
+        assert((extent <= getExtents(view)).all() && "The fill extent must not be larger than the view's extent!");
+
+        return trait::CreateTaskFill<Dim<TView>, Dev<TView>>::createTaskFill(
+            std::forward<TViewFwd>(view),
+            value,
+            extent);
+    }
+
+    //! Sets the bytes of the memory of view, described by extent, to the given value.
+    //!
+    //! \param queue The queue to enqueue the view fill task into.
+    //! \param[in,out] view The memory view to fill. May be a temporary object.
+    //! \param byte Value to set for each element of the specified view.
+    //! \param extent The extent of the view to fill.
+    template<typename TExtent, typename TViewFwd, typename TQueue>
+    AV2P_FN_HOST auto memset(TQueue& queue, TViewFwd&& view, std::uint8_t const& byte, TExtent const& extent) -> void
+    {
+        enqueue(queue, createTaskMemset(std::forward<TViewFwd>(view), byte, extent));
+    }
+
+    //! Sets each byte of the memory of the entire view to the given value.
+    //!
+    //! \param queue The queue to enqueue the view fill task into.
+    //! \param[in,out] view The memory view to fill. May be a temporary object.
+    //! \param byte Value to set for each element of the specified view.
+    template<typename TViewFwd, typename TQueue>
+    AV2P_FN_HOST auto memset(TQueue& queue, TViewFwd&& view, std::uint8_t const& byte) -> void
+    {
+        enqueue(queue, createTaskMemset(std::forward<TViewFwd>(view), byte, getExtents(view)));
+    }
+
+    template<typename TViewFwd, typename TValue, typename TQueue>
+    AV2P_FN_HOST auto fill(TQueue& queue, TViewFwd&& view, TValue const& value) -> void
+    {
+        enqueue(queue, createTaskFill(std::forward<TViewFwd>(view), value, getExtents(view)));
+    }
+
+    template<typename TExtent, typename TViewFwd, typename TValue, typename TQueue>
+    AV2P_FN_HOST auto fill(TQueue& queue, TViewFwd&& view, TValue const& value, TExtent const& extent) -> void
+    {
+        enqueue(queue, createTaskFill(std::forward<TViewFwd>(view), value, extent));
+    }
+
+    //! Creates a memory copy task.
+    //!
+    //! \param viewDst The destination memory view.
+    //! \param viewSrc The source memory view.
+    //! \param extent The extent of the view to copy.
+    template<typename TExtent, typename TViewSrc, typename TViewDstFwd>
+    AV2P_FN_HOST auto createTaskMemcpy(TViewDstFwd&& viewDst, TViewSrc const& viewSrc, TExtent const& extent)
+    {
+        using TViewDst = std::remove_reference_t<TViewDstFwd>;
+        using SrcElem = Elem<TViewSrc>;
+        using DstElem = Elem<TViewDst>;
+
+        static_assert(!std::is_const_v<TViewDst>, "The destination view must not be const!");
+        static_assert(!std::is_const_v<DstElem>, "The destination view's element type must not be const!");
+        static_assert(
+            Dim<TViewDst>::value == Dim<TViewSrc>::value,
+            "The source and the destination view must have the same dimensionality!");
+        static_assert(
+            Dim<TViewDst>::value == Dim<TExtent>::value,
+            "The destination view and the extent must have the same dimensionality!");
+        static_assert(
+            std::is_same_v<DstElem, std::remove_const_t<SrcElem>>,
+            "The source and destination view must have the same element type!");
+
+        // The extent and the views may use different index types; compare them in a type that can
+        // represent all of the values involved, to avoid both compilation errors and truncation.
+        [[maybe_unused]] auto const extents = getExtents(extent);
+        using SrcCommon [[maybe_unused]] = std::common_type_t<Idx<TExtent>, Idx<TViewSrc>>;
+        using DstCommon [[maybe_unused]] = std::common_type_t<Idx<TExtent>, Idx<TViewDst>>;
+        assert(
+            (castVec<SrcCommon>(extents) <= castVec<SrcCommon>(getExtents(viewSrc))).all()
+            && "The memcpy extent must not be larger than the source view's extent!");
+        assert(
+            (castVec<DstCommon>(extents) <= castVec<DstCommon>(getExtents(viewDst))).all()
+            && "The memcpy extent must not be larger than the destination view's extent!");
+
+        return trait::CreateTaskMemcpy<Dim<TViewDst>, Dev<TViewDst>, Dev<TViewSrc>>::createTaskMemcpy(
+            std::forward<TViewDstFwd>(viewDst),
+            viewSrc,
+            extent);
+    }
+
+    //! Copies memory from a part of viewSrc to viewDst, described by extent. Possibly copies between different memory
+    //! spaces.
+    //!
+    //! \param queue The queue to enqueue the view copy task into.
+    //! \param[in,out] viewDst The destination memory view. May be a temporary object.
+    //! \param viewSrc The source memory view. May be a temporary object.
+    //! \param extent The extent of the view to copy.
+    template<typename TExtent, typename TViewSrc, typename TViewDstFwd, typename TQueue>
+    AV2P_FN_HOST auto memcpy(TQueue& queue, TViewDstFwd&& viewDst, TViewSrc const& viewSrc, TExtent const& extent)
+        -> void
+    {
+        enqueue(queue, createTaskMemcpy(std::forward<TViewDstFwd>(viewDst), viewSrc, extent));
+    }
+
+    //! Copies the entire memory of viewSrc to viewDst. Possibly copies between different memory
+    //! spaces.
+    //!
+    //! \param queue The queue to enqueue the view copy task into.
+    //! \param[in,out] viewDst The destination memory view. May be a temporary object.
+    //! \param viewSrc The source memory view. May be a temporary object.
+    template<typename TViewSrc, typename TViewDstFwd, typename TQueue>
+    AV2P_FN_HOST auto memcpy(TQueue& queue, TViewDstFwd&& viewDst, TViewSrc const& viewSrc) -> void
+    {
+        enqueue(queue, createTaskMemcpy(std::forward<TViewDstFwd>(viewDst), viewSrc, getExtents(viewSrc)));
+    }
+
+    namespace concepts
+    {
+        template<typename T>
+        concept DeviceProvider = Device<T> || Queue<T>;
+    } // namespace concepts
+
+    namespace detail
+    {
+        template<typename TDim, typename TView>
+        struct Print
+        {
+            AV2P_FN_HOST static auto print(
+                TView const& view,
+                Elem<TView> const* const ptr,
+                Vec<Dim<TView>, Idx<TView>> const& extent,
+                std::ostream& os,
+                std::string const& elementSeparator,
+                std::string const& rowSeparator,
+                std::string const& rowPrefix,
+                std::string const& rowSuffix) -> void
+            {
+                os << rowPrefix;
+
+                auto const pitch = getPitchesInBytes(view)[TDim::value + 1];
+                auto const lastIdx(extent[TDim::value] - 1u);
+                for(auto i(decltype(lastIdx)(0)); i <= lastIdx; ++i)
+                {
+                    Print<DimInt<TDim::value + 1u>, TView>::print(
+                        view,
+                        reinterpret_cast<Elem<TView> const*>(reinterpret_cast<std::uint8_t const*>(ptr) + i * pitch),
+                        extent,
+                        os,
+                        elementSeparator,
+                        rowSeparator,
+                        rowPrefix,
+                        rowSuffix);
+
+                    // While we are not at the end of a row, add the row separator.
+                    if(i != lastIdx)
+                    {
+                        os << rowSeparator;
+                    }
+                }
+
+                os << rowSuffix;
+            }
+        };
+
+        template<typename TView>
+        struct Print<DimInt<Dim<TView>::value - 1u>, TView>
+        {
+            AV2P_FN_HOST static auto print(
+                TView const& /* view */,
+                Elem<TView> const* const ptr,
+                Vec<Dim<TView>, Idx<TView>> const& extent,
+                std::ostream& os,
+                std::string const& elementSeparator,
+                std::string const& /* rowSeparator */,
+                std::string const& rowPrefix,
+                std::string const& rowSuffix) -> void
+            {
+                os << rowPrefix;
+
+                auto const lastIdx(extent[Dim<TView>::value - 1u] - 1u);
+                for(auto i(decltype(lastIdx)(0)); i <= lastIdx; ++i)
+                {
+                    // Add the current element.
+                    os << *(ptr + i);
+
+                    // While we are not at the end of a line, add the element separator.
+                    if(i != lastIdx)
+                    {
+                        os << elementSeparator;
+                    }
+                }
+
+                os << rowSuffix;
+            }
+        };
+
+        template<typename TDeviceProvider>
+        auto getDeviceFromProvider(TDeviceProvider const& provider)
+        {
+            if constexpr(concepts::Device<TDeviceProvider>)
+            {
+                return provider;
+            }
+            else
+            {
+                return aV2P::getDev(provider);
+            }
+        }
+
+    } // namespace detail
+
+    //! Prints the content of the view to the given queue.
+    // \TODO: Add precision flag.
+    // \TODO: Add column alignment flag.
+    template<typename TView>
+    AV2P_FN_HOST auto print(
+        TView const& view,
+        std::ostream& os,
+        std::string const& elementSeparator = ", ",
+        std::string const& rowSeparator = "\n",
+        std::string const& rowPrefix = "[",
+        std::string const& rowSuffix = "]") -> void
+    {
+        detail::Print<DimInt<0u>, TView>::print(
+            view,
+            getPtrNative(view),
+            getExtents(view),
+            os,
+            elementSeparator,
+            rowSeparator,
+            rowPrefix,
+            rowSuffix);
+    }
+
+    //! \return The pitch vector.
+    template<typename TView>
+    [[deprecated("Use getPitchesInBytes instead")]] auto getPitchBytesVec(TView const& view)
+        -> Vec<Dim<TView>, Idx<TView>>
+    {
+        return getPitchesInBytes(view);
+    }
+
+    //! \return The pitch but only the last N elements.
+    template<typename TDim, typename TView>
+    AV2P_FN_HOST auto getPitchBytesVecEnd(TView const& view = TView()) -> Vec<TDim, Idx<TView>>
+    {
+        return subVecEnd<TDim>(getPitchesInBytes(view));
+    }
+
+    //! Creates a view to a device pointer
+    //!
+    //! \param dev Object from which the device can be obtained.
+    //! \param pMem Pointer to memory. The pointer must be accessible from the given device.
+    //! \param extent Number of elements represented by the pMem.
+    //!               Using a multi dimensional extent will result in a multi dimension view to the memory represented
+    //!               by pMem.
+    //! \return A view to device memory.
+    template<concepts::DeviceProvider TDev, typename TElem, typename TExtent>
+    auto createView(TDev const& dev, TElem* pMem, TExtent const& extent)
+    {
+        using Dim = aV2P::Dim<TExtent>;
+        using Idx = aV2P::Idx<TExtent>;
+        auto const extentVec = Vec<Dim, Idx>(extent);
+        auto device = detail::getDeviceFromProvider(dev);
+        return trait::CreateViewPlainPtr<decltype(device)>::createViewPlainPtr(
+            device,
+            pMem,
+            extentVec,
+            detail::calculatePitchesFromExtents<TElem>(extentVec));
+    }
+
+    //! Creates a view to a device pointer
+    //!
+    //! \param dev Object from which the device can be obtained.
+    //! \param pMem Pointer to memory. The pointer must be accessible from the given device.
+    //! \param extent Number of elements represented by the pMem.
+    //!               Using a multi dimensional extent will result in a multi dimension view to the memory represented
+    //!               by pMem.
+    //! \param pitch Pitch in bytes for each dimension. Dimensionality must be equal to extent.
+    //! \return A view to device memory.
+    template<concepts::DeviceProvider TDev, typename TElem, typename TExtent, typename TPitch>
+    auto createView(TDev const& dev, TElem* pMem, TExtent const& extent, TPitch pitch)
+    {
+        auto device = detail::getDeviceFromProvider(dev);
+        return trait::CreateViewPlainPtr<decltype(device)>::createViewPlainPtr(device, pMem, extent, pitch);
+    }
+
+    //! Creates a view to a contiguous container of device-accessible memory.
+    //!
+    //! \param dev Object from which the device can be obtained.
+    //! \param con Contiguous container. The container must provide a `data()` method. The data held by the container
+    //!            must be accessible from the given device. The `GetExtent` trait must be defined for the container.
+    //! \return A view to device memory.
+    template<concepts::DeviceProvider TDev, typename TContainer>
+    auto createView(TDev const& dev, TContainer& con)
+    {
+        auto const device = detail::getDeviceFromProvider(dev);
+        return createView(device, std::data(con), getExtents(con));
+    }
+
+    //! Creates a view to a contiguous container of device-accessible memory.
+    //!
+    //! \param dev Object from which the device can be obtained.
+    //! \param con Contiguous container. The container must provide a `data()` method. The data held by the container
+    //!            must be accessible from the given device. The `GetExtent` trait must be defined for the container.
+    //! \param extent Number of elements held by the container. Using a multi-dimensional extent will result in a
+    //!               multi-dimensional view to the memory represented by the container.
+    //! \return A view to device memory.
+    template<concepts::DeviceProvider TDev, typename TContainer, typename TExtent>
+    auto createView(TDev const& dev, TContainer& con, TExtent const& extent)
+    {
+        auto const device = detail::getDeviceFromProvider(dev);
+        return createView(device, std::data(con), extent);
+    }
+
+    //! Creates a sub view to an existing view.
+    //!
+    //! \param view The view this view is a sub-view of.
+    //! \param extent Number of elements the resulting view holds.
+    //! \param offset Number of elements skipped in view for the new origin of the resulting view.
+    //! \return A sub view to a existing view.
+    template<typename TView, typename TExtent, typename TOffsets>
+    auto createSubView(TView& view, TExtent const& extent, TOffsets const& offset = TExtent())
+    {
+        return trait::CreateSubView<typename trait::DevType<TView>::type>::createSubView(view, extent, offset);
+    }
+
+#ifdef AV2P_USE_MDSPAN
+    namespace experimental
+    {
+        namespace traits
+        {
+            namespace detail
+            {
+                template<typename ElementType>
+                struct ByteIndexedAccessor
+                {
+                    using offset_policy = ByteIndexedAccessor;
+                    using element_type = ElementType;
+                    using reference = ElementType&;
+
+                    using data_handle_type
+                        = std::conditional_t<std::is_const_v<ElementType>, std::byte const*, std::byte*>;
+
+                    constexpr ByteIndexedAccessor() noexcept = default;
+
+                    AV2P_FN_HOST_ACC constexpr data_handle_type offset(data_handle_type p, size_t i) const noexcept
+                    {
+                        return p + i;
+                    }
+
+                    AV2P_FN_HOST_ACC constexpr reference access(data_handle_type p, size_t i) const noexcept
+                    {
+                        assert(i % alignof(ElementType) == 0);
+                        return *reinterpret_cast<ElementType*>(__builtin_assume_aligned(p + i, alignof(ElementType)));
+                    }
+                };
+
+                template<typename TView, std::size_t... Is>
+                AV2P_FN_HOST auto makeExtents(TView const& view, std::index_sequence<Is...>)
+                {
+                    auto const ex = getExtents(view);
+                    return dextents<Idx<TView>, Dim<TView>::value>{ex[Is]...};
+                }
+            } // namespace detail
+
+            //! Customization point for getting an mdspan from a view.
+            template<typename TView, typename TSfinae = void>
+            struct GetMdSpan
+            {
+                AV2P_FN_HOST static auto getMdSpan(TView& view)
+                {
+                    constexpr auto dim = Dim<TView>::value;
+                    using Element = Elem<TView>;
+                    auto extents = detail::makeExtents(view, std::make_index_sequence<dim>{});
+                    auto* ptr = reinterpret_cast<std::byte*>(getPtrNative(view));
+                    auto const strides = toArray(getPitchesInBytes(view));
+                    layout_stride::mapping<decltype(extents)> m{extents, strides};
+                    return mdspan<Element, decltype(extents), layout_stride, detail::ByteIndexedAccessor<Element>>{
+                        ptr,
+                        m};
+                }
+
+                AV2P_FN_HOST static auto getMdSpanTransposed(TView& view)
+                {
+                    constexpr auto dim = Dim<TView>::value;
+                    using Element = Elem<TView>;
+                    auto extents = detail::makeExtents(view, std::make_index_sequence<dim>{});
+                    auto* ptr = reinterpret_cast<std::byte*>(getPtrNative(view));
+                    auto strides = toArray(getPitchesInBytes(view));
+                    std::reverse(begin(strides), end(strides));
+                    layout_stride::mapping<decltype(extents)> m{extents, strides};
+                    return mdspan<Element, decltype(extents), layout_stride, detail::ByteIndexedAccessor<Element>>{
+                        ptr,
+                        m};
+                }
+            };
+        } // namespace traits
+
+        //! Gets a std::mdspan from the given view. The memory layout is determined by the pitches of the view.
+        template<typename TView>
+        AV2P_FN_HOST auto getMdSpan(TView& view)
+        {
+            return traits::GetMdSpan<TView>::getMdSpan(view);
+        }
+
+        //! Gets a std::mdspan from the given view. The memory layout is determined by the reversed pitches of the
+        //! view. This effectively also reverses the extents of the view. In order words, if you create a transposed
+        //! mdspan on a 10x5 element view, the mdspan will have an iteration space of 5x10.
+        template<typename TView>
+        AV2P_FN_HOST auto getMdSpanTransposed(TView& view)
+        {
+            return traits::GetMdSpan<TView>::getMdSpanTransposed(view);
+        }
+
+        template<typename TElem, typename TIdx, typename TDim>
+        using MdSpan = aV2P::experimental::mdspan<
+            TElem,
+            aV2P::experimental::dextents<TIdx, TDim::value>,
+            aV2P::experimental::layout_stride,
+            aV2P::experimental::traits::detail::ByteIndexedAccessor<TElem>>;
+    } // namespace experimental
+#endif
+} // namespace aV2P

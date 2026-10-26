@@ -9,7 +9,7 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-project("alpakaExamples" LANGUAGES CXX)
+project("aV2PExamples" LANGUAGES CXX)
 
 ################################################################################
 # Add subdirectories.

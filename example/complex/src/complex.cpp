@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <cstdint>
 #include <iostream>
@@ -12,19 +12,19 @@
 struct ComplexKernel
 {
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc) const -> void
     {
-        // alpaka::Complex<T> supports the same methods as std::complex<T>, they are also useable inside kernels
-        auto x = alpaka::Complex<float>(0.1f, 0.2f);
+        // aV2P::Complex<T> supports the same methods as std::complex<T>, they are also useable inside kernels
+        auto x = aV2P::Complex<float>(0.1f, 0.2f);
         float const real = x.real();
-        auto y = alpaka::Complex<float>(0.3f, 0.4f);
+        auto y = aV2P::Complex<float>(0.3f, 0.4f);
 
         // Operators are also the same
         x *= 2.0f;
-        alpaka::Complex<float> z = x + y;
+        aV2P::Complex<float> z = x + y;
 
         // In-kernel math functions are accessed via alpaka wrappers, the same way as for real numbers
-        float zAbs = alpaka::math::abs(acc, z);
+        float zAbs = aV2P::math::abs(acc, z);
     }
 };
 
@@ -32,22 +32,22 @@ struct ComplexKernel
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     using Idx = std::size_t;
 
     // Define the accelerator
-    using Acc = alpaka::TagToAcc<TAccTag, alpaka::DimInt<1>, Idx>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<TAccTag, aV2P::DimInt<1>, Idx>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
 
     // Defines the synchronization behavior of a queue
-    using QueueProperty = alpaka::Blocking;
-    using Queue = alpaka::Queue<Acc, QueueProperty>;
+    using QueueProperty = aV2P::Blocking;
+    using Queue = aV2P::Queue<Acc, QueueProperty>;
 
     // Select a device
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Create a queue on the device
     Queue queue(devAcc);
@@ -58,22 +58,22 @@ auto example(TAccTag const&) -> int
 
     ComplexKernel complexKernel;
 
-    alpaka::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
+    aV2P::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = alpaka::getValidWorkDiv(kernelCfg, devAcc, complexKernel);
+    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, complexKernel);
 
     // Run the kernel
-    alpaka::exec<Acc>(queue, workDiv, complexKernel);
-    alpaka::wait(queue);
+    aV2P::exec<Acc>(queue, workDiv, complexKernel);
+    aV2P::wait(queue);
 
-    // Usage of alpaka::Complex<T> on the host side is the same as inside kernels, except math functions are not
+    // Usage of aV2P::Complex<T> on the host side is the same as inside kernels, except math functions are not
     // supported
-    auto x = alpaka::Complex<float>(0.1f, 0.2f);
+    auto x = aV2P::Complex<float>(0.1f, 0.2f);
     float const real = x.real();
-    auto y = alpaka::Complex<float>(0.3f, 0.4f);
+    auto y = aV2P::Complex<float>(0.3f, 0.4f);
     x *= 2.0f;
-    alpaka::Complex<float> z = x + y;
+    aV2P::Complex<float> z = x + y;
 
     return EXIT_SUCCESS;
 }
@@ -81,7 +81,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -93,5 +93,5 @@ auto main() -> int
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
     //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

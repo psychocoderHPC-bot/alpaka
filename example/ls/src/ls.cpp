@@ -1,9 +1,9 @@
 // Copyright 2023 Bernhard Manfred Gruber
 // SPDX-License-Identifier: ISC
 
-#include "alpaka/test/acc/TestAccs.hpp"
+#include "aV2P/test/acc/TestAccs.hpp"
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 
 #include <string_view>
 
@@ -14,15 +14,15 @@ struct PerAcc
     template<typename TAcc>
     void operator()() const
     {
-        auto const platform = alpaka::Platform<TAcc>{};
-        std::cout << alpaka::getAccName<TAcc>() << '\n';
-        for(auto const& dev : alpaka::getDevs(platform))
+        auto const platform = aV2P::Platform<TAcc>{};
+        std::cout << aV2P::getAccName<TAcc>() << '\n';
+        for(auto const& dev : aV2P::getDevs(platform))
         {
-            std::cout << '\t' << alpaka::getName(dev) << '\n';
+            std::cout << '\t' << aV2P::getName(dev) << '\n';
             if(verbose)
             {
-                auto const props = alpaka::getAccDevProps<TAcc>(dev);
-                auto const globalMem = alpaka::getMemBytes(dev);
+                auto const props = aV2P::getAccDevProps<TAcc>(dev);
+                auto const globalMem = aV2P::getMemBytes(dev);
 
                 std::cout << "\t\tMultiProcessorCount  " << props.m_multiProcessorCount << '\n';
                 std::cout << "\t\tGlobalMemSizeBytes   " << globalMem << '\n';
@@ -45,6 +45,6 @@ int main(int argc, char const* argv[])
     auto const verbose = argc >= 2 && std::string_view{argv[1]} == "-v";
 
     using Idx = int;
-    using Dim = alpaka::DimInt<1>;
-    alpaka::meta::forEachType<alpaka::test::EnabledAccs<Dim, Idx>>(PerAcc{verbose});
+    using Dim = aV2P::DimInt<1>;
+    aV2P::meta::forEachType<aV2P::test::EnabledAccs<Dim, Idx>>(PerAcc{verbose});
 }

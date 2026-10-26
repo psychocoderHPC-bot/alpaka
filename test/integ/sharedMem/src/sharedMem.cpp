@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/test/MeasureKernelRunTime.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/test/MeasureKernelRunTime.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -21,22 +21,22 @@ template<typename TnumUselessWork, typename Val>
 class SharedMemKernel
 {
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, Val* const puiBlockRetVals) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, Val* const puiBlockRetVals) const -> void
     {
-        using Idx = alpaka::Idx<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
-        static_assert(alpaka::Dim<TAcc>::value == 1, "The SharedMemKernel expects 1-dimensional indices!");
+        static_assert(aV2P::Dim<TAcc>::value == 1, "The SharedMemKernel expects 1-dimensional indices!");
 
         // The number of threads in this block.
-        Idx const blockThreadCount(alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0u]);
+        Idx const blockThreadCount(aV2P::getWorkDiv<aV2P::Block, aV2P::Threads>(acc)[0u]);
 
         // Get the dynamically allocated shared memory.
-        Val* const pBlockShared(alpaka::getDynSharedMem<Val>(acc));
+        Val* const pBlockShared(aV2P::getDynSharedMem<Val>(acc));
 
         // Calculate linearized index of the thread in the block.
-        Idx const blockThreadIdx1d(alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]);
+        Idx const blockThreadIdx1d(aV2P::getIdx<aV2P::Block, aV2P::Threads>(acc)[0u]);
 
 
         // Fill the shared block with the thread ids [1+X, 2+X, 3+X, ..., #Threads+X].
@@ -49,7 +49,7 @@ public:
 
 
         // Synchronize all threads because now we are writing to the memory again but inverse.
-        alpaka::syncBlockThreads(acc);
+        aV2P::syncBlockThreads(acc);
 
         // Do something useless.
         auto sum2 = static_cast<Val>(blockThreadIdx1d);
@@ -62,29 +62,29 @@ public:
 
 
         // Synchronize all threads again.
-        alpaka::syncBlockThreads(acc);
+        aV2P::syncBlockThreads(acc);
 
         // Now add up all the cells atomically and write the result to cell 0 of the shared memory.
         if(blockThreadIdx1d > 0)
         {
-            alpaka::atomicAdd(acc, &pBlockShared[0], pBlockShared[blockThreadIdx1d]);
+            aV2P::atomicAdd(acc, &pBlockShared[0], pBlockShared[blockThreadIdx1d]);
         }
 
 
-        alpaka::syncBlockThreads(acc);
+        aV2P::syncBlockThreads(acc);
 
         // Only master writes result to global memory.
         if(blockThreadIdx1d == 0)
         {
             // Calculate linearized block id.
-            Idx const gridBlockIdx(alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]);
+            Idx const gridBlockIdx(aV2P::getIdx<aV2P::Grid, aV2P::Blocks>(acc)[0u]);
 
             puiBlockRetVals[gridBlockIdx] = pBlockShared[0];
         }
     }
 };
 
-namespace alpaka::trait
+namespace aV2P::trait
 {
     //! The trait for getting the size of the block shared dynamic memory for a kernel.
     template<typename TnumUselessWork, typename Val, typename TAcc>
@@ -92,7 +92,7 @@ namespace alpaka::trait
     {
         //! \return The size of the shared memory allocated for a block.
         template<typename TVec, typename... TArgs>
-        ALPAKA_FN_HOST_ACC static auto getBlockSharedMemDynSizeBytes(
+        AV2P_FN_HOST_ACC static auto getBlockSharedMemDynSizeBytes(
             SharedMemKernel<TnumUselessWork, Val> const& /* sharedMemKernel */,
             TVec const& blockThreadExtent,
             TVec const& /* threadElemExtent */,
@@ -101,74 +101,74 @@ namespace alpaka::trait
             return static_cast<std::size_t>(blockThreadExtent.prod()) * sizeof(Val);
         }
     };
-} // namespace alpaka::trait
+} // namespace aV2P::trait
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::uint32_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::uint32_t>;
 
 TEMPLATE_LIST_TEST_CASE("sharedMem", "[sharedMem]", TestAccs)
 {
     using Acc = TestType;
-    using Idx = alpaka::Idx<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
     Idx const numElements = 1u << 16u;
 
     using Val = std::int32_t;
     using TnumUselessWork = std::integral_constant<Idx, 100>;
 
-    using DevAcc = alpaka::Dev<Acc>;
-    using QueueAcc = alpaka::test::DefaultQueue<DevAcc>;
+    using DevAcc = aV2P::Dev<Acc>;
+    using QueueAcc = aV2P::test::DefaultQueue<DevAcc>;
 
 
     // Create the kernel function object.
     SharedMemKernel<TnumUselessWork, Val> kernel;
 
     // Select a device to execute on.
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Get a queue on this device.
     QueueAcc queue(devAcc);
 
 
-    auto blockRetValuesDummy = alpaka::allocBuf<Val, Idx>(devAcc, static_cast<Idx>(1));
+    auto blockRetValuesDummy = aV2P::allocBuf<Val, Idx>(devAcc, static_cast<Idx>(1));
 
     // Kernel input during the runtime of kernel will be different and is chosen to depend on workdiv.
     // Therefore, initially a  workdiv is needed to find the parameter. Therefore, in kernel bundle, we can not use the
     // real input for the buffer pointer.
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    alpaka::KernelCfg<Acc> const kernelCfg
-        = {numElements, static_cast<Idx>(1u), false, alpaka::GridBlockExtentSubDivRestrictions::Unrestricted};
-    auto const workDiv = alpaka::getValidWorkDiv(kernelCfg, devAcc, kernel, std::data(blockRetValuesDummy));
+    aV2P::KernelCfg<Acc> const kernelCfg
+        = {numElements, static_cast<Idx>(1u), false, aV2P::GridBlockExtentSubDivRestrictions::Unrestricted};
+    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, kernel, std::data(blockRetValuesDummy));
 
     std::cout << "SharedMemKernel("
-              << " accelerator: " << alpaka::getAccName<Acc>()
-              << ", kernel: " << alpaka::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
+              << " accelerator: " << aV2P::getAccName<Acc>()
+              << ", kernel: " << aV2P::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
               << std::endl;
 
-    Idx const gridBlocksCount(alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(workDiv)[0u]);
-    Idx const blockThreadCount(alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(workDiv)[0u]);
+    Idx const gridBlocksCount(aV2P::getWorkDiv<aV2P::Grid, aV2P::Blocks>(workDiv)[0u]);
+    Idx const blockThreadCount(aV2P::getWorkDiv<aV2P::Block, aV2P::Threads>(workDiv)[0u]);
 
     // An array for the return values calculated by the blocks.
     std::vector<Val> blockRetVals(static_cast<std::size_t>(gridBlocksCount));
 
     // Allocate accelerator buffers and copy.
     Idx const resultElemCount(gridBlocksCount);
-    auto blockRetValsAcc = alpaka::allocBuf<Val, Idx>(devAcc, resultElemCount);
-    alpaka::memcpy(queue, blockRetValsAcc, blockRetVals, resultElemCount);
+    auto blockRetValsAcc = aV2P::allocBuf<Val, Idx>(devAcc, resultElemCount);
+    aV2P::memcpy(queue, blockRetValsAcc, blockRetVals, resultElemCount);
 
     // Create the kernel execution task.
-    auto const taskKernel = alpaka::createTaskKernel<Acc>(workDiv, kernel, std::data(blockRetValsAcc));
+    auto const taskKernel = aV2P::createTaskKernel<Acc>(workDiv, kernel, std::data(blockRetValsAcc));
 
     // Profile the kernel execution.
-    std::cout << "Execution time: " << alpaka::test::integ::measureTaskRunTimeMs(queue, taskKernel) << " ms"
+    std::cout << "Execution time: " << aV2P::test::integ::measureTaskRunTimeMs(queue, taskKernel) << " ms"
               << std::endl;
 
     // Copy back the result.
-    alpaka::memcpy(queue, blockRetVals, blockRetValsAcc, resultElemCount);
+    aV2P::memcpy(queue, blockRetVals, blockRetValsAcc, resultElemCount);
 
     // Wait for the queue to finish the memory operation.
-    alpaka::wait(queue);
+    aV2P::wait(queue);
 
     // Assert that the results are correct.
     Val const correctResult(static_cast<Val>(blockThreadCount * blockThreadCount));

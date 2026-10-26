@@ -3,24 +3,24 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <cstdint>
 #include <iostream>
 
-#ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED
+#ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
 
 //! Prints all elements of the buffer.
 struct PrintBufferKernel
 {
     template<typename TAcc, typename MdSpan>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, MdSpan data) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, MdSpan data) const -> void
     {
         // Use three nested loops along the dimensions 0, 1 and 2
-        for(size_t z : alpaka::uniformElementsAlong<0>(acc, data.extent(0)))
-            for(size_t y : alpaka::uniformElementsAlong<1>(acc, data.extent(1)))
-                for(size_t x : alpaka::uniformElementsAlong<2>(acc, data.extent(2)))
+        for(size_t z : aV2P::uniformElementsAlong<0>(acc, data.extent(0)))
+            for(size_t y : aV2P::uniformElementsAlong<1>(acc, data.extent(1)))
+                for(size_t x : aV2P::uniformElementsAlong<2>(acc, data.extent(2)))
                     // %zu prints garbage in some cases, while %lu seems to be working correctly
                     printf("%lu,%lu,%lu: %u\t", z, y, x, static_cast<uint32_t>(data(z, y, x)));
     }
@@ -30,17 +30,17 @@ struct PrintBufferKernel
 struct TestBufferKernel
 {
     template<typename TAcc, typename MdSpan>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, MdSpan data) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, MdSpan data) const -> void
     {
         // Use three nested loops along the dimensions z, y and x
-        for(size_t z : alpaka::uniformElementsAlongZ(acc, data.extent(0)))
-            for(size_t y : alpaka::uniformElementsAlongY(acc, data.extent(1)))
-                for(size_t x : alpaka::uniformElementsAlongX(acc, data.extent(2)))
-                    ALPAKA_ASSERT_ACC(
+        for(size_t z : aV2P::uniformElementsAlongZ(acc, data.extent(0)))
+            for(size_t y : aV2P::uniformElementsAlongY(acc, data.extent(1)))
+                for(size_t x : aV2P::uniformElementsAlongX(acc, data.extent(2)))
+                    AV2P_ASSERT_ACC(
                         data(z, y, x)
-                        == alpaka::mapIdx<1u>(
-                            alpaka::Vec{z, y, x},
-                            alpaka::Vec{data.extent(0), data.extent(1), data.extent(2)})[0]);
+                        == aV2P::mapIdx<1u>(
+                            aV2P::Vec{z, y, x},
+                            aV2P::Vec{data.extent(0), data.extent(1), data.extent(2)})[0]);
     }
 };
 
@@ -48,12 +48,12 @@ struct TestBufferKernel
 struct FillBufferKernel
 {
     template<typename TAcc, typename MdSpan>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, MdSpan data) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, MdSpan data) const -> void
     {
         // Use a single 3-dimensional loop
-        for(auto idx : alpaka::uniformElementsND(acc, alpaka::Vec{data.extent(0), data.extent(1), data.extent(2)}))
+        for(auto idx : aV2P::uniformElementsND(acc, aV2P::Vec{data.extent(0), data.extent(1), data.extent(2)}))
             data(idx.z(), idx.y(), idx.x()) // equivalent to data(idx[0], idx[1], idx[2])
-                = alpaka::mapIdx<1u>(idx, alpaka::Vec{data.extent(0), data.extent(1), data.extent(2)})[0];
+                = aV2P::mapIdx<1u>(idx, aV2P::Vec{data.extent(0), data.extent(1), data.extent(2)})[0];
     }
 };
 
@@ -61,42 +61,42 @@ struct FillBufferKernel
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Define the index domain
-    using Dim = alpaka::DimInt<3u>;
+    using Dim = aV2P::DimInt<3u>;
     using Idx = std::size_t;
 
     // Define the device accelerator
-    using Acc = alpaka::TagToAcc<TAccTag, Dim, Idx>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<TAccTag, Dim, Idx>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
     // Defines the synchronization behavior of the device queue
     //
     // choose between Blocking and NonBlocking
-    using AccQueueProperty = alpaka::Blocking;
-    using DevQueue = alpaka::Queue<Acc, AccQueueProperty>;
+    using AccQueueProperty = aV2P::Blocking;
+    using DevQueue = aV2P::Queue<Acc, AccQueueProperty>;
 
     // Define the host accelerator
-    using Host = alpaka::AccCpuSerial<Dim, Idx>;
+    using Host = aV2P::AccCpuSerial<Dim, Idx>;
     // Defines the synchronization behavior of the host queue
     //
     // choose between Blocking and NonBlocking
-    using HostQueueProperty = alpaka::Blocking;
-    using HostQueue = alpaka::Queue<Host, HostQueueProperty>;
+    using HostQueueProperty = aV2P::Blocking;
+    using HostQueue = aV2P::Queue<Host, HostQueueProperty>;
 
     // Select devices
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Create queues
     DevQueue devQueue(devAcc);
     HostQueue hostQueue(devHost);
 
     // Define the work division for kernels to be run on devAcc and devHost
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Vec = aV2P::Vec<Dim, Idx>;
     Vec const elementsPerThread(Vec::all(static_cast<Idx>(3)));
     Vec const elementsPerGrid(Vec::all(static_cast<Idx>(10)));
 
@@ -117,20 +117,20 @@ auto example(TAccTag const&) -> int
     //
     // The `alloc` method returns a reference counted buffer handle.
     // When the last such handle is destroyed, the memory is freed automatically.
-    using BufHost = alpaka::Buf<Host, Data, Dim, Idx>;
-    BufHost hostBuffer = alpaka::allocBuf<Data, Idx>(devHost, extents);
+    using BufHost = aV2P::Buf<Host, Data, Dim, Idx>;
+    BufHost hostBuffer = aV2P::allocBuf<Data, Idx>(devHost, extents);
     // You can also use already allocated memory and wrap it within a view (irrespective of the device type).
     // The view does not own the underlying memory. So you have to make sure that
     // the view does not outlive its underlying memory.
     std::array<Data, nElementsPerDim * nElementsPerDim * nElementsPerDim> plainBuffer;
-    auto hostViewPlainPtr = alpaka::createView(devHost, plainBuffer.data(), extents);
+    auto hostViewPlainPtr = aV2P::createView(devHost, plainBuffer.data(), extents);
 
     // Allocate accelerator memory buffers
     //
     // The interface to allocate a buffer is the same on the host and on the device.
-    using BufAcc = alpaka::Buf<Acc, Data, Dim, Idx>;
-    BufAcc deviceBuffer1 = alpaka::allocBuf<Data, Idx>(devAcc, extents);
-    BufAcc deviceBuffer2 = alpaka::allocBuf<Data, Idx>(devAcc, extents);
+    using BufAcc = aV2P::Buf<Acc, Data, Dim, Idx>;
+    BufAcc deviceBuffer1 = aV2P::allocBuf<Data, Idx>(devAcc, extents);
+    BufAcc deviceBuffer2 = aV2P::allocBuf<Data, Idx>(devAcc, extents);
 
 
     // Init host buffer
@@ -139,7 +139,7 @@ auto example(TAccTag const&) -> int
     // elements of a buffer directly, but
     // you can get the pointer to the memory
     // (getPtrNative).
-    auto hostBufferMdSpan = alpaka::experimental::getMdSpan(hostBuffer);
+    auto hostBufferMdSpan = aV2P::experimental::getMdSpan(hostBuffer);
 
     // This pointer can be used to directly write
     // some values into the buffer memory.
@@ -153,14 +153,14 @@ auto example(TAccTag const&) -> int
     // Memory views and buffers can also be initialized by executing a kernel.
     // To pass a buffer into a kernel, you can pass the
     // native pointer into the kernel invocation.
-    auto hostViewPlainPtrMdSpan = alpaka::experimental::getMdSpan(hostViewPlainPtr);
+    auto hostViewPlainPtrMdSpan = aV2P::experimental::getMdSpan(hostViewPlainPtr);
 
     FillBufferKernel fillBufferKernel;
 
-    alpaka::KernelCfg<Host> const hostKernelCfg = {elementsPerGrid, elementsPerThread};
-    auto const hostWorkDiv = alpaka::getValidWorkDiv(hostKernelCfg, devHost, fillBufferKernel, hostViewPlainPtrMdSpan);
+    aV2P::KernelCfg<Host> const hostKernelCfg = {elementsPerGrid, elementsPerThread};
+    auto const hostWorkDiv = aV2P::getValidWorkDiv(hostKernelCfg, devHost, fillBufferKernel, hostViewPlainPtrMdSpan);
 
-    alpaka::exec<Host>(hostQueue, hostWorkDiv, fillBufferKernel,
+    aV2P::exec<Host>(hostQueue, hostWorkDiv, fillBufferKernel,
                        hostViewPlainPtrMdSpan); // 1st kernel argument
 
     // Copy host to device Buffer
@@ -174,34 +174,34 @@ auto example(TAccTag const&) -> int
     // not currently supported.
     // In this example both host buffers are copied
     // into device buffers.
-    alpaka::memcpy(devQueue, deviceBuffer1, hostViewPlainPtr);
-    alpaka::memcpy(devQueue, deviceBuffer2, hostBuffer);
+    aV2P::memcpy(devQueue, deviceBuffer1, hostViewPlainPtr);
+    aV2P::memcpy(devQueue, deviceBuffer2, hostBuffer);
 
     // Depending on the accelerator, the allocation function may introduce
     // padding between rows/planes of multidimensional memory allocations.
     // Therefore the pitch (distance between consecutive rows/planes) may be
     // greater than the space required for the data.
-    Idx const deviceBuffer1Pitch(alpaka::getPitchesInBytes(deviceBuffer1)[1] / sizeof(Data));
-    Idx const deviceBuffer2Pitch(alpaka::getPitchesInBytes(deviceBuffer2)[1] / sizeof(Data));
-    Idx const hostBuffer1Pitch(alpaka::getPitchesInBytes(hostBuffer)[1] / sizeof(Data));
-    Idx const hostViewPlainPtrPitch(alpaka::getPitchesInBytes(hostViewPlainPtr)[1] / sizeof(Data));
+    Idx const deviceBuffer1Pitch(aV2P::getPitchesInBytes(deviceBuffer1)[1] / sizeof(Data));
+    Idx const deviceBuffer2Pitch(aV2P::getPitchesInBytes(deviceBuffer2)[1] / sizeof(Data));
+    Idx const hostBuffer1Pitch(aV2P::getPitchesInBytes(hostBuffer)[1] / sizeof(Data));
+    Idx const hostViewPlainPtrPitch(aV2P::getPitchesInBytes(hostViewPlainPtr)[1] / sizeof(Data));
 
     // Test device Buffer
     //
     // This kernel tests if the copy operations
     // were successful. In the case something
     // went wrong an assert will fail.
-    auto deviceBufferMdSpan1 = alpaka::experimental::getMdSpan(deviceBuffer1);
-    auto deviceBufferMdSpan2 = alpaka::experimental::getMdSpan(deviceBuffer2);
+    auto deviceBufferMdSpan1 = aV2P::experimental::getMdSpan(deviceBuffer1);
+    auto deviceBufferMdSpan2 = aV2P::experimental::getMdSpan(deviceBuffer2);
 
     TestBufferKernel testBufferKernel;
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    alpaka::KernelCfg<Acc> const devKernelCfg = {elementsPerGrid, elementsPerThread};
-    auto const devWorkDiv = alpaka::getValidWorkDiv(devKernelCfg, devAcc, testBufferKernel, deviceBufferMdSpan1);
+    aV2P::KernelCfg<Acc> const devKernelCfg = {elementsPerGrid, elementsPerThread};
+    auto const devWorkDiv = aV2P::getValidWorkDiv(devKernelCfg, devAcc, testBufferKernel, deviceBufferMdSpan1);
 
-    alpaka::exec<Acc>(devQueue, devWorkDiv, testBufferKernel, deviceBufferMdSpan1);
-    alpaka::exec<Acc>(devQueue, devWorkDiv, testBufferKernel, deviceBufferMdSpan2);
+    aV2P::exec<Acc>(devQueue, devWorkDiv, testBufferKernel, deviceBufferMdSpan1);
+    aV2P::exec<Acc>(devQueue, devWorkDiv, testBufferKernel, deviceBufferMdSpan2);
 
     // Print device Buffer
     //
@@ -217,23 +217,23 @@ auto example(TAccTag const&) -> int
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
     auto const hostPrintWorkDiv
-        = alpaka::getValidWorkDiv(hostKernelCfg, devHost, printBufferKernel, hostViewPlainPtrMdSpan);
-    auto const devPrintWorkDiv = alpaka::getValidWorkDiv(devKernelCfg, devAcc, printBufferKernel, deviceBufferMdSpan1);
+        = aV2P::getValidWorkDiv(hostKernelCfg, devHost, printBufferKernel, hostViewPlainPtrMdSpan);
+    auto const devPrintWorkDiv = aV2P::getValidWorkDiv(devKernelCfg, devAcc, printBufferKernel, deviceBufferMdSpan1);
 
-    alpaka::exec<Acc>(devQueue, devPrintWorkDiv, printBufferKernel, deviceBufferMdSpan1);
-    alpaka::wait(devQueue);
+    aV2P::exec<Acc>(devQueue, devPrintWorkDiv, printBufferKernel, deviceBufferMdSpan1);
+    aV2P::wait(devQueue);
     std::cout << std::endl;
 
-    alpaka::exec<Acc>(devQueue, devPrintWorkDiv, printBufferKernel, deviceBufferMdSpan2);
-    alpaka::wait(devQueue);
+    aV2P::exec<Acc>(devQueue, devPrintWorkDiv, printBufferKernel, deviceBufferMdSpan2);
+    aV2P::wait(devQueue);
     std::cout << std::endl;
 
-    alpaka::exec<Host>(hostQueue, hostPrintWorkDiv, printBufferKernel, hostBufferMdSpan);
-    alpaka::wait(hostQueue);
+    aV2P::exec<Host>(hostQueue, hostPrintWorkDiv, printBufferKernel, hostBufferMdSpan);
+    aV2P::wait(hostQueue);
     std::cout << std::endl;
 
-    alpaka::exec<Host>(hostQueue, hostPrintWorkDiv, printBufferKernel, hostViewPlainPtrMdSpan);
-    alpaka::wait(hostQueue);
+    aV2P::exec<Host>(hostQueue, hostPrintWorkDiv, printBufferKernel, hostViewPlainPtrMdSpan);
+    aV2P::wait(hostQueue);
     std::cout << std::endl;
 
     return EXIT_SUCCESS;
@@ -242,7 +242,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -254,7 +254,7 @@ auto main() -> int
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
     //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }
 
 #else

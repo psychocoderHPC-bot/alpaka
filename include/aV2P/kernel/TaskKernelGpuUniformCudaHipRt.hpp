@@ -1,0 +1,622 @@
+/* Copyright 2026 Benjamin Worpitz, Erik Zenker, Matthias Werner, René Widera, Jan Stephan, Andrea Bocci, Bernhard
+ * Manfred Gruber, Antonio Di Pilato, Mehmet Yusufoglu, Maria Michailidi
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+#pragma once
+
+#include "aV2P/acc/AccGpuUniformCudaHipRt.hpp"
+#include "aV2P/acc/Traits.hpp"
+#include "aV2P/core/Config.hpp"
+#include "aV2P/core/Cuda.hpp"
+#include "aV2P/core/Decay.hpp"
+#include "aV2P/core/DemangleTypeNames.hpp"
+#include "aV2P/core/Hip.hpp"
+#include "aV2P/core/RemoveRestrict.hpp"
+#include "aV2P/dev/DevUniformCudaHipRt.hpp"
+#include "aV2P/dev/Traits.hpp"
+#include "aV2P/dim/Traits.hpp"
+#include "aV2P/idx/Traits.hpp"
+#include "aV2P/kernel/KernelFunctionAttributes.hpp"
+#include "aV2P/kernel/Traits.hpp"
+#include "aV2P/platform/Traits.hpp"
+#include "aV2P/queue/Traits.hpp"
+#include "aV2P/queue/cuda-hip/QueueUniformCudaHipRt.hpp"
+#include "aV2P/workdiv/WorkDivHelpers.hpp"
+#include "aV2P/workdiv/WorkDivMembers.hpp"
+
+#include <stdexcept>
+#include <string>
+#include <tuple>
+#include <type_traits>
+
+#if AV2P_DEBUG >= AV2P_DEBUG_MINIMAL
+#    include <iostream>
+#endif
+
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED) || defined(AV2P_ACC_GPU_HIP_ENABLED)
+
+#    if !defined(AV2P_HOST_ONLY)
+
+#        include "aV2P/core/Config.hpp"
+
+#        if defined(AV2P_ACC_GPU_CUDA_ENABLED) && !AV2P_LANG_CUDA
+#            error If AV2P_ACC_GPU_CUDA_ENABLED is set, the compiler has to support CUDA!
+#        endif
+
+#        if defined(AV2P_ACC_GPU_HIP_ENABLED) && !AV2P_LANG_HIP
+#            error If AV2P_ACC_GPU_HIP_ENABLED is set, the compiler has to support HIP!
+#        endif
+
+namespace aV2P
+{
+    namespace detail
+    {
+#        if AV2P_COMP_CLANG
+#            pragma clang diagnostic push
+#            pragma clang diagnostic ignored "-Wunused-template"
+#        endif
+        //! The GPU CUDA/HIP kernel entry point.
+        // \NOTE: 'A __global__ function or function template cannot have a trailing return type.'
+        // We have put the function into a shallow namespace and gave it a short name, so the mangled name in the
+        // profiler (e.g. ncu) is as shorter as possible.
+        template<typename TKernelFnObj, typename TAcc, typename... TArgs>
+        __global__ void gpuKernel(
+            Vec<Dim<TAcc>, Idx<TAcc>> const threadElemExtent,
+            TKernelFnObj const kernelFnObj,
+            TArgs... args)
+        {
+            TAcc const acc(threadElemExtent);
+
+// with clang it is not possible to query std::result_of for a pure device lambda created on the host side
+#        if !(AV2P_COMP_CLANG_CUDA && AV2P_COMP_CLANG)
+            static_assert(
+                std::is_same_v<decltype(kernelFnObj(const_cast<TAcc const&>(acc), args...)), void>,
+                "The TKernelFnObj is required to return void!");
+#        endif
+            kernelFnObj(const_cast<TAcc const&>(acc), args...);
+        }
+#        if AV2P_COMP_CLANG
+#            pragma clang diagnostic pop
+#        endif
+
+        template<typename TKernelFnObj, typename TAcc, typename... TArgs>
+        inline void (*kernelName)(
+            Vec<Dim<TAcc>, Idx<TAcc>> const,
+            TKernelFnObj const,
+            remove_restrict_t<std::decay_t<TArgs>>...)
+            = gpuKernel<TKernelFnObj, TAcc, TArgs...>;
+
+    } // namespace detail
+
+    namespace uniform_cuda_hip
+    {
+        namespace detail
+        {
+            template<typename TDim, typename TIdx>
+            AV2P_FN_HOST auto checkVecOnly3Dim(Vec<TDim, TIdx> const& vec) -> void
+            {
+                if constexpr(TDim::value > 0)
+                {
+                    for(auto i = std::min(typename TDim::value_type{3}, TDim::value); i < TDim::value; ++i)
+                    {
+                        if(vec[TDim::value - 1u - i] != 1)
+                        {
+                            throw std::runtime_error(
+                                "The CUDA/HIP accelerator supports a maximum of 3 dimensions. All "
+                                "work division extents of the dimensions higher 3 have to be 1!");
+                        }
+                    }
+                }
+            }
+
+            template<typename TDim, typename TIdx>
+            AV2P_FN_HOST auto convertVecToUniformCudaHipDim(Vec<TDim, TIdx> const& vec) -> dim3
+            {
+                dim3 dim(1, 1, 1);
+                if constexpr(TDim::value >= 1)
+                    dim.x = static_cast<unsigned>(vec[TDim::value - 1u]);
+                if constexpr(TDim::value >= 2)
+                    dim.y = static_cast<unsigned>(vec[TDim::value - 2u]);
+                if constexpr(TDim::value >= 3)
+                    dim.z = static_cast<unsigned>(vec[TDim::value - 3u]);
+                checkVecOnly3Dim(vec);
+                return dim;
+            }
+        } // namespace detail
+    } // namespace uniform_cuda_hip
+
+    //! The GPU CUDA/HIP accelerator execution task.
+    template<
+        typename TApi,
+        typename TAcc,
+        typename TDim,
+        typename TIdx,
+        typename TKernelFnObj,
+        bool TCooperative,
+        typename... TArgs>
+    class TaskKernelGpuUniformCudaHipRt final : public WorkDivMembers<TDim, TIdx>
+    {
+    public:
+        template<typename TWorkDiv>
+        AV2P_FN_HOST TaskKernelGpuUniformCudaHipRt(
+            TWorkDiv&& workDiv,
+            TKernelFnObj const& kernelFnObj,
+            TArgs&&... args)
+            : WorkDivMembers<TDim, TIdx>(std::forward<TWorkDiv>(workDiv))
+            , m_kernelFnObj(kernelFnObj)
+            , m_args(std::forward<TArgs>(args)...)
+        {
+            static_assert(
+                Dim<std::decay_t<TWorkDiv>>::value == TDim::value,
+                "The work division and the execution task have to be of the same dimensionality!");
+        }
+
+        TKernelFnObj m_kernelFnObj;
+        std::tuple<remove_restrict_t<std::decay_t<TArgs>>...> m_args;
+    };
+
+    namespace trait
+    {
+        //! The GPU CUDA/HIP execution task accelerator type trait specialization.
+        template<
+            typename TApi,
+            typename TAcc,
+            typename TDim,
+            typename TIdx,
+            typename TKernelFnObj,
+            bool TCooperative,
+            typename... TArgs>
+        struct AccType<TaskKernelGpuUniformCudaHipRt<TApi, TAcc, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>>
+        {
+            using type = AccGpuUniformCudaHipRt<TApi, TDim, TIdx>;
+        };
+
+        //! The GPU CUDA/HIP execution task device type trait specialization.
+        template<
+            typename TApi,
+            typename TAcc,
+            typename TDim,
+            typename TIdx,
+            typename TKernelFnObj,
+            bool TCooperative,
+            typename... TArgs>
+        struct DevType<TaskKernelGpuUniformCudaHipRt<TApi, TAcc, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>>
+        {
+            using type = DevUniformCudaHipRt<TApi>;
+        };
+
+        //! The GPU CUDA/HIP execution task dimension getter trait specialization.
+        template<
+            typename TApi,
+            typename TAcc,
+            typename TDim,
+            typename TIdx,
+            typename TKernelFnObj,
+            bool TCooperative,
+            typename... TArgs>
+        struct DimType<TaskKernelGpuUniformCudaHipRt<TApi, TAcc, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>>
+        {
+            using type = TDim;
+        };
+
+        //! The CPU CUDA/HIP execution task platform type trait specialization.
+        template<
+            typename TApi,
+            typename TAcc,
+            typename TDim,
+            typename TIdx,
+            typename TKernelFnObj,
+            bool TCooperative,
+            typename... TArgs>
+        struct PlatformType<
+            TaskKernelGpuUniformCudaHipRt<TApi, TAcc, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>>
+        {
+            using type = PlatformUniformCudaHipRt<TApi>;
+        };
+
+        //! The GPU CUDA/HIP execution task idx type trait specialization.
+        template<
+            typename TApi,
+            typename TAcc,
+            typename TDim,
+            typename TIdx,
+            typename TKernelFnObj,
+            bool TCooperative,
+            typename... TArgs>
+        struct IdxType<TaskKernelGpuUniformCudaHipRt<TApi, TAcc, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>>
+        {
+            using type = TIdx;
+        };
+
+        //! The CUDA/HIP kernel enqueue trait specialization.
+        template<
+            typename TApi,
+            bool TBlocking,
+            typename TAcc,
+            typename TDim,
+            typename TIdx,
+            typename TKernelFnObj,
+            bool TCooperative,
+            typename... TArgs>
+        struct Enqueue<
+            uniform_cuda_hip::detail::QueueUniformCudaHipRt<TApi, TBlocking>,
+            TaskKernelGpuUniformCudaHipRt<TApi, TAcc, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>>
+        {
+            AV2P_FN_HOST static auto enqueue(
+                uniform_cuda_hip::detail::QueueUniformCudaHipRt<TApi, TBlocking>& queue,
+                TaskKernelGpuUniformCudaHipRt<TApi, TAcc, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...> const&
+                    task) -> void
+            {
+                AV2P_DEBUG_MINIMAL_LOG_SCOPE;
+                // TODO: Check that (sizeof(TKernelFnObj) * m_3uiBlockThreadExtent.prod()) < available memory idx
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_FULL
+                // std::size_t printfFifoSize;
+                // TApi::deviceGetLimit(&printfFifoSize, TApi::limitPrintfFifoSize);
+                // std::cout << __func__ << " INFO: printfFifoSize: " << printfFifoSize << std::endl;
+                // TApi::deviceSetLimit(TApi::limitPrintfFifoSize, printfFifoSize*10);
+                // TApi::deviceGetLimit(&printfFifoSize, TApi::limitPrintfFifoSize);
+                // std::cout << __func__ << " INFO: printfFifoSize: " << printfFifoSize << std::endl;
+#        endif
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_MINIMAL
+                // This checks if the device supports cooperative kernel launch
+                if constexpr(TCooperative)
+                {
+                    if(!trait::GetAccDevProps<TAcc>::getAccDevProps(getDev(queue)).m_cooperativeLaunch)
+                    {
+                        throw std::runtime_error("This accelerator doesn't support cooperative groups functionality!");
+                    }
+                }
+#        endif
+
+                auto const gridBlockExtent = getWorkDiv<Grid, Blocks>(task);
+                auto const blockThreadExtent = getWorkDiv<Block, Threads>(task);
+                auto const threadElemExtent = getWorkDiv<Thread, Elems>(task);
+
+                dim3 const gridDim = uniform_cuda_hip::detail::convertVecToUniformCudaHipDim(gridBlockExtent);
+                dim3 const blockDim = uniform_cuda_hip::detail::convertVecToUniformCudaHipDim(blockThreadExtent);
+                uniform_cuda_hip::detail::checkVecOnly3Dim(threadElemExtent);
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_FULL
+                std::cout << __func__ << " gridDim: (" << gridDim.z << ", " << gridDim.y << ", " << gridDim.x << ")\n";
+                std::cout << __func__ << " blockDim: (" << blockDim.z << ", " << blockDim.y << ", " << blockDim.x
+                          << ")\n";
+#        endif
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_MINIMAL
+                // This checks for a valid work division that is also compliant with the hardware maxima of the
+                // accelerator.
+                if(!isValidWorkDiv<TAcc>(task, getDev(queue)))
+                {
+                    throw std::runtime_error(
+                        "The given work division is not valid or not supported by the device of type "
+                        + getAccName<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>() + "!");
+                }
+#        endif
+
+                // Get the size of the block shared dynamic memory.
+                auto const blockSharedMemDynSizeBytes = std::apply(
+                    [&](remove_restrict_t<std::decay_t<TArgs>> const&... args) {
+                        return getBlockSharedMemDynSizeBytes<TAcc>(
+                            task.m_kernelFnObj,
+                            blockThreadExtent,
+                            threadElemExtent,
+                            args...);
+                    },
+                    task.m_args);
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_FULL
+                // Log the block shared memory idx.
+                std::cout << __func__ << " BlockSharedMemDynSizeBytes: " << blockSharedMemDynSizeBytes << " B"
+                          << std::endl;
+#        endif
+
+                auto kernelName
+                    = aV2P::detail::kernelName<TKernelFnObj, TAcc, remove_restrict_t<std::decay_t<TArgs>>...>;
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_MINIMAL
+                if constexpr(TCooperative)
+                {
+                    // Get the maximum number of active blocks for the given kernel on the current device.
+                    int const maxActiveBlocks = std::apply(
+                        [&](remove_restrict_t<std::decay_t<TArgs>> const&... args) {
+                            return getMaxActiveBlocks<TAcc>(
+                                getDev(queue),
+                                task.m_kernelFnObj,
+                                blockThreadExtent,
+                                threadElemExtent,
+                                args...);
+                        },
+                        task.m_args);
+
+#            if AV2P_DEBUG >= AV2P_DEBUG_FULL
+                    std::cout << "cooperative kernel launch\n";
+                    std::cout << "maxBlocksPerGrid for the kernel " << core::demangled<TKernelFnObj> << ": "
+                              << maxActiveBlocks << std::endl;
+#            endif
+
+                    if(maxActiveBlocks <= 0)
+                    {
+                        using namespace std::literals;
+                        throw std::runtime_error(
+                            "The kernel "s + std::string(core::demangled<TKernelFnObj>)
+                            + " cannot be launched as a cooperative kernel with "s
+                            + std::to_string(blockThreadExtent.prod()) + " threads per block on the device "s
+                            + getAccName<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>()
+                            + ", because not even a single block can be active.\n"s
+                            + "Use aV2P::getMaxActiveBlocks(...) to check the block size at runtime."s);
+                    }
+
+                    int const requestedBlocks = static_cast<int>(gridBlockExtent.prod());
+                    if(requestedBlocks < 0 || requestedBlocks > maxActiveBlocks)
+                    {
+                        using namespace std::literals;
+                        throw std::runtime_error(
+                            "The requested number of blocks is larger than the device limit for the kernel "s
+                            + std::string(core::demangled<TKernelFnObj>) + ":\ndevice: "s
+                            + getAccName<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>() + "\nrequested blocks: "s
+                            + std::to_string(gridBlockExtent.prod()) + "\nmaximum allowed: "s
+                            + std::to_string(maxActiveBlocks) + "\n"s
+                            + "Use aV2P::getMaxActiveBlocks(...) to query the limit at runtime."s);
+                    }
+                }
+#        endif
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_FULL
+                // Log the function attributes.
+                typename TApi::FuncAttributes_t funcAttrs;
+                AV2P_UNIFORM_CUDA_HIP_RT_CHECK(TApi::funcGetAttributes(&funcAttrs, kernelName));
+                std::cout << __func__ << " binaryVersion: " << funcAttrs.binaryVersion
+                          << " constSizeBytes: " << funcAttrs.constSizeBytes << " B"
+                          << " localSizeBytes: " << funcAttrs.localSizeBytes << " B"
+                          << " maxThreadsPerBlock: " << funcAttrs.maxThreadsPerBlock
+                          << " numRegs: " << funcAttrs.numRegs << " ptxVersion: " << funcAttrs.ptxVersion
+                          << " sharedSizeBytes: " << funcAttrs.sharedSizeBytes << " B" << std::endl;
+#        endif
+
+                // Set the current device.
+                AV2P_UNIFORM_CUDA_HIP_RT_CHECK(TApi::setDevice(queue.m_spQueueImpl->m_dev.getNativeHandle()));
+
+                // Enqueue the kernel execution.
+                // \NOTE: No const reference (const &) is allowed as the parameter type because the kernel launch
+                // language extension expects the arguments by value. This forces the type of a float argument given
+                // with std::forward to this function to be of type float instead of e.g. "float const & __ptr64"
+                // (MSVC). If not given by value, the kernel launch code does not copy the value but the pointer to the
+                // value location.
+                std::apply(
+                    [&](remove_restrict_t<std::decay_t<TArgs>> const&... args)
+                    {
+                        // checks whether to launch cooperative or non-cooperative kernel
+                        if constexpr(TCooperative)
+                        {
+                            void const* kernelArgs[] = {&threadElemExtent, &task.m_kernelFnObj, &args...};
+                            AV2P_UNIFORM_CUDA_HIP_RT_CHECK(TApi::launchCooperativeKernel(
+                                kernelName,
+                                gridDim,
+                                blockDim,
+                                const_cast<void**>(kernelArgs),
+                                static_cast<std::size_t>(blockSharedMemDynSizeBytes),
+                                queue.getNativeHandle()));
+                        }
+                        else
+                        {
+                            kernelName<<<
+                                gridDim,
+                                blockDim,
+                                static_cast<std::size_t>(blockSharedMemDynSizeBytes),
+                                queue.getNativeHandle()>>>(threadElemExtent, task.m_kernelFnObj, args...);
+                        }
+                    },
+                    task.m_args);
+
+                if constexpr(TBlocking || AV2P_DEBUG >= AV2P_DEBUG_MINIMAL)
+                {
+                    // Wait for the kernel execution to finish but do not check error return of this call.
+                    // Do not use the aV2P::wait method because it checks the error itself but we want to give a
+                    // custom error message.
+                    std::ignore = TApi::streamSynchronize(queue.getNativeHandle());
+                }
+                if constexpr(AV2P_DEBUG >= AV2P_DEBUG_MINIMAL)
+                {
+                    using namespace std::literals;
+                    std::string const msg
+                        = "execution of kernel '"s + std::string(core::demangled<TKernelFnObj>) + "' failed with"s;
+                    ::aV2P::uniform_cuda_hip::detail::rtCheckLastError<TApi, true>(msg.c_str(), __FILE__, __LINE__);
+                }
+            }
+        };
+
+        //! \brief Specialisation of the class template FunctionAttributes
+        //! \tparam TApi The type the API of the GPU accelerator backend. Currently Cuda or Hip.
+        //! \tparam TDim The dimensionality of the accelerator device properties.
+        //! \tparam TIdx The idx type of the accelerator device properties.
+        //! \tparam TKernelFn Kernel function object type.
+        //! \tparam TArgs Kernel function object argument types as a parameter pack.
+        template<typename TApi, typename TDev, typename TDim, typename TIdx, typename TKernelFn, typename... TArgs>
+        struct FunctionAttributes<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>, TDev, TKernelFn, TArgs...>
+        {
+            //! \param dev The device instance
+            //! \param kernelFn The kernel function object which should be executed.
+            //! \param args The kernel invocation arguments.
+            //! \return KernelFunctionAttributes instance. The default version always returns an instance with zero
+            //! fields. For CPU, the field of max threads allowed by kernel function for the block is 1.
+            AV2P_FN_HOST static auto getFunctionAttributes(
+                [[maybe_unused]] TDev const& dev,
+                [[maybe_unused]] TKernelFn const& kernelFn,
+                [[maybe_unused]] TArgs&&... args) -> aV2P::KernelFunctionAttributes
+            {
+                auto kernelName = aV2P::detail::kernelName<
+                    TKernelFn,
+                    AccGpuUniformCudaHipRt<TApi, TDim, TIdx>,
+                    remove_restrict_t<std::decay_t<TArgs>>...>;
+
+                typename TApi::FuncAttributes_t funcAttrs;
+#        if AV2P_COMP_GNUC
+                // Disable and enable compile warnings for gcc
+#            pragma GCC diagnostic push
+#            pragma GCC diagnostic ignored "-Wconditionally-supported"
+#        endif
+                AV2P_UNIFORM_CUDA_HIP_RT_CHECK(
+                    TApi::funcGetAttributes(&funcAttrs, reinterpret_cast<void const*>(kernelName)));
+#        if AV2P_COMP_GNUC
+#            pragma GCC diagnostic pop
+#        endif
+
+                aV2P::KernelFunctionAttributes kernelFunctionAttributes;
+                kernelFunctionAttributes.constSizeBytes = funcAttrs.constSizeBytes;
+                kernelFunctionAttributes.localSizeBytes = funcAttrs.localSizeBytes;
+                kernelFunctionAttributes.sharedSizeBytes = funcAttrs.sharedSizeBytes;
+                kernelFunctionAttributes.maxDynamicSharedSizeBytes = funcAttrs.maxDynamicSharedSizeBytes;
+                kernelFunctionAttributes.numRegs = funcAttrs.numRegs;
+                kernelFunctionAttributes.asmVersion = funcAttrs.ptxVersion;
+                kernelFunctionAttributes.maxThreadsPerBlock = static_cast<int>(funcAttrs.maxThreadsPerBlock);
+
+#        if AV2P_DEBUG >= AV2P_DEBUG_FULL
+                printf("Kernel Function Attributes: \n");
+                printf("binaryVersion: %d \n", funcAttrs.binaryVersion);
+                printf(
+                    "constSizeBytes: %lu \n localSizeBytes: %lu, sharedSizeBytes %lu  maxDynamicSharedSizeBytes: %d "
+                    "\n",
+                    funcAttrs.constSizeBytes,
+                    funcAttrs.localSizeBytes,
+                    funcAttrs.sharedSizeBytes,
+                    funcAttrs.maxDynamicSharedSizeBytes);
+
+                printf(
+                    "numRegs: %d, ptxVersion: %d \n maxThreadsPerBlock: %d .\n ",
+                    funcAttrs.numRegs,
+                    funcAttrs.ptxVersion,
+                    funcAttrs.maxThreadsPerBlock);
+#        endif
+                return kernelFunctionAttributes;
+            }
+        };
+
+        //! The CUDA/HIP get max active blocks for cooperative kernel specialization.
+        template<typename TAcc, typename TKernelFnObj, typename TApi, typename TDim, typename TIdx, typename... TArgs>
+        struct MaxActiveBlocks<TAcc, DevUniformCudaHipRt<TApi>, TKernelFnObj, TDim, TIdx, TArgs...>
+        {
+            AV2P_FN_HOST static auto getMaxActiveBlocks(
+                TKernelFnObj const& kernelFnObj,
+                DevUniformCudaHipRt<TApi> const& device,
+                aV2P::Vec<TDim, TIdx> const& blockThreadExtent,
+                aV2P::Vec<TDim, TIdx> const& threadElemExtent,
+                TArgs const&... args) -> int
+            {
+                auto const blockSharedMemDynSizeBytes
+                    = getBlockSharedMemDynSizeBytes<TAcc>(kernelFnObj, blockThreadExtent, threadElemExtent, args...);
+
+#        ifdef __CUDACC_DEBUG__
+                // Empirically, when a CUDA kernel is compiled in device-debug mode, it is not safe to use more than
+                // one block per multiprocessor.
+                int numBlocksPerSm = 1;
+#        else
+                // Query the maximum number of blocks per multiprocessor that can be active at the same time.
+                int numBlocksPerSm = 0;
+                AV2P_UNIFORM_CUDA_HIP_RT_CHECK(TApi::occupancyMaxActiveBlocksPerMultiprocessor(
+                    &numBlocksPerSm,
+                    aV2P::detail::gpuKernel<TKernelFnObj, TAcc, remove_restrict_t<std::decay_t<TArgs>>...>,
+                    static_cast<int>(blockThreadExtent.prod()),
+                    static_cast<std::size_t>(blockSharedMemDynSizeBytes)));
+#        endif
+
+                auto multiProcessorCount = trait::GetAccDevProps<TAcc>::getAccDevProps(device).m_multiProcessorCount;
+
+                return numBlocksPerSm * static_cast<int>(multiProcessorCount);
+            }
+        };
+
+    } // namespace trait
+
+} // namespace aV2P
+
+// These macros can be used to give a more readable name to a GPU kernel.
+// KERNEL must be the class or struct whose operator()(acc, ...) implements the kernel.
+// ::NAME (or ::NAMESPACE::NAME) must be a unique name across the whole program.
+
+struct The_AV2P_KERNEL_NAME_macro_must_be_called_in_the_global_namespace;
+
+#        define AV2P_KERNEL_NAME(KERNEL, NAME)                                                                      \
+                                                                                                                      \
+            struct The_AV2P_KERNEL_NAME_macro_must_be_called_in_the_global_namespace;                               \
+                                                                                                                      \
+            static_assert(                                                                                            \
+                std::is_same_v<                                                                                       \
+                    The_AV2P_KERNEL_NAME_macro_must_be_called_in_the_global_namespace,                              \
+                    ::The_AV2P_KERNEL_NAME_macro_must_be_called_in_the_global_namespace>,                           \
+                "The AV2P_KERNEL_NAME macro must be called in the global namespace");                               \
+                                                                                                                      \
+            template<typename TAcc, typename... TArgs>                                                                \
+            __global__ void NAME(                                                                                     \
+                aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const extent,                                       \
+                KERNEL const kernelFnObj,                                                                             \
+                TArgs... args)                                                                                        \
+            {                                                                                                         \
+                TAcc const acc(extent);                                                                               \
+                kernelFnObj(const_cast<TAcc const&>(acc), args...);                                                   \
+            }                                                                                                         \
+                                                                                                                      \
+            namespace aV2P::detail                                                                                  \
+            {                                                                                                         \
+                template<typename TAcc, typename... TArgs>                                                            \
+                inline void (*kernelName<KERNEL, TAcc, TArgs...>)(                                                    \
+                    aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const,                                          \
+                    KERNEL const,                                                                                     \
+                    TArgs...)                                                                                         \
+                    = ::NAME<TAcc, TArgs...>;                                                                         \
+            }
+
+struct The_AV2P_KERNEL_SCOPED_NAME_macro_must_be_called_in_the_global_namespace;
+
+#        define AV2P_KERNEL_SCOPED_NAME(KERNEL, NAMESPACE, NAME)                                                    \
+            struct The_AV2P_KERNEL_SCOPED_NAME_macro_must_be_called_in_the_global_namespace;                        \
+                                                                                                                      \
+            static_assert(                                                                                            \
+                std::is_same_v<                                                                                       \
+                    The_AV2P_KERNEL_SCOPED_NAME_macro_must_be_called_in_the_global_namespace,                       \
+                    ::The_AV2P_KERNEL_SCOPED_NAME_macro_must_be_called_in_the_global_namespace>,                    \
+                "The AV2P_KERNEL_SCOPED_NAME macro must be called in the global namespace");                        \
+                                                                                                                      \
+            namespace NAMESPACE                                                                                       \
+            {                                                                                                         \
+                template<typename TAcc, typename... TArgs>                                                            \
+                __global__ void NAME(                                                                                 \
+                    aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const extent,                                   \
+                    KERNEL const kernelFnObj,                                                                         \
+                    TArgs... args)                                                                                    \
+                {                                                                                                     \
+                    TAcc const acc(extent);                                                                           \
+                    kernelFnObj(const_cast<TAcc const&>(acc), args...);                                               \
+                }                                                                                                     \
+            }                                                                                                         \
+                                                                                                                      \
+            namespace aV2P::detail                                                                                  \
+            {                                                                                                         \
+                template<typename TAcc, typename... TArgs>                                                            \
+                inline void (*kernelName<KERNEL, TAcc, TArgs...>)(                                                    \
+                    aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const,                                          \
+                    KERNEL const,                                                                                     \
+                    TArgs...)                                                                                         \
+                    = ::NAMESPACE::NAME<TAcc, TArgs...>;                                                              \
+            }
+
+
+#    else
+
+// In host-only mode, expand to empty macros
+
+#        define AV2P_KERNEL_NAME(KERNEL, NAME)
+#        define AV2P_KERNEL_SCOPED_NAME(KERNEL, NAMESPACE, NAME)
+
+#    endif
+
+#else
+
+// If CUDA or HIP are not available, expand to empty macros
+
+#    define AV2P_KERNEL_NAME(KERNEL, NAME)
+#    define AV2P_KERNEL_SCOPED_NAME(KERNEL, NAMESPACE, NAME)
+
+#endif

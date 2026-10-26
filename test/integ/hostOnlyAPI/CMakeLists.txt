@@ -14,10 +14,10 @@ target_link_libraries(
     ${_TARGET_NAME}
     PRIVATE common)
 
-target_compile_definitions(${_TARGET_NAME} PRIVATE ALPAKA_HOST_ONLY)
+target_compile_definitions(${_TARGET_NAME} PRIVATE AV2P_HOST_ONLY)
 
 set_target_properties(${_TARGET_NAME} PROPERTIES FOLDER "test/integ")
 
-if(alpaka_ACC_GPU_CUDA_ENABLE OR alpaka_ACC_GPU_HIP_ENABLE)
-    add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_alpaka_TEST_OPTIONS})
+if(aV2P_ACC_GPU_CUDA_ENABLE OR aV2P_ACC_GPU_HIP_ENABLE)
+    add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})
 endif()

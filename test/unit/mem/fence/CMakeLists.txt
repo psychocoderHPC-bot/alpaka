@@ -12,7 +12,7 @@ set(_TARGET_NAME "fenceTest")
 
 append_recursive_files_add_to_src_group("src/" "src/" "cpp" _FILES_SOURCE)
 
-alpaka_add_executable(
+aV2P_add_executable(
         ${_TARGET_NAME}
         ${_FILES_SOURCE})
 
@@ -23,4 +23,4 @@ target_link_libraries(
 set_target_properties(${_TARGET_NAME} PROPERTIES FOLDER "test/unit")
 target_compile_definitions(${_TARGET_NAME} PRIVATE "-DTEST_UNIT_FENCE")
 
-add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_alpaka_TEST_OPTIONS})
+add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})

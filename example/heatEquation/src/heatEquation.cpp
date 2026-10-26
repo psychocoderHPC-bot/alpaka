@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,7 +26,7 @@
 struct HeatEquationKernel
 {
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         double const* const uCurrBuf,
         double* const uNextBuf,
@@ -36,7 +36,7 @@ struct HeatEquationKernel
     {
         // Each kernel executes one element
         double const r = dt / (dx * dx);
-        int idx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
+        int idx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0];
         if(idx > 0 && idx < extent - 1u)
         {
             uNextBuf[idx] = uCurrBuf[idx] * (1.0 - 2.0 * r) + uCurrBuf[idx - 1] * r + uCurrBuf[idx + 1] * r;
@@ -67,7 +67,7 @@ auto exactSolution(double const x, double const t) -> double
 //! Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 //! selected accelerator only. If you use the example as the starting point for your project, you can rename the
 //! example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Parameters (a user is supposed to change numNodesX, numTimeSteps)
@@ -87,41 +87,41 @@ auto example(TAccTag const&) -> int
     }
 
     // Set Dim and Idx type
-    using Dim = alpaka::DimInt<1u>;
+    using Dim = aV2P::DimInt<1u>;
     using Idx = uint32_t;
 
     // Define the accelerator
-    using Acc = alpaka::TagToAcc<TAccTag, Dim, Idx>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<TAccTag, Dim, Idx>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
 
     // Select specific devices
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Get valid workdiv for the given problem
     uint32_t elemPerThread = 1;
-    alpaka::Vec<Dim, Idx> const extent{numNodesX};
+    aV2P::Vec<Dim, Idx> const extent{numNodesX};
 
     // Select queue
-    using QueueProperty = alpaka::Blocking;
-    using QueueAcc = alpaka::Queue<Acc, QueueProperty>;
+    using QueueProperty = aV2P::Blocking;
+    using QueueAcc = aV2P::Queue<Acc, QueueProperty>;
     QueueAcc queue{devAcc};
 
     // Initialize host-buffer
     // This buffer holds the calculated values
-    auto uNextBufHost = alpaka::allocBuf<double, Idx>(devHost, extent);
+    auto uNextBufHost = aV2P::allocBuf<double, Idx>(devHost, extent);
     // This buffer will hold the current values (used for the next step)
-    auto uCurrBufHost = alpaka::allocBuf<double, Idx>(devHost, extent);
+    auto uCurrBufHost = aV2P::allocBuf<double, Idx>(devHost, extent);
 
     double* const pCurrHost = std::data(uCurrBufHost);
     double* const pNextHost = std::data(uNextBufHost);
 
     // Accelerator buffer
-    using BufAcc = alpaka::Buf<Acc, double, Dim, Idx>;
-    auto uNextBufAcc = BufAcc{alpaka::allocBuf<double, Idx>(devAcc, extent)};
-    auto uCurrBufAcc = BufAcc{alpaka::allocBuf<double, Idx>(devAcc, extent)};
+    using BufAcc = aV2P::Buf<Acc, double, Dim, Idx>;
+    auto uNextBufAcc = BufAcc{aV2P::allocBuf<double, Idx>(devAcc, extent)};
+    auto uCurrBufAcc = BufAcc{aV2P::allocBuf<double, Idx>(devAcc, extent)};
 
     double* pCurrAcc = std::data(uCurrBufAcc);
     double* pNextAcc = std::data(uNextBufAcc);
@@ -134,22 +134,22 @@ auto example(TAccTag const&) -> int
 
     HeatEquationKernel heatEqKernel;
 
-    alpaka::KernelCfg<Acc> const kernelCfg = {extent, elemPerThread};
+    aV2P::KernelCfg<Acc> const kernelCfg = {extent, elemPerThread};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
     auto const workDiv
-        = alpaka::getValidWorkDiv(kernelCfg, devAcc, heatEqKernel, pCurrAcc, pNextAcc, numNodesX, dx, dt);
+        = aV2P::getValidWorkDiv(kernelCfg, devAcc, heatEqKernel, pCurrAcc, pNextAcc, numNodesX, dx, dt);
 
     // Copy host -> device
-    alpaka::memcpy(queue, uCurrBufAcc, uCurrBufHost);
+    aV2P::memcpy(queue, uCurrBufAcc, uCurrBufHost);
     // Copy to the buffer for next as well to have boundary values set
-    alpaka::memcpy(queue, uNextBufAcc, uCurrBufAcc);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, uNextBufAcc, uCurrBufAcc);
+    aV2P::wait(queue);
 
     for(uint32_t step = 0; step < numTimeSteps; step++)
     {
         // Compute next values
-        alpaka::exec<Acc>(queue, workDiv, heatEqKernel, pCurrAcc, pNextAcc, numNodesX, dx, dt);
+        aV2P::exec<Acc>(queue, workDiv, heatEqKernel, pCurrAcc, pNextAcc, numNodesX, dx, dt);
 
         // We assume the boundary conditions are constant and so these values
         // do not need to be updated.
@@ -158,8 +158,8 @@ auto example(TAccTag const&) -> int
     }
 
     // Copy device -> host
-    alpaka::memcpy(queue, uNextBufHost, uNextBufAcc);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, uNextBufHost, uNextBufAcc);
+    aV2P::wait(queue);
 
     // Calculate error
     double maxError = 0.0;
@@ -187,7 +187,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -199,5 +199,5 @@ auto main() -> int
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
     //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

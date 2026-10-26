@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -24,20 +24,20 @@ public:
     //! \param B The second source vector.
     //! \param C The destination vector.
     //! \param numElements The number of elements.
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename TElem, typename TIdx>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         TElem const* const A,
         TElem const* const B,
         TElem* const C,
         TIdx const& numElements) const -> void
     {
-        static_assert(alpaka::Dim<TAcc>::value == 1, "The VectorAddKernel expects 1-dimensional indices!");
+        static_assert(aV2P::Dim<TAcc>::value == 1, "The VectorAddKernel expects 1-dimensional indices!");
 
         // The uniformElements range for loop takes care automatically of the blocks, threads and elements in the
         // kernel launch grid.
-        for(auto i : alpaka::uniformElements(acc, numElements))
+        for(auto i : aV2P::uniformElements(acc, numElements))
         {
             C[i] = A[i] + B[i];
         }
@@ -48,28 +48,28 @@ public:
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Define the index domain
     // Set the number of dimensions as an integral constant. Set to 1 for 1D.
-    using Dim = alpaka::DimInt<1u>;
+    using Dim = aV2P::DimInt<1u>;
     using Idx = std::size_t;
 
     // Define the accelerator
-    using Acc = alpaka::TagToAcc<TAccTag, Dim, Idx>;
-    using DevAcc = alpaka::Dev<Acc>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<TAccTag, Dim, Idx>;
+    using DevAcc = aV2P::Dev<Acc>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
 
     // Defines the synchronization behavior of a queue
     //
     // choose between Blocking and NonBlocking
-    using QueueProperty = alpaka::Blocking;
-    using QueueAcc = alpaka::Queue<Acc, QueueProperty>;
+    using QueueProperty = aV2P::Blocking;
+    using QueueAcc = aV2P::Queue<Acc, QueueProperty>;
 
     // Select a device
-    auto const platform = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platform, 0);
+    auto const platform = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platform, 0);
 
     // Create a queue on the device
     QueueAcc queue(devAcc);
@@ -77,21 +77,21 @@ auto example(TAccTag const&) -> int
     // Define the work division
     Idx const numElements(123456);
     Idx const elementsPerThread(8u);
-    alpaka::Vec<Dim, Idx> const extent(numElements);
+    aV2P::Vec<Dim, Idx> const extent(numElements);
 
     // Define the buffer element type
     using Data = std::uint32_t;
 
     // Get the host device for allocating memory on the host.
-    using DevHost = alpaka::DevCpu;
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    using DevHost = aV2P::DevCpu;
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
     // Allocate 3 host memory buffers
-    using BufHost = alpaka::Buf<DevHost, Data, Dim, Idx>;
-    BufHost bufHostA(alpaka::allocBuf<Data, Idx>(devHost, extent));
-    BufHost bufHostB(alpaka::allocBuf<Data, Idx>(devHost, extent));
-    BufHost bufHostC(alpaka::allocBuf<Data, Idx>(devHost, extent));
+    using BufHost = aV2P::Buf<DevHost, Data, Dim, Idx>;
+    BufHost bufHostA(aV2P::allocBuf<Data, Idx>(devHost, extent));
+    BufHost bufHostB(aV2P::allocBuf<Data, Idx>(devHost, extent));
+    BufHost bufHostC(aV2P::allocBuf<Data, Idx>(devHost, extent));
 
     // C++14 random generator for uniformly distributed numbers in {1,..,42}
     std::random_device rd{};
@@ -106,33 +106,33 @@ auto example(TAccTag const&) -> int
     }
 
     // Allocate 3 buffers on the accelerator
-    using BufAcc = alpaka::Buf<DevAcc, Data, Dim, Idx>;
-    BufAcc bufAccA(alpaka::allocBuf<Data, Idx>(devAcc, extent));
-    BufAcc bufAccB(alpaka::allocBuf<Data, Idx>(devAcc, extent));
-    BufAcc bufAccC(alpaka::allocBuf<Data, Idx>(devAcc, extent));
+    using BufAcc = aV2P::Buf<DevAcc, Data, Dim, Idx>;
+    BufAcc bufAccA(aV2P::allocBuf<Data, Idx>(devAcc, extent));
+    BufAcc bufAccB(aV2P::allocBuf<Data, Idx>(devAcc, extent));
+    BufAcc bufAccC(aV2P::allocBuf<Data, Idx>(devAcc, extent));
 
     // Copy Host -> Acc
-    alpaka::memcpy(queue, bufAccA, bufHostA);
-    alpaka::memcpy(queue, bufAccB, bufHostB);
-    alpaka::memcpy(queue, bufAccC, bufHostC);
+    aV2P::memcpy(queue, bufAccA, bufHostA);
+    aV2P::memcpy(queue, bufAccB, bufHostB);
+    aV2P::memcpy(queue, bufAccC, bufHostC);
 
     // Instantiate the kernel function object
     VectorAddKernel kernel;
 
-    alpaka::KernelCfg<Acc> const kernelCfg = {extent, elementsPerThread};
+    aV2P::KernelCfg<Acc> const kernelCfg = {extent, elementsPerThread};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = alpaka::getValidWorkDiv(
+    auto const workDiv = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         kernel,
-        alpaka::getPtrNative(bufAccA),
-        alpaka::getPtrNative(bufAccB),
-        alpaka::getPtrNative(bufAccC),
+        aV2P::getPtrNative(bufAccA),
+        aV2P::getPtrNative(bufAccB),
+        aV2P::getPtrNative(bufAccC),
         numElements);
 
     // Create the kernel execution task.
-    auto const taskKernel = alpaka::createTaskKernel<Acc>(
+    auto const taskKernel = aV2P::createTaskKernel<Acc>(
         workDiv,
         kernel,
         std::data(bufAccA),
@@ -143,11 +143,11 @@ auto example(TAccTag const&) -> int
     // Enqueue the kernel execution task
     {
         // wait in case we are using an asynchronous queue to time actual kernel runtime
-        alpaka::wait(queue);
+        aV2P::wait(queue);
         auto const beginT = std::chrono::high_resolution_clock::now();
-        alpaka::enqueue(queue, taskKernel);
+        aV2P::enqueue(queue, taskKernel);
         // wait in case we are using an asynchronous queue to time actual kernel runtime
-        alpaka::wait(queue);
+        aV2P::wait(queue);
         auto const endT = std::chrono::high_resolution_clock::now();
         std::cout << "Time for kernel execution: " << std::chrono::duration<double>(endT - beginT).count() << 's'
                   << std::endl;
@@ -156,8 +156,8 @@ auto example(TAccTag const&) -> int
     // Copy back the result
     {
         auto beginT = std::chrono::high_resolution_clock::now();
-        alpaka::memcpy(queue, bufHostC, bufAccC);
-        alpaka::wait(queue);
+        aV2P::memcpy(queue, bufHostC, bufAccC);
+        aV2P::wait(queue);
         auto const endT = std::chrono::high_resolution_clock::now();
         std::cout << "Time for HtoD copy: " << std::chrono::duration<double>(endT - beginT).count() << 's'
                   << std::endl;
@@ -194,7 +194,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -206,5 +206,5 @@ auto main() -> int
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
     //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

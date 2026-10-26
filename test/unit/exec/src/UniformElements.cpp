@@ -2,22 +2,22 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include "alpaka/exec/UniformElements.hpp"
+#include "aV2P/exec/UniformElements.hpp"
 
 #include "WorkDiv.hpp"
-#include "alpaka/acc/Traits.hpp"
-#include "alpaka/core/Config.hpp"
-#include "alpaka/dev/DevCpu.hpp"
-#include "alpaka/dev/Traits.hpp"
-#include "alpaka/exec/Once.hpp"
-#include "alpaka/idx/Traits.hpp"
-#include "alpaka/kernel/Traits.hpp"
-#include "alpaka/mem/view/Traits.hpp"
-#include "alpaka/platform/PlatformCpu.hpp"
-#include "alpaka/platform/Traits.hpp"
-#include "alpaka/queue/Traits.hpp"
-#include "alpaka/test/acc/TestAccs.hpp"
-#include "alpaka/wait/Traits.hpp"
+#include "aV2P/acc/Traits.hpp"
+#include "aV2P/core/Config.hpp"
+#include "aV2P/dev/DevCpu.hpp"
+#include "aV2P/dev/Traits.hpp"
+#include "aV2P/exec/Once.hpp"
+#include "aV2P/idx/Traits.hpp"
+#include "aV2P/kernel/Traits.hpp"
+#include "aV2P/mem/view/Traits.hpp"
+#include "aV2P/platform/PlatformCpu.hpp"
+#include "aV2P/platform/Traits.hpp"
+#include "aV2P/queue/Traits.hpp"
+#include "aV2P/test/acc/TestAccs.hpp"
+#include "aV2P/wait/Traits.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -25,33 +25,33 @@
 #include <random>
 #include <type_traits>
 
-#if ALPAKA_COMP_MSVC
+#if AV2P_COMP_MSVC
 // MSVC uses __restrict instead of __restrict__.
 #    define __restrict__ __restrict
 #endif
 
-#if ALPAKA_COMP_CLANG
+#if AV2P_COMP_CLANG
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wexit-time-destructors"
 #endif
 // Global Host object used by all tests.
-using Host = alpaka::DevCpu;
-static Host host = alpaka::getDevByIdx(alpaka::PlatformCpu{}, 0);
-#if ALPAKA_COMP_CLANG
+using Host = aV2P::DevCpu;
+static Host host = aV2P::getDevByIdx(aV2P::PlatformCpu{}, 0);
+#if AV2P_COMP_CLANG
 #    pragma clang diagnostic pop
 #endif
 
 struct VectorAddKernel
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Idx<TAcc> size) const
+        aV2P::Idx<TAcc> size) const
     {
-        for(auto index : alpaka::uniformElements(acc, size))
+        for(auto index : aV2P::uniformElements(acc, size))
         {
             out[index] = in1[index] + in2[index];
         }
@@ -61,15 +61,15 @@ struct VectorAddKernel
 struct VectorAddKernelSkip
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Idx<TAcc> first,
-        alpaka::Idx<TAcc> size) const
+        aV2P::Idx<TAcc> first,
+        aV2P::Idx<TAcc> size) const
     {
-        for(auto index : alpaka::uniformElements(acc, first, size))
+        for(auto index : aV2P::uniformElements(acc, first, size))
         {
             out[index] = in1[index] + in2[index];
         }
@@ -78,15 +78,15 @@ struct VectorAddKernelSkip
 
 struct VectorAddKernel1D
 {
-    template<typename TAcc, typename T, typename = std::enable_if_t<alpaka::Dim<TAcc>::value == 1u>>
-    ALPAKA_FN_ACC void operator()(
+    template<typename TAcc, typename T, typename = std::enable_if_t<aV2P::Dim<TAcc>::value == 1u>>
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> size) const
+        aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> size) const
     {
-        for(auto ndindex : alpaka::uniformElementsND(acc, size))
+        for(auto ndindex : aV2P::uniformElementsND(acc, size))
         {
             auto index = ndindex[0];
             out[index] = in1[index] + in2[index];
@@ -96,15 +96,15 @@ struct VectorAddKernel1D
 
 struct VectorAddKernel2D
 {
-    template<typename TAcc, typename T, typename = std::enable_if_t<alpaka::Dim<TAcc>::value == 2u>>
-    ALPAKA_FN_ACC void operator()(
+    template<typename TAcc, typename T, typename = std::enable_if_t<aV2P::Dim<TAcc>::value == 2u>>
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> size) const
+        aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> size) const
     {
-        for(auto ndindex : alpaka::uniformElementsND(acc, size))
+        for(auto ndindex : aV2P::uniformElementsND(acc, size))
         {
             auto index = ndindex[0] * size[1] + ndindex[1];
             out[index] = in1[index] + in2[index];
@@ -114,15 +114,15 @@ struct VectorAddKernel2D
 
 struct VectorAddKernel3D
 {
-    template<typename TAcc, typename T, typename = std::enable_if_t<alpaka::Dim<TAcc>::value == 3u>>
-    ALPAKA_FN_ACC void operator()(
+    template<typename TAcc, typename T, typename = std::enable_if_t<aV2P::Dim<TAcc>::value == 3u>>
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> size) const
+        aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> size) const
     {
-        for(auto ndindex : alpaka::uniformElementsND(acc, size))
+        for(auto ndindex : aV2P::uniformElementsND(acc, size))
         {
             auto index = (ndindex[0] * size[1] + ndindex[1]) * size[2] + ndindex[2];
             out[index] = in1[index] + in2[index];
@@ -137,29 +137,29 @@ struct VectorAddKernel3D
 struct VectorAddBlockKernel
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Idx<TAcc> size) const
+        aV2P::Idx<TAcc> size) const
     {
-        using Idx = alpaka::Idx<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
         // Get the block size.
-        auto const blockSize = alpaka::getWorkDiv<alpaka::Block, alpaka::Elems>(acc)[0u];
+        auto const blockSize = aV2P::getWorkDiv<aV2P::Block, aV2P::Elems>(acc)[0u];
 
         // Get the dynamic shared memory buffer.
-        T* buffer = alpaka::getDynSharedMem<T>(acc);
+        T* buffer = aV2P::getDynSharedMem<T>(acc);
 
         // Split the loop over the elements into an outer loop over the groups and an inner loop over the elements, to
         // permit the synchronisation of the threads in each block between each step: the outer loop is needed to
         // repeat the "block" as many times as needed to cover the whole problem space; the inner loop is needed for
         // work division with more than one element per thread.
-        for(auto block : alpaka::uniformGroups(acc, size))
+        for(auto block : aV2P::uniformGroups(acc, size))
         {
             // Initialise the shared memory.
-            if(alpaka::oncePerBlock(acc))
+            if(aV2P::oncePerBlock(acc))
             {
                 for(Idx local = 0; local < blockSize; ++local)
                 {
@@ -167,29 +167,29 @@ struct VectorAddBlockKernel
                 }
             }
             // Synchronise all threads in the block.
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
             // Accumulate the first set of data into shared memory.
-            for(auto index : alpaka::uniformGroupElements(acc, block, size))
+            for(auto index : aV2P::uniformGroupElements(acc, block, size))
             {
                 buffer[index.local] += in1[index.global];
             }
             // Synchronise all threads in the block.
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
             // Accumulate the second set of data into shared memory.
-            for(auto index : alpaka::uniformGroupElements(acc, block, size))
+            for(auto index : aV2P::uniformGroupElements(acc, block, size))
             {
                 buffer[index.local] += in2[index.global];
             }
             // Synchronise all threads in the block.
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
             // Store the results into global memory.
-            for(auto index : alpaka::uniformGroupElements(acc, block, size))
+            for(auto index : aV2P::uniformGroupElements(acc, block, size))
             {
                 out[index.global] = buffer[index.local];
             }
             // Synchronise all threads in the block; this is necessary to avoid race conditions between different
             // iterations of the uniformGroups loop.
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
         }
     }
 };
@@ -201,17 +201,17 @@ struct VectorAddBlockKernel
 struct VectorAddKernelSerial
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Idx<TAcc> size) const
+        aV2P::Idx<TAcc> size) const
     {
-        using Idx = alpaka::Idx<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
         // The operations are performed by a single thread.
-        if(alpaka::oncePerGrid(acc))
+        if(aV2P::oncePerGrid(acc))
         {
             for(Idx index = 0; index < size; ++index)
             {
@@ -230,24 +230,24 @@ struct VectorAddKernelSerial
 struct VectorAddKernelBlockSerial
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in1,
         T const* __restrict__ in2,
         T* __restrict__ out,
-        alpaka::Idx<TAcc> size) const
+        aV2P::Idx<TAcc> size) const
     {
-        using Idx = alpaka::Idx<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
         // Get the block size.
-        auto const blockSize = alpaka::getWorkDiv<alpaka::Block, alpaka::Elems>(acc)[0u];
+        auto const blockSize = aV2P::getWorkDiv<aV2P::Block, aV2P::Elems>(acc)[0u];
         // The loop is used to repeat the "block" as many times as needed to cover the whole problem space.
-        for(auto block : alpaka::uniformGroups(acc, size))
+        for(auto block : aV2P::uniformGroups(acc, size))
         {
             // The operations are performed by a single thread in each "logical" block.
             auto const first = blockSize * block;
             auto const range = std::min<Idx>(first + blockSize, size);
-            if(alpaka::oncePerBlock(acc))
+            if(aV2P::oncePerBlock(acc))
             {
                 for(Idx index = first; index < range; ++index)
                 {
@@ -260,20 +260,20 @@ struct VectorAddKernelBlockSerial
     }
 };
 
-namespace alpaka::trait
+namespace aV2P::trait
 {
     // Specialize the BlockSharedMemDynSizeBytes trait to specify the amount of block shared dynamic memory for the
     // VectorAddBlockKernel kernel.
     template<typename TAcc>
     struct BlockSharedMemDynSizeBytes<VectorAddBlockKernel, TAcc>
     {
-        using Idx = alpaka::Idx<TAcc>;
-        using Dim1D = alpaka::DimInt<1u>;
-        using Vec1D = alpaka::Vec<Dim1D, Idx>;
+        using Idx = aV2P::Idx<TAcc>;
+        using Dim1D = aV2P::DimInt<1u>;
+        using Vec1D = aV2P::Vec<Dim1D, Idx>;
 
         // The size in bytes of the shared memory allocated for a block.
         template<typename T>
-        ALPAKA_FN_HOST_ACC static std::size_t getBlockSharedMemDynSizeBytes(
+        AV2P_FN_HOST_ACC static std::size_t getBlockSharedMemDynSizeBytes(
             VectorAddBlockKernel const& /* kernel */,
             Vec1D threads,
             Vec1D elements,
@@ -294,21 +294,21 @@ namespace alpaka::trait
 #endif
         }
     };
-} // namespace alpaka::trait
+} // namespace aV2P::trait
 
 // Test the 1-dimensional kernel on all devices.
 template<typename TAcc, typename TKernel>
 void testVectorAddKernel(
-    alpaka::Idx<TAcc> problem_size,
-    alpaka::Idx<TAcc> grid_size,
-    alpaka::Idx<TAcc> block_size,
+    aV2P::Idx<TAcc> problem_size,
+    aV2P::Idx<TAcc> grid_size,
+    aV2P::Idx<TAcc> block_size,
     TKernel kernel)
 {
     using Acc = TAcc;
-    using Idx = alpaka::Idx<Acc>;
-    using Platform = alpaka::Platform<Acc>;
-    using Device = alpaka::Dev<Platform>;
-    using Queue = alpaka::Queue<Device, alpaka::NonBlocking>;
+    using Idx = aV2P::Idx<Acc>;
+    using Platform = aV2P::Platform<Acc>;
+    using Device = aV2P::Dev<Platform>;
+    using Queue = aV2P::Queue<Device, aV2P::NonBlocking>;
 
     // Random number generator with a gaussian distribution.
     std::random_device rd{};
@@ -325,9 +325,9 @@ void testVectorAddKernel(
     Platform platform{};
 
     // Allocate input and output host buffers in pinned memory accessible by the Platform devices.
-    auto in1_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto in2_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto out_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
+    auto in1_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto in2_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto out_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
 
     // Fill the input buffers with random data, and the output buffer with zeros.
     for(Idx i = 0; i < size; ++i)
@@ -338,35 +338,35 @@ void testVectorAddKernel(
     }
 
     // Run the test on each device.
-    for(auto const& device : alpaka::getDevs(platform))
+    for(auto const& device : aV2P::getDevs(platform))
     {
         /* clang-format off */
-        INFO("Test 1D vector addition on " << alpaka::getName(device) << " over " << problem_size << " values with "
+        INFO("Test 1D vector addition on " << aV2P::getName(device) << " over " << problem_size << " values with "
                                            << grid_size << " blocks of " << block_size << " elements");
         /* clang-format on */
         auto queue = Queue(device);
 
         // Allocate input and output buffers on the device.
-        auto in1_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-        auto in2_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-        auto out_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto in1_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto in2_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto out_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
 
         // Copy the input data to the device; the size is known from the buffer objects.
-        alpaka::memcpy(queue, in1_d, in1_h);
-        alpaka::memcpy(queue, in2_d, in2_h);
+        aV2P::memcpy(queue, in1_d, in1_h);
+        aV2P::memcpy(queue, in2_d, in2_h);
 
         // Fill the output buffer with zeros; the size is known from the buffer objects.
-        alpaka::memset(queue, out_d, 0);
+        aV2P::memset(queue, out_d, 0);
 
         // Launch the 1-dimensional kernel with scalar size.
         auto div = makeWorkDiv<Acc>(grid_size, block_size);
-        alpaka::exec<Acc>(queue, div, kernel, in1_d.data(), in2_d.data(), out_d.data(), size);
+        aV2P::exec<Acc>(queue, div, kernel, in1_d.data(), in2_d.data(), out_d.data(), size);
 
         // Copy the results from the device to the host.
-        alpaka::memcpy(queue, out_h, out_d);
+        aV2P::memcpy(queue, out_h, out_d);
 
         // Wait for all the operations to complete.
-        alpaka::wait(queue);
+        aV2P::wait(queue);
 
         // Check the results.
         for(Idx i = 0; i < size; ++i)
@@ -381,17 +381,17 @@ void testVectorAddKernel(
 // Test the 1-dimensional kernel on all devices, potentially skipping some elements.
 template<typename TAcc, typename TKernel>
 void testVectorAddKernelSkip(
-    alpaka::Idx<TAcc> skip_elements,
-    alpaka::Idx<TAcc> problem_size,
-    alpaka::Idx<TAcc> grid_size,
-    alpaka::Idx<TAcc> block_size,
+    aV2P::Idx<TAcc> skip_elements,
+    aV2P::Idx<TAcc> problem_size,
+    aV2P::Idx<TAcc> grid_size,
+    aV2P::Idx<TAcc> block_size,
     TKernel kernel)
 {
     using Acc = TAcc;
-    using Idx = alpaka::Idx<Acc>;
-    using Platform = alpaka::Platform<Acc>;
-    using Device = alpaka::Dev<Platform>;
-    using Queue = alpaka::Queue<Device, alpaka::NonBlocking>;
+    using Idx = aV2P::Idx<Acc>;
+    using Platform = aV2P::Platform<Acc>;
+    using Device = aV2P::Dev<Platform>;
+    using Queue = aV2P::Queue<Device, aV2P::NonBlocking>;
 
     // Random number generator with a gaussian distribution.
     std::random_device rd{};
@@ -408,9 +408,9 @@ void testVectorAddKernelSkip(
     Platform platform{};
 
     // Allocate input and output host buffers in pinned memory accessible by the Platform devices.
-    auto in1_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto in2_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto out_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
+    auto in1_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto in2_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto out_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
 
     // Fill the input buffers with random data, and the output buffer with zeros.
     for(Idx i = 0; i < size; ++i)
@@ -421,36 +421,36 @@ void testVectorAddKernelSkip(
     }
 
     // Run the test on each device.
-    for(auto const& device : alpaka::getDevs(platform))
+    for(auto const& device : aV2P::getDevs(platform))
     {
         /* clang-format off */
-        INFO("Test 1D vector addition on " << alpaka::getName(device) << " skipping " << skip_elements << " over "
+        INFO("Test 1D vector addition on " << aV2P::getName(device) << " skipping " << skip_elements << " over "
                                            << problem_size << " values with " << grid_size << " blocks of "
                                            << block_size << " elements");
         /* clang-format on */
         auto queue = Queue(device);
 
         // Allocate input and output buffers on the device.
-        auto in1_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-        auto in2_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-        auto out_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto in1_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto in2_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto out_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
 
         // Copy the input data to the device; the size is known from the buffer objects.
-        alpaka::memcpy(queue, in1_d, in1_h);
-        alpaka::memcpy(queue, in2_d, in2_h);
+        aV2P::memcpy(queue, in1_d, in1_h);
+        aV2P::memcpy(queue, in2_d, in2_h);
 
         // Fill the output buffer with zeros; the size is known from the buffer objects.
-        alpaka::memset(queue, out_d, 0);
+        aV2P::memset(queue, out_d, 0);
 
         // Launch the 1-dimensional kernel with scalar size.
         auto div = makeWorkDiv<Acc>(grid_size, block_size);
-        alpaka::exec<Acc>(queue, div, kernel, in1_d.data(), in2_d.data(), out_d.data(), skip_elements, size);
+        aV2P::exec<Acc>(queue, div, kernel, in1_d.data(), in2_d.data(), out_d.data(), skip_elements, size);
 
         // Copy the results from the device to the host.
-        alpaka::memcpy(queue, out_h, out_d);
+        aV2P::memcpy(queue, out_h, out_d);
 
         // Wait for all the operations to complete.
-        alpaka::wait(queue);
+        aV2P::wait(queue);
 
         // Check the results.
         for(Idx i = 0; i < skip_elements; ++i)
@@ -477,17 +477,17 @@ void testVectorAddKernelSkip(
 // Test the N-dimensional kernels on all devices.
 template<typename TAcc, typename TKernel>
 void testVectorAddKernelND(
-    alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> problem_size,
-    alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> grid_size,
-    alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> block_size,
+    aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> problem_size,
+    aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> grid_size,
+    aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> block_size,
     TKernel kernel)
 {
     using Acc = TAcc;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
-    using Platform = alpaka::Platform<Acc>;
-    using Device = alpaka::Dev<Platform>;
-    using Queue = alpaka::Queue<Device, alpaka::NonBlocking>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
+    using Platform = aV2P::Platform<Acc>;
+    using Device = aV2P::Dev<Platform>;
+    using Queue = aV2P::Queue<Device, aV2P::NonBlocking>;
 
     // Random number generator with a gaussian distribution.
     std::random_device rd{};
@@ -504,9 +504,9 @@ void testVectorAddKernelND(
     Platform platform{};
 
     // Allocate input and output host buffers in pinned memory accessible by the Platform devices.
-    auto in1_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto in2_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto out_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
+    auto in1_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto in2_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto out_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
 
     // Fill the input buffers with random data, and the output buffer with zeros.
     for(Idx i = 0; i < size; ++i)
@@ -517,35 +517,35 @@ void testVectorAddKernelND(
     }
 
     // Run the test on each device.
-    for(auto const& device : alpaka::getDevs(platform))
+    for(auto const& device : aV2P::getDevs(platform))
     {
         /* clang-format off */
-        INFO("Test " << Dim::value << "D vector addition on " << alpaka::getName(device) << " over " << problem_size
+        INFO("Test " << Dim::value << "D vector addition on " << aV2P::getName(device) << " over " << problem_size
                      << " values with " << grid_size << " blocks of " << block_size << " elements");
         /* clang-format on */
         auto queue = Queue(device);
 
         // Allocate input and output buffers on the device.
-        auto in1_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-        auto in2_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-        auto out_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto in1_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto in2_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto out_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
 
         // Copy the input data to the device; the size is known from the buffer objects.
-        alpaka::memcpy(queue, in1_d, in1_h);
-        alpaka::memcpy(queue, in2_d, in2_h);
+        aV2P::memcpy(queue, in1_d, in1_h);
+        aV2P::memcpy(queue, in2_d, in2_h);
 
         // Fill the output buffer with zeros; the size is known from the buffer objects.
-        alpaka::memset(queue, out_d, 0);
+        aV2P::memset(queue, out_d, 0);
 
         // Launch the 3-dimensional kernel.
         auto div = makeWorkDiv<Acc>(grid_size, block_size);
-        alpaka::exec<Acc>(queue, div, kernel, in1_d.data(), in2_d.data(), out_d.data(), problem_size);
+        aV2P::exec<Acc>(queue, div, kernel, in1_d.data(), in2_d.data(), out_d.data(), problem_size);
 
         // Copy the results from the device to the host.
-        alpaka::memcpy(queue, out_h, out_d);
+        aV2P::memcpy(queue, out_h, out_d);
 
         // Wait for all the operations to complete.
-        alpaka::wait(queue);
+        aV2P::wait(queue);
 
         // Check the results.
         for(Idx i = 0; i < size; ++i)
@@ -557,12 +557,12 @@ void testVectorAddKernelND(
     }
 }
 
-TEMPLATE_LIST_TEST_CASE("UniformElements", "[exec]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("UniformElements", "[exec]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
+    using Vec = aV2P::Vec<Dim, Idx>;
 
     // 1-dimensional kernels.
     if constexpr(Dim::value == 1)

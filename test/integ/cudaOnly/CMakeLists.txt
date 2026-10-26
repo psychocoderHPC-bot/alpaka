@@ -7,7 +7,7 @@ set(_TARGET_NAME "cudaOnlyTest")
 
 append_recursive_files_add_to_src_group("src/" "src/" "cpp" _FILES_SOURCE)
 
-alpaka_add_executable(
+aV2P_add_executable(
     ${_TARGET_NAME}
     ${_FILES_SOURCE})
 target_link_libraries(
@@ -16,6 +16,6 @@ target_link_libraries(
 
 set_target_properties(${_TARGET_NAME} PROPERTIES FOLDER "test/integ")
 
-if(alpaka_ACC_GPU_CUDA_ONLY_MODE AND alpaka_ACC_GPU_CUDA_ENABLE)
-    add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_alpaka_TEST_OPTIONS})
+if(aV2P_ACC_GPU_CUDA_ONLY_MODE AND aV2P_ACC_GPU_CUDA_ENABLE)
+    add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})
 endif()

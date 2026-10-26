@@ -4,9 +4,9 @@
 
 #include "mysqrt.hpp"
 
-#include <alpaka/test/MeasureKernelRunTime.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
+#include <aV2P/test/MeasureKernelRunTime.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -28,19 +28,19 @@ public:
     //! \param B The second source vector.
     //! \param C The destination vector.
     //! \param numElements The number of elements.
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename TElem, typename TIdx>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         TElem const* const A,
         TElem const* const B,
         TElem* const C,
         TIdx const& numElements) const -> void
     {
-        static_assert(alpaka::Dim<TAcc>::value == 1, "The VectorAddKernel expects 1-dimensional indices!");
+        static_assert(aV2P::Dim<TAcc>::value == 1, "The VectorAddKernel expects 1-dimensional indices!");
 
-        auto const gridThreadIdx(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0]);
-        auto const threadElemExtent(alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0]);
+        auto const gridThreadIdx(aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0]);
+        auto const threadElemExtent(aV2P::getWorkDiv<aV2P::Thread, aV2P::Elems>(acc)[0]);
         auto const threadFirstElemIdx(gridThreadIdx * threadElemExtent);
 
         if(threadFirstElemIdx < numElements)
@@ -58,18 +58,18 @@ public:
     }
 };
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::size_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::size_t>;
 
 TEMPLATE_LIST_TEST_CASE("separableCompilation", "[separableCompilation]", TestAccs)
 {
     using Acc = TestType;
-    using Idx = alpaka::Idx<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
     using Val = float;
 
-    using DevAcc = alpaka::Dev<Acc>;
-    using PlatformAcc = alpaka::Platform<DevAcc>;
-    using QueueAcc = alpaka::test::DefaultQueue<alpaka::Dev<Acc>>;
+    using DevAcc = aV2P::Dev<Acc>;
+    using PlatformAcc = aV2P::Platform<DevAcc>;
+    using QueueAcc = aV2P::test::DefaultQueue<aV2P::Dev<Acc>>;
 
     Idx const numElements = 32;
 
@@ -77,23 +77,23 @@ TEMPLATE_LIST_TEST_CASE("separableCompilation", "[separableCompilation]", TestAc
     SqrtKernel kernel;
 
     // Get the host device.
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
     // Select a device to execute on.
     auto const platformAcc = PlatformAcc{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Get a queue on this device.
     QueueAcc queueAcc(devAcc);
 
     // The data extent.
-    alpaka::Vec<alpaka::DimInt<1u>, Idx> const extent(numElements);
+    aV2P::Vec<aV2P::DimInt<1u>, Idx> const extent(numElements);
 
     // Allocate host memory buffers, potentially pinned for faster copy to/from the accelerator.
-    auto memBufHostA = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
-    auto memBufHostB = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
-    auto memBufHostC = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
+    auto memBufHostA = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
+    auto memBufHostB = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
+    auto memBufHostC = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
 
     // Initialize the host input vectors
     for(Idx i = 0; i < numElements; ++i)
@@ -103,17 +103,17 @@ TEMPLATE_LIST_TEST_CASE("separableCompilation", "[separableCompilation]", TestAc
     }
 
     // Allocate the buffers on the accelerator.
-    auto memBufAccA = alpaka::allocBuf<Val, Idx>(devAcc, extent);
-    auto memBufAccB = alpaka::allocBuf<Val, Idx>(devAcc, extent);
-    auto memBufAccC = alpaka::allocBuf<Val, Idx>(devAcc, extent);
+    auto memBufAccA = aV2P::allocBuf<Val, Idx>(devAcc, extent);
+    auto memBufAccB = aV2P::allocBuf<Val, Idx>(devAcc, extent);
+    auto memBufAccC = aV2P::allocBuf<Val, Idx>(devAcc, extent);
 
     // Copy Host -> Acc.
-    alpaka::memcpy(queueAcc, memBufAccA, memBufHostA);
-    alpaka::memcpy(queueAcc, memBufAccB, memBufHostB);
+    aV2P::memcpy(queueAcc, memBufAccA, memBufHostA);
+    aV2P::memcpy(queueAcc, memBufAccB, memBufHostB);
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    alpaka::KernelCfg<Acc> const kernelCfg = {extent, static_cast<Idx>(3u)};
-    auto const workDiv = alpaka::getValidWorkDiv(
+    aV2P::KernelCfg<Acc> const kernelCfg = {extent, static_cast<Idx>(3u)};
+    auto const workDiv = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         kernel,
@@ -122,12 +122,12 @@ TEMPLATE_LIST_TEST_CASE("separableCompilation", "[separableCompilation]", TestAc
         memBufAccC.data(),
         numElements);
 
-    std::cout << alpaka::core::demangled<decltype(kernel)> << "("
-              << "accelerator: " << alpaka::getAccName<Acc>() << ", workDiv: " << workDiv
+    std::cout << aV2P::core::demangled<decltype(kernel)> << "("
+              << "accelerator: " << aV2P::getAccName<Acc>() << ", workDiv: " << workDiv
               << ", numElements:" << numElements << ")" << std::endl;
 
     // Create the executor task.
-    auto const taskKernel = alpaka::createTaskKernel<Acc>(
+    auto const taskKernel = aV2P::createTaskKernel<Acc>(
         workDiv,
         kernel,
         memBufAccA.data(),
@@ -136,12 +136,12 @@ TEMPLATE_LIST_TEST_CASE("separableCompilation", "[separableCompilation]", TestAc
         numElements);
 
     // Profile the kernel execution.
-    std::cout << "Execution time: " << alpaka::test::integ::measureTaskRunTimeMs(queueAcc, taskKernel) << " ms"
+    std::cout << "Execution time: " << aV2P::test::integ::measureTaskRunTimeMs(queueAcc, taskKernel) << " ms"
               << std::endl;
 
     // Copy back the result.
-    alpaka::memcpy(queueAcc, memBufHostC, memBufAccC);
-    alpaka::wait(queueAcc);
+    aV2P::memcpy(queueAcc, memBufHostC, memBufAccC);
+    aV2P::wait(queueAcc);
 
     bool resultCorrect(true);
     for(Idx i = 0; i < numElements; ++i)

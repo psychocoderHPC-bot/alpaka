@@ -1,7 +1,7 @@
 #include "babelStreamCommon.hpp"
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_session.hpp>
@@ -75,9 +75,9 @@ struct InitKernel
     //! \param initialA the value to set all items in the vector a
     //! \param initialB the value to set all items in the vector b
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, T* a, T* b, T* c, T initialA, T initialB, T initialC) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, T* a, T* b, T* c, T initialA, T initialB, T initialC) const
     {
-        auto const [i] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [i] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         a[i] = initialA;
         b[i] = initialB;
         c[i] = initialC;
@@ -94,9 +94,9 @@ struct CopyKernel
     //! \param a Pointer for vector a
     //! \param c Pointer for vector c
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, T const* a, T* c) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, T const* a, T* c) const
     {
-        auto const [index] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [index] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         c[index] = a[index];
     }
 };
@@ -111,10 +111,10 @@ struct MultKernel
     //! \param c Pointer for vector c
     //! \param b Pointer for result vector b
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, T* b, T* const c) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, T* b, T* const c) const
     {
         const T scalar = static_cast<T>(scalarVal);
-        auto const [i] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [i] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         b[i] = scalar * c[i];
     }
 };
@@ -130,9 +130,9 @@ struct AddKernel
     //! \param b Pointer for vector b
     //! \param c Pointer for result vector c
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, T const* a, T const* b, T* c) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, T const* a, T const* b, T* c) const
     {
-        auto const [i] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [i] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         c[i] = a[i] + b[i];
     }
 };
@@ -148,10 +148,10 @@ struct TriadKernel
     //! \param b Pointer for vector b
     //! \param c Pointer for result vector c
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, T* a, T const* b, T const* c) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, T* a, T const* b, T const* c) const
     {
         const T scalar = static_cast<T>(scalarVal);
-        auto const [i] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [i] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         a[i] = b[i] + scalar * c[i];
     }
 };
@@ -160,10 +160,10 @@ struct TriadKernel
 struct NstreamKernel
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, T* a, T const* b, T const* c) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, T* a, T const* b, T const* c) const
     {
         const T scalar = static_cast<T>(scalarVal);
-        auto const [i] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [i] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         a[i] += b[i] + scalar * c[i];
     }
 };
@@ -181,27 +181,27 @@ struct DotKernel
     //! \param sum Pointer for result vector consisting sums of blocks
     //! \param arraySize the size of the array
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, T const* a, T const* b, T* sum, alpaka::Idx<TAcc> arraySize) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, T const* a, T const* b, T* sum, aV2P::Idx<TAcc> arraySize) const
     {
-        using Idx = alpaka::Idx<TAcc>;
-        auto& tbSum = alpaka::declareSharedVar<T[blockThreadExtentMain], __COUNTER__>(acc);
+        using Idx = aV2P::Idx<TAcc>;
+        auto& tbSum = aV2P::declareSharedVar<T[blockThreadExtentMain], __COUNTER__>(acc);
 
-        auto i = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
-        auto const local_i = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0];
-        auto const totalThreads = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)[0];
+        auto i = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0];
+        auto const local_i = aV2P::getIdx<aV2P::Block, aV2P::Threads>(acc)[0];
+        auto const totalThreads = aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)[0];
 
         T threadSum = 0;
         for(; i < arraySize; i += totalThreads)
             threadSum += a[i] * b[i];
         tbSum[local_i] = threadSum;
 
-        auto const blockSize = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
+        auto const blockSize = aV2P::getWorkDiv<aV2P::Block, aV2P::Threads>(acc)[0];
         // Tree reduction in shared memory: at each step the active threads add the element at distance "offset".
         // The block size must be a power of two, otherwise some elements are skipped and the result is wrong.
-        ALPAKA_ASSERT_ACC(std::has_single_bit(blockSize));
+        AV2P_ASSERT_ACC(std::has_single_bit(blockSize));
         for(Idx offset = blockSize / 2; offset > 0; offset /= 2)
         {
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
             if(local_i < offset)
             {
 // Suppress warnings
@@ -223,7 +223,7 @@ struct DotKernel
             }
         }
 
-        auto const gridBlockIndex = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0];
+        auto const gridBlockIndex = aV2P::getIdx<aV2P::Grid, aV2P::Blocks>(acc)[0];
         if(local_i == 0)
             sum[gridBlockIndex] = tbSum[local_i];
     }
@@ -241,8 +241,8 @@ void testKernels()
     }
     using Acc = TAcc;
     // Set the number of dimensions as an integral constant. Set to 1 for 1D.
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
     // A MetaData class instance to keep the benchmark info and results to print later. Does not include intermediate
     // runtime data.
@@ -259,34 +259,34 @@ void testKernels()
         dataTypeStr = "double";
     }
 
-    using QueueAcc = alpaka::Queue<Acc, alpaka::Blocking>;
+    using QueueAcc = aV2P::Queue<Acc, aV2P::Blocking>;
 
     // Select a device
-    auto const platform = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platform, 0);
+    auto const platform = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platform, 0);
 
     // Create a queue on the device
     QueueAcc queue(devAcc);
 
     // Get the host device for allocating memory on the host.
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
     // Create vectors
     Idx arraySize = static_cast<Idx>(arraySizeMain);
 
     // Acc buffers
-    auto bufAccInputA = alpaka::allocBuf<DataType, Idx>(devAcc, arraySize);
-    auto bufAccInputB = alpaka::allocBuf<DataType, Idx>(devAcc, arraySize);
-    auto bufAccOutputC = alpaka::allocBuf<DataType, Idx>(devAcc, arraySize);
+    auto bufAccInputA = aV2P::allocBuf<DataType, Idx>(devAcc, arraySize);
+    auto bufAccInputB = aV2P::allocBuf<DataType, Idx>(devAcc, arraySize);
+    auto bufAccOutputC = aV2P::allocBuf<DataType, Idx>(devAcc, arraySize);
 
     // Host buffer as the result
-    auto bufHostOutputA = alpaka::allocBuf<DataType, Idx>(devHost, arraySize);
-    auto bufHostOutputB = alpaka::allocBuf<DataType, Idx>(devHost, arraySize);
-    auto bufHostOutputC = alpaka::allocBuf<DataType, Idx>(devHost, arraySize);
+    auto bufHostOutputA = aV2P::allocBuf<DataType, Idx>(devHost, arraySize);
+    auto bufHostOutputB = aV2P::allocBuf<DataType, Idx>(devHost, arraySize);
+    auto bufHostOutputC = aV2P::allocBuf<DataType, Idx>(devHost, arraySize);
 
     // Grid size and elems per thread will be used to get the work division
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Vec = aV2P::Vec<Dim, Idx>;
     auto const elementsPerThread = Vec::all(static_cast<Idx>(1));
     auto const elementsPerGrid = Vec::all(arraySize);
 
@@ -296,9 +296,9 @@ void testKernels()
     auto bufAccOutputCPtr = std::data(bufAccOutputC);
 
     // Bind gridsize and elements per thread together
-    alpaka::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
+    aV2P::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
     // Let alpaka calculate good work division (namely the block and grid sizes) given our full problem extent
-    auto const workDivInit = alpaka::getValidWorkDiv(
+    auto const workDivInit = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         InitKernel(),
@@ -309,13 +309,13 @@ void testKernels()
         static_cast<DataType>(initB),
         static_cast<DataType>(initC));
     auto const workDivCopy
-        = alpaka::getValidWorkDiv(kernelCfg, devAcc, CopyKernel(), bufAccInputAPtr, bufAccInputBPtr);
+        = aV2P::getValidWorkDiv(kernelCfg, devAcc, CopyKernel(), bufAccInputAPtr, bufAccInputBPtr);
     auto const workDivMult
-        = alpaka::getValidWorkDiv(kernelCfg, devAcc, MultKernel(), bufAccInputAPtr, bufAccInputBPtr);
+        = aV2P::getValidWorkDiv(kernelCfg, devAcc, MultKernel(), bufAccInputAPtr, bufAccInputBPtr);
     auto const workDivAdd
-        = alpaka::getValidWorkDiv(kernelCfg, devAcc, AddKernel(), bufAccInputAPtr, bufAccInputBPtr, bufAccOutputCPtr);
+        = aV2P::getValidWorkDiv(kernelCfg, devAcc, AddKernel(), bufAccInputAPtr, bufAccInputBPtr, bufAccOutputCPtr);
 
-    auto const workDivTriad = alpaka::getValidWorkDiv(
+    auto const workDivTriad = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         TriadKernel(),
@@ -323,7 +323,7 @@ void testKernels()
         bufAccInputBPtr,
         bufAccOutputCPtr);
 
-    auto const workDivNStream = alpaka::getValidWorkDiv(
+    auto const workDivNStream = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         NstreamKernel(),
@@ -333,21 +333,21 @@ void testKernels()
 
 
     // Lambda to create and return work division for dot kernel
-    auto getWorkDivForDotKernel = [&]<typename AccType>() -> alpaka::WorkDivMembers<Dim, Idx>
+    auto getWorkDivForDotKernel = [&]<typename AccType>() -> aV2P::WorkDivMembers<Dim, Idx>
     {
         // Use babelstream benchmark standard work division for multi-threaded backends
         // For GPUs the benchmark expects a fixed workdiv: {256,1024,1}
         // For multi-threaded CPUs, which are not part of the benchmark, the code below will limit the blocksize with
         // the limit of the backend.
-        if constexpr(alpaka::isMultiThreadAcc<AccType>)
+        if constexpr(aV2P::isMultiThreadAcc<AccType>)
         {
-            auto const kernelFunctionAttributes = alpaka::getFunctionAttributes<Acc>(
+            auto const kernelFunctionAttributes = aV2P::getFunctionAttributes<Acc>(
                 devAcc,
                 DotKernel(),
                 bufAccInputAPtr,
                 bufAccInputBPtr,
                 bufAccOutputCPtr, // this is used here a kind of dummy
-                static_cast<alpaka::Idx<AccType>>(arraySize));
+                static_cast<aV2P::Idx<AccType>>(arraySize));
 
             // Get the maxThreadPerBlock
             auto const maxThreadsPerBlock = kernelFunctionAttributes.maxThreadsPerBlock;
@@ -362,9 +362,9 @@ void testKernels()
             // 256,1024,1. https://github.com/UoB-HPC/BabelStream/blob/main/src/cuda/CUDAStream.cu Hence blocksize
             // should be 1024 for GPU backends. But for multi-threaded CPUs; this code would also run and in that case
             // the blocksize would be less.
-            auto workDiv = alpaka::WorkDivMembers{
-                Vec::all(static_cast<alpaka::Idx<AccType>>(dotGridBlockExtent)),
-                Vec::all(static_cast<alpaka::Idx<AccType>>(threadsPerBlock)),
+            auto workDiv = aV2P::WorkDivMembers{
+                Vec::all(static_cast<aV2P::Idx<AccType>>(dotGridBlockExtent)),
+                Vec::all(static_cast<aV2P::Idx<AccType>>(threadsPerBlock)),
                 Vec::all(1)};
 
             return workDiv;
@@ -373,17 +373,17 @@ void testKernels()
         {
             // Work division for single-threaded backends
             // Since block size is 1, the elements per grid is dotGridBlockExtent * blockThreadExtentMain
-            alpaka::KernelCfg<AccType> const kernelCfgDot
+            aV2P::KernelCfg<AccType> const kernelCfgDot
                 = {Vec::all(dotGridBlockExtent * blockThreadExtentMain), elementsPerThread};
 
-            return alpaka::getValidWorkDiv(
+            return aV2P::getValidWorkDiv(
                 kernelCfgDot,
                 devAcc,
                 DotKernel(),
                 bufAccInputAPtr,
                 bufAccInputBPtr,
                 bufAccOutputCPtr, // this is used here a kind of dummy
-                static_cast<alpaka::Idx<AccType>>(arraySize));
+                static_cast<aV2P::Idx<AccType>>(arraySize));
         }
     };
 
@@ -398,7 +398,7 @@ void testKernels()
         double runtime = 0.0;
         auto start = std::chrono::high_resolution_clock::now();
         kernelFunc();
-        alpaka::wait(queue);
+        aV2P::wait(queue);
         auto end = std::chrono::high_resolution_clock::now();
         // get duration in seconds
         std::chrono::duration<double> duration = end - start;
@@ -432,7 +432,7 @@ void testKernels()
     measureKernelExec(
         [&]()
         {
-            alpaka::exec<Acc>(
+            aV2P::exec<Acc>(
                 queue,
                 workDivInit,
                 InitKernel(),
@@ -458,18 +458,18 @@ void testKernels()
         {
             // Test the copy-kernel. Copy A one by one to C.
             measureKernelExec(
-                [&]() { alpaka::exec<Acc>(queue, workDivCopy, CopyKernel(), bufAccInputAPtr, bufAccOutputCPtr); },
+                [&]() { aV2P::exec<Acc>(queue, workDivCopy, CopyKernel(), bufAccInputAPtr, bufAccOutputCPtr); },
                 "CopyKernel");
 
             // Test the scaling-kernel. Calculate B=scalar*C. Where C = A.
             measureKernelExec(
-                [&]() { alpaka::exec<Acc>(queue, workDivMult, MultKernel(), bufAccInputBPtr, bufAccOutputCPtr); },
+                [&]() { aV2P::exec<Acc>(queue, workDivMult, MultKernel(), bufAccInputBPtr, bufAccOutputCPtr); },
                 "MultKernel");
 
             // Test the addition-kernel. Calculate C=A+B. Where B=scalar*C or B=scalar*A.
             measureKernelExec(
                 [&]() {
-                    alpaka::exec<Acc>(
+                    aV2P::exec<Acc>(
                         queue,
                         workDivAdd,
                         AddKernel(),
@@ -485,7 +485,7 @@ void testKernels()
             // Test the Triad-kernel. Calculate A=B+scalar*C. Where C is A+scalar*A.
             measureKernelExec(
                 [&]() {
-                    alpaka::exec<Acc>(
+                    aV2P::exec<Acc>(
                         queue,
                         workDivTriad,
                         TriadKernel(),
@@ -498,24 +498,24 @@ void testKernels()
         if(kernelsToBeExecuted == KernelsToRun::All)
         {
             // Vector of sums of each block
-            auto bufAccSumPerBlock = alpaka::allocBuf<DataType, Idx>(devAcc, workDivDot.m_gridBlockExtent[0]);
-            auto bufHostSumPerBlock = alpaka::allocBuf<DataType, Idx>(devHost, workDivDot.m_gridBlockExtent[0]);
+            auto bufAccSumPerBlock = aV2P::allocBuf<DataType, Idx>(devAcc, workDivDot.m_gridBlockExtent[0]);
+            auto bufHostSumPerBlock = aV2P::allocBuf<DataType, Idx>(devHost, workDivDot.m_gridBlockExtent[0]);
             // Test Dot kernel with specific blocksize which is larger than one
 
 
             measureKernelExec(
                 [&]()
                 {
-                    alpaka::exec<Acc>(
+                    aV2P::exec<Acc>(
                         queue,
                         workDivDot,
                         DotKernel(), // Dot kernel
                         bufAccInputAPtr,
                         bufAccInputBPtr,
-                        alpaka::getPtrNative(bufAccSumPerBlock),
-                        static_cast<alpaka::Idx<Acc>>(arraySize));
-                    alpaka::memcpy(queue, bufHostSumPerBlock, bufAccSumPerBlock, workDivDot.m_gridBlockExtent[0]);
-                    alpaka::wait(queue);
+                        aV2P::getPtrNative(bufAccSumPerBlock),
+                        static_cast<aV2P::Idx<Acc>>(arraySize));
+                    aV2P::memcpy(queue, bufHostSumPerBlock, bufAccSumPerBlock, workDivDot.m_gridBlockExtent[0]);
+                    aV2P::wait(queue);
 
                     DataType const* sumPtr = std::data(bufHostSumPerBlock);
                     resultDot
@@ -531,7 +531,7 @@ void testKernels()
             // Test the NStream-kernel. Calculate A += B + scalar * C;
             measureKernelExec(
                 [&]() {
-                    alpaka::exec<Acc>(
+                    aV2P::exec<Acc>(
                         queue,
                         workDivNStream,
                         NstreamKernel(),
@@ -541,7 +541,7 @@ void testKernels()
                 },
                 "NStreamKernel");
         }
-        alpaka::wait(queue);
+        aV2P::wait(queue);
     } // End of MAIN LOOP which runs the kernels many times
 
 
@@ -549,10 +549,10 @@ void testKernels()
     {
         auto start = std::chrono::high_resolution_clock::now();
         // Copy arrays back to host since the execution of kernels except dot kernel finished
-        alpaka::memcpy(queue, bufHostOutputC, bufAccOutputC, arraySize);
-        alpaka::memcpy(queue, bufHostOutputB, bufAccInputB, arraySize);
-        alpaka::memcpy(queue, bufHostOutputA, bufAccInputA, arraySize);
-        alpaka::wait(queue);
+        aV2P::memcpy(queue, bufHostOutputC, bufAccOutputC, arraySize);
+        aV2P::memcpy(queue, bufHostOutputB, bufAccInputB, arraySize);
+        aV2P::memcpy(queue, bufHostOutputA, bufAccInputA, arraySize);
+        aV2P::wait(queue);
         auto end = std::chrono::high_resolution_clock::now();
         // Get duration in seconds
         std::chrono::duration<double> duration = end - start;
@@ -592,7 +592,7 @@ void testKernels()
         REQUIRE(FuzzyEqual(sumErrC / static_cast<DataType>(arraySize), static_cast<DataType>(0.0)));
         REQUIRE(FuzzyEqual(sumErrB / static_cast<DataType>(arraySize), static_cast<DataType>(0.0)));
         REQUIRE(FuzzyEqual(sumErrA / static_cast<DataType>(arraySize), static_cast<DataType>(0.0)));
-        alpaka::wait(queue);
+        aV2P::wait(queue);
 
         // Verify Dot kernel
         DataType const expectedSum = static_cast<DataType>(arraySize) * expectedA * expectedB;
@@ -648,8 +648,8 @@ void testKernels()
     metaData.setItem(BMInfoDataType::DataSize, std::to_string(arraySizeMain));
     metaData.setItem(BMInfoDataType::DataType, dataTypeStr);
     // Device and accelerator
-    metaData.setItem(BMInfoDataType::DeviceName, alpaka::getName(devAcc));
-    metaData.setItem(BMInfoDataType::AcceleratorType, alpaka::getAccName<Acc>());
+    metaData.setItem(BMInfoDataType::DeviceName, aV2P::getName(devAcc));
+    metaData.setItem(BMInfoDataType::AcceleratorType, aV2P::getAccName<Acc>());
     // XML reporter of catch2 always converts to Nano Seconds
     metaData.setItem(BMInfoDataType::TimeUnit, "Nano Seconds");
 
@@ -676,7 +676,7 @@ void testKernels()
     std::cout << metaData.serializeAsTable() << std::endl;
 }
 
-using TestAccs1D = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::uint32_t>;
+using TestAccs1D = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::uint32_t>;
 
 // Run for all Accs given by the argument
 TEMPLATE_LIST_TEST_CASE("TEST: Babelstream Kernels<Float>", "[benchmark-test]", TestAccs1D)

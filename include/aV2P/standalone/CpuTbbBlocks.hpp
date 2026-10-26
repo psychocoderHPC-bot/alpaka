@@ -1,0 +1,9 @@
+/* Copyright 2019 Benjamin Worpitz
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+#pragma once
+
+#ifndef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
+#    define AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
+#endif

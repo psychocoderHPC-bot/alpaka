@@ -9,7 +9,7 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-project("alpakaIntegTest" LANGUAGES CXX)
+project("aV2PIntegTest" LANGUAGES CXX)
 
 ################################################################################
 # Add subdirectories.

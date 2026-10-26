@@ -2,15 +2,15 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/core/CallbackThread.hpp>
+#include <aV2P/core/CallbackThread.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("callbackthread", "[core]")
 {
-    alpaka::core::CallbackThread cbt;
+    aV2P::core::CallbackThread cbt;
 
-#if ALPAKA_COMP_CLANG >= ALPAKA_VERSION_NUMBER(21, 1, 0) && ALPAKA_COMP_CLANG < ALPAKA_VERSION_NUMBER(22, 0, 0)
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0) && AV2P_COMP_CLANG < AV2P_VERSION_NUMBER(22, 0, 0)
     // This triggers a false positive with clang 21.1.x, including icpx 2025.3.x.
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wmissing-noreturn"
@@ -18,7 +18,7 @@ TEST_CASE("callbackthread", "[core]")
     auto f1 = cbt.submit([] { throw std::runtime_error("42"); });
     auto f2 = cbt.submit([] { throw 42; });
     auto f3 = cbt.submit([]() noexcept {});
-#if ALPAKA_COMP_CLANG >= ALPAKA_VERSION_NUMBER(21, 1, 0) && ALPAKA_COMP_CLANG < ALPAKA_VERSION_NUMBER(22, 0, 0)
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0) && AV2P_COMP_CLANG < AV2P_VERSION_NUMBER(22, 0, 0)
 #    pragma clang diagnostic pop
 #endif
 
@@ -38,7 +38,7 @@ TEST_CASE("callbackthread", "[core]")
 
 TEST_CASE("callbackthread_copyable_task", "[core]")
 {
-    alpaka::core::CallbackThread cbt;
+    aV2P::core::CallbackThread cbt;
 
     bool flag = false;
     auto task = [&] { flag = true; };
@@ -56,7 +56,7 @@ TEST_CASE("callbackthread_copyable_task", "[core]")
 
 TEST_CASE("callbackthread_non_copyable_task", "[core]")
 {
-    alpaka::core::CallbackThread cbt;
+    aV2P::core::CallbackThread cbt;
 
     bool flag = false;
     auto task = [&, dummy = std::unique_ptr<int>{nullptr}] { flag = true; };

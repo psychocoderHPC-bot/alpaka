@@ -7,10 +7,10 @@
 #include "Defines.hpp"
 #include "Functor.hpp"
 
-#include <alpaka/core/DemangleTypeNames.hpp>
-#include <alpaka/math/Complex.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/queue/Queue.hpp>
+#include <aV2P/core/DemangleTypeNames.hpp>
+#include <aV2P/math/Complex.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_message.hpp>
@@ -27,9 +27,9 @@ namespace mathtest
         //! @tparam TFunctor Functor defined in Functor.hpp.
         //! @param acc Accelerator given from alpaka.
         //! @param functor Accessible with operator().
-        ALPAKA_NO_HOST_ACC_WARNING
+        AV2P_NO_HOST_ACC_WARNING
         template<typename TAcc, typename TResults, typename TFunctor, typename TArgs>
-        ALPAKA_FN_ACC auto operator()(TAcc const& acc, TResults* results, TFunctor const& functor, TArgs const* args)
+        AV2P_FN_ACC auto operator()(TAcc const& acc, TResults* results, TFunctor const& functor, TArgs const* args)
             const noexcept -> void
         {
             for(size_t i = 0; i < TCapacity; ++i)
@@ -48,14 +48,14 @@ namespace mathtest
 
     //! Specialization for complex
     template<typename T>
-    struct UnderlyingType<alpaka::Complex<T>>
+    struct UnderlyingType<aV2P::Complex<T>>
     {
         using type = T;
     };
 
     //!
     //! \brief setExpectedResultForSpecificInput
-    //! This function is for testing alpaka::math functions isinf, isnan, isfinite. Since for some compile
+    //! This function is for testing aV2P::math functions isinf, isnan, isfinite. Since for some compile
     //! options for CPU backends; std::isnan, std::isinf and std::isfinite does not work properpy; test results can
     //! only be tested by setting the expected results for the known input. For 3 testing operators OpIsnan, OpIsinf,
     //! OpIsfinite; at the beginning of test input array, specific values are used and their expected results are set
@@ -113,14 +113,14 @@ namespace mathtest
             auto const seed = rd();
             INFO(
                 "testing"
-                << " acc:" << alpaka::core::demangled<TAcc> << " data type:" << alpaka::core::demangled<TData>
-                << " functor:" << alpaka::core::demangled<TWrappedFunctor> << " seed:" << seed);
+                << " acc:" << aV2P::core::demangled<TAcc> << " data type:" << aV2P::core::demangled<TData>
+                << " functor:" << aV2P::core::demangled<TWrappedFunctor> << " seed:" << seed);
 
             // SETUP (defines and initialising)
             // DevAcc is defined in Buffer.hpp too.
-            using DevAcc = alpaka::Dev<TAcc>;
+            using DevAcc = aV2P::Dev<TAcc>;
 
-            using QueueAcc = alpaka::test::DefaultQueue<DevAcc>;
+            using QueueAcc = aV2P::test::DefaultQueue<DevAcc>;
             using TArgsItem = ArgsItem<TData, TFunctor::arity>;
 
             static constexpr auto capacity = 1000;
@@ -132,10 +132,10 @@ namespace mathtest
             static constexpr size_t elementsPerThread = 1u;
             static constexpr size_t sizeExtent = 1u;
 
-            auto const platformAcc = alpaka::Platform<TAcc>{};
-            auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
-            auto const platformHost = alpaka::PlatformCpu{};
-            auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+            auto const platformAcc = aV2P::Platform<TAcc>{};
+            auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
+            auto const platformHost = aV2P::PlatformCpu{};
+            auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
             QueueAcc queue{devAcc};
 
@@ -145,9 +145,9 @@ namespace mathtest
             Results results{devAcc, platformHost, platformAcc};
 
             // Let alpaka calculate good block and grid sizes given our full problem extent
-            alpaka::KernelCfg<TAcc> const kernelCfg
-                = {sizeExtent, elementsPerThread, false, alpaka::GridBlockExtentSubDivRestrictions::Unrestricted};
-            auto const workDiv = alpaka::getValidWorkDiv(
+            aV2P::KernelCfg<TAcc> const kernelCfg
+                = {sizeExtent, elementsPerThread, false, aV2P::GridBlockExtentSubDivRestrictions::Unrestricted};
+            auto const workDiv = aV2P::getValidWorkDiv(
                 kernelCfg,
                 devAcc,
                 kernel,
@@ -169,17 +169,17 @@ namespace mathtest
 
             // Enqueue the kernel execution task.
             auto const taskKernel
-                = alpaka::createTaskKernel<TAcc>(workDiv, kernel, results.pDevBuffer, wrappedFunctor, args.pDevBuffer);
-            alpaka::enqueue(queue, taskKernel);
+                = aV2P::createTaskKernel<TAcc>(workDiv, kernel, results.pDevBuffer, wrappedFunctor, args.pDevBuffer);
+            aV2P::enqueue(queue, taskKernel);
 
             // Copy back the results (encapsulated in the buffer class).
             results.copyFromDevice(queue);
-            alpaka::wait(queue);
+            aV2P::wait(queue);
             std::cout.precision(std::numeric_limits<Underlying>::digits10 + 1);
 
             INFO("Operator: " << functor);
-            INFO("Type: " << alpaka::core::demangled<TData>); // Compiler specific.
-#if ALPAKA_DEBUG_FULL
+            INFO("Type: " << aV2P::core::demangled<TData>); // Compiler specific.
+#if AV2P_DEBUG_FULL
             INFO(
                 "The args buffer: \n"
                 << std::setprecision(std::numeric_limits<Underlying>::digits10 + 1) << args << "\n");
@@ -223,7 +223,7 @@ namespace mathtest
         //! be effectively infinite and equivalent to one another. Thus, the tests do not concern accuracy for extreme
         //! values. However, they still check the implementation for "reasonable" values.
         template<typename T>
-        static bool isFinite(alpaka::Complex<T> const& z)
+        static bool isFinite(aV2P::Complex<T> const& z)
         {
             auto const absValue = abs(z);
             auto const maxAbs = static_cast<T>(0.1) * std::numeric_limits<T>::max();
@@ -232,7 +232,7 @@ namespace mathtest
 
         //! Approximate comparison of complex numbers
         template<typename T>
-        static bool isApproxEqual(alpaka::Complex<T> const& a, alpaka::Complex<T> const& b)
+        static bool isApproxEqual(aV2P::Complex<T> const& a, aV2P::Complex<T> const& b)
         {
             // Consider all infinite values equal, @see comment at isFinite()
             if(!isFinite(a) && !isFinite(b))
