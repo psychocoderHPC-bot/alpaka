@@ -55,12 +55,3 @@ namespace aV2P
 
 } // namespace aV2P
 
-// The concrete implementations and the accelerator-facade trait are pulled in here so that a single
-// `#include <aV2P/grid/Traits.hpp>` is enough to call `syncGridThreads(acc)` on an aV2P accelerator.
-#include "aV2P/grid/GridSyncNoOp.hpp"
-#include "aV2P/grid/GridSyncBarrierCpuOmp.hpp"
-#include "aV2P/grid/GridSyncBarrierCpuThread.hpp"
-#include "aV2P/grid/GridSyncCpuTbbBlocks.hpp"
-#include "aV2P/grid/GridSyncGpuCudaHip.hpp"
-#include "aV2P/grid/GridSyncGenericSycl.hpp"
-#include "aV2P/grid/GridSyncAcc.hpp"

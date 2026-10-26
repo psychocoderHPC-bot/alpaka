@@ -67,6 +67,7 @@
 #include "aV2P/grid/GridSyncGpuCudaHip.hpp"
 #include "aV2P/grid/GridSyncNoOp.hpp"
 #include "aV2P/grid/Traits.hpp"
+#include "aV2P/grid/GridSyncAcc.hpp"
 // idx
 #include "aV2P/idx/Accessors.hpp"
 #include "aV2P/idx/MapIdx.hpp"

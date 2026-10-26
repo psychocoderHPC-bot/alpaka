@@ -6,6 +6,12 @@
 
 #include "aV2P/adapter/AccTraits.hpp"
 #include "aV2P/grid/Traits.hpp"
+#include "aV2P/grid/GridSyncBarrierCpuOmp.hpp"
+#include "aV2P/grid/GridSyncBarrierCpuThread.hpp"
+#include "aV2P/grid/GridSyncCpuTbbBlocks.hpp"
+#include "aV2P/grid/GridSyncGpuCudaHip.hpp"
+#include "aV2P/grid/GridSyncGenericSycl.hpp"
+#include "aV2P/grid/GridSyncNoOp.hpp"
 #include "aV2P/kernel/Traits.hpp"
 
 #include <alpaka/alpaka.hpp>

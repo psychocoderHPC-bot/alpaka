@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
+#include <aV2P/grid/GridSyncAcc.hpp>
 #include <aV2P/grid/Traits.hpp>
 #include <aV2P/test/KernelExecutionFixture.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
