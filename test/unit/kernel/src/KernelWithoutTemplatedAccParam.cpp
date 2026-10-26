@@ -9,7 +9,7 @@
 
 using Dim = aV2P::DimInt<2u>;
 using Idx = std::uint32_t;
-#if defined(AV2P_ACC_CPU_SERIAL_ENABLED)
+#if defined(AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED)
 using AccCpu = aV2P::AccCpuSerial<Dim, Idx>;
 #endif
 #if defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP
@@ -18,7 +18,7 @@ using AccGpu = aV2P::AccGpuHipRt<Dim, Idx>;
 using AccGpu = aV2P::AccGpuCudaRt<Dim, Idx>;
 #endif
 
-#if defined(AV2P_ACC_CPU_SERIAL_ENABLED)
+#if defined(AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED)
 struct KernelNoTemplateCpu
 {
     AV2P_FN_ACC auto operator()(AccCpu const& acc, bool* success) const -> void
@@ -62,7 +62,7 @@ TEST_CASE("kernelNoTemplateGpu", "[kernel]")
 }
 #endif
 
-#if defined(AV2P_ACC_CPU_SERIAL_ENABLED)
+#if defined(AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED)
 struct KernelUnusedTemplateParamCpu
 {
     template<typename TNotUsed = void>

@@ -303,7 +303,8 @@ class AtomicTestKernel
 {
 public:
     AV2P_NO_HOST_ACC_WARNING
-    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success, T operandOrig) const -> void
+    template<typename TFacade>
+    AV2P_FN_ACC auto operator()(TFacade const& acc, bool* success, T operandOrig) const -> void
     {
         testAtomicAdd(acc, success, operandOrig);
         testAtomicSub(acc, success, operandOrig);
@@ -333,7 +334,8 @@ class AtomicTestKernel<TAcc, T, std::enable_if_t<std::is_floating_point_v<T>>>
 {
 public:
     AV2P_NO_HOST_ACC_WARNING
-    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success, T operandOrig) const -> void
+    template<typename TFacade>
+    AV2P_FN_ACC auto operator()(TFacade const& acc, bool* success, T operandOrig) const -> void
     {
         testAtomicAdd(acc, success, operandOrig);
         testAtomicSub(acc, success, operandOrig);
@@ -354,19 +356,41 @@ public:
     }
 };
 
-#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA)                                                         \
-    || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
+// The narrow-type stub is specialized on the concrete accelerator alias of the enabled GPU backend.
+// The legacy three-parameter `AccGpuUniformCudaHipRt` name expands to an alias that drops the legacy
+// API tag, which clang rejects as a deduction pattern in a partial specialization.
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA
 
-template<typename TApi, typename TDim, typename TIdx, typename T>
+template<typename TDim, typename TIdx, typename T>
 class AtomicTestKernel<
-    aV2P::AccGpuUniformCudaHipRt<TApi, TDim, TIdx>,
+    aV2P::AccGpuCudaRt<TDim, TIdx>,
     T,
     std::enable_if_t<sizeof(T) != 4u && sizeof(T) != 8u>>
 {
 public:
     AV2P_NO_HOST_ACC_WARNING
     AV2P_FN_ACC auto operator()(
-        aV2P::AccGpuUniformCudaHipRt<TApi, TDim, TIdx> const& /* acc */,
+        aV2P::AccGpuCudaRt<TDim, TIdx> const& /* acc */,
+        bool* success,
+        T /* operandOrig */) const -> void
+    {
+        // All other types are not supported by CUDA/HIP atomic operations.
+        AV2P_CHECK(*success, true);
+    }
+};
+
+#elif defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP
+
+template<typename TDim, typename TIdx, typename T>
+class AtomicTestKernel<
+    aV2P::AccGpuHipRt<TDim, TIdx>,
+    T,
+    std::enable_if_t<sizeof(T) != 4u && sizeof(T) != 8u>>
+{
+public:
+    AV2P_NO_HOST_ACC_WARNING
+    AV2P_FN_ACC auto operator()(
+        aV2P::AccGpuHipRt<TDim, TIdx> const& /* acc */,
         bool* success,
         T /* operandOrig */) const -> void
     {

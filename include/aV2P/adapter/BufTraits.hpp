@@ -324,14 +324,18 @@ namespace aV2P::trait
         }
     };
 
-    //! The legacy CPU platform supports pinned/mapped host memory (it is plain host memory).
+    //! Mapped (pinned, device-visible) host memory is implemented for the host platform only in this
+    //! phase; host memory is plain host memory, so the capability is reported only for host platform
+    //! specs.
     //!
-    //! The capability is reported for every alpaka 3 platform spec to keep the legacy
-    //! `hasMappedBufSupport` contract.  The allocator below only implements the host platform in
-    //! this phase; requesting mapped memory for a different platform produces a compile-time
-    //! diagnostic instead of silently returning unpinned or wrongly-owned memory.
+    //! Reporting no capability for device platforms makes `allocMappedBufIfSupported` fall back to
+    //! regular host memory there, which is functionally equivalent (the mapped allocation is only a
+    //! performance optimisation).  Code that unconditionally requests mapped memory on a device
+    //! platform still gets the compile-time diagnostic below instead of silently receiving memory
+    //! that is not device-visible.
     template<typename TDevSpec>
-    struct HasMappedBufSupport<PlatformAlpaka3<TDevSpec>> : std::true_type
+    struct HasMappedBufSupport<PlatformAlpaka3<TDevSpec>>
+        : std::bool_constant<std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>>
     {
     };
 

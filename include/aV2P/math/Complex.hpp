@@ -578,6 +578,24 @@ namespace aV2P
         }
 
         //! @}
+
+        //! Detects `aV2P::internal::Complex<T>`.
+        //!
+        //! Backend-generic math traits (e.g. the alpaka 3 adapter's) must exclude complex arguments via
+        //! this trait: `aV2P::math::trait::*<TAcc, Complex<T>>` specializations exist for every enabled
+        //! accelerator and compete with the generic `<...accelerator..., TArg>` specializations on both
+        //! template parameters, which is ambiguous without the exclusion.
+        template<typename T>
+        struct IsComplex
+            : std::false_type
+        {
+        };
+
+        template<typename T>
+        struct IsComplex<Complex<T>>
+            : std::true_type
+        {
+        };
     } // namespace internal
 
     using internal::Complex;

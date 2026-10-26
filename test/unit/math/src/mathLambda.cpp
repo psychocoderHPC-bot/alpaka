@@ -25,10 +25,15 @@
 using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::size_t>;
 
 //! Device wrapper forwarding to a mathtest functor.
+//!
+//! The accelerator parameter stays deduced: on oneAPI the in-kernel accelerator facade differs from
+//! the host-time public accelerator type (one kernel instantiation per runtime subgroup size), so a
+//! wrapper that pins the public type could not receive the in-kernel facade.
 template<typename TFunctor, typename TAcc, typename TArgsItem>
 struct WrappedMathFunctor
 {
-    AV2P_FN_ACC auto operator()(TArgsItem const& arguments, TAcc const& acc) const
+    template<typename TCtx>
+    AV2P_FN_ACC auto operator()(TArgsItem const& arguments, TCtx const& acc) const
     {
         return TFunctor{}(arguments, acc);
     }
