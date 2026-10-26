@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace aV2P
@@ -89,7 +90,20 @@ namespace aV2P
 
         [[nodiscard]] auto getNativeHandle() const noexcept
         {
-            return m_devImpl.getNativeHandle();
+            using NativeHandleType = decltype(m_devImpl.getNativeHandle());
+            if constexpr(std::is_integral_v<NativeHandleType>)
+            {
+                // alpaka 2.2 exposed every integral device handle as `int` (see the 2.2
+                // DevCpu/DevUniformCudaHipRt implementations).  alpaka 3 uses `uint32_t`
+                // for the host backend and `int` for CUDA/HIP, so restore the legacy type
+                // at this boundary.  Non-integral handles (SYCL device/context pair) pass
+                // through unchanged, matching their 2.2 form.
+                return static_cast<int>(m_devImpl.getNativeHandle());
+            }
+            else
+            {
+                return m_devImpl.getNativeHandle();
+            }
         }
 
         friend struct trait::GetName<DevAlpaka3>;

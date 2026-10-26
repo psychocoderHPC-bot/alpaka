@@ -78,6 +78,7 @@
 #include "aV2P/mem/alloc/Traits.hpp"
 #include "aV2P/mem/buf/Traits.hpp"
 #include "aV2P/mem/fence/Traits.hpp"
+#include "aV2P/mem/global/DeviceGlobalCpu.hpp"
 #include "aV2P/mem/global/Traits.hpp"
 #include "aV2P/mem/view/Traits.hpp"
 #include "aV2P/mem/view/ViewAccessOps.hpp"
