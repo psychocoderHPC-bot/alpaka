@@ -54,12 +54,12 @@ namespace aV2P::rand
         // https://en.cppreference.com/w/cpp/named_req/UniformRandomBitGenerator
         using result_type = std::uint32_t;
 
-        AV2P_FN_HOST_ACC constexpr auto min() -> result_type
+        AV2P_FN_HOST_ACC static constexpr auto min() -> result_type
         {
             return 0;
         }
 
-        AV2P_FN_HOST_ACC constexpr auto max() -> result_type
+        AV2P_FN_HOST_ACC static constexpr auto max() -> result_type
         {
             return std::numeric_limits<result_type>::max();
         }
@@ -110,12 +110,12 @@ namespace aV2P::rand
         using ResultInt = std::uint32_t;
         using ResultVec = decltype(std::declval<EngineVariant>()());
 
-        AV2P_FN_HOST_ACC constexpr auto min() -> ResultInt
+        AV2P_FN_HOST_ACC static constexpr auto min() -> ResultInt
         {
             return 0;
         }
 
-        AV2P_FN_HOST_ACC constexpr auto max() -> ResultInt
+        AV2P_FN_HOST_ACC static constexpr auto max() -> ResultInt
         {
             return std::numeric_limits<ResultInt>::max();
         }

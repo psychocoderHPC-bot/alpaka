@@ -12,6 +12,9 @@
 #include "aV2P/rand/Traits.hpp"
 
 #include <alpaka/alpaka.hpp>
+#include <alpaka/rand/distribution/NormalReal.hpp>
+#include <alpaka/rand/distribution/UniformReal.hpp>
+#include <alpaka/rand/distribution/interval.hpp>
 
 #include <cstdint>
 #include <type_traits>
@@ -70,7 +73,9 @@ namespace aV2P
                     AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&) ->
                     alpaka::rand::distribution::NormalReal<T>
                 {
-                    return {};
+                    // The legacy contract is N(0, 1). alpaka 3's constructor is explicit, so it must be
+                    // called with the legacy parameters instead of being value-initialized.
+                    return alpaka::rand::distribution::NormalReal<T>(T{0}, T{1});
                 }
             };
 
@@ -91,17 +96,19 @@ namespace aV2P
                     AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&) ->
                     alpaka::rand::distribution::UniformReal<T>
                 {
-                    // interval::CO == [0, 1), the legacy contract of createUniformReal.
-                    return {};
+                    // interval::CO == [0, 1), the legacy contract of createUniformReal. The alpaka 3
+                    // constructor is explicit, so construct it with the legacy range and interval.
+                    return alpaka::rand::distribution::UniformReal<T>(T{0}, T{1}, alpaka::rand::interval::co);
                 }
             };
 
             /** Uniform unsigned integer distribution.
              *
              * alpaka 3 has no integer-result distribution (its `UniformReal` is constrained to floating
-             * point). The legacy engine-word based distribution is retained here; it derives the result
-             * from the engine's raw words and reproduces the legacy [0, UINT_MAX] contract without an
-             * intended bias beyond the legacy implementation.
+             * point). The legacy engine-word based distribution is retained here; it fills the result
+             * with consecutive engine words (XOR-combined for results wider than one word) and therefore
+             * reproduces the legacy inclusive [0, numeric_limits<T>::max()] contract without an intended
+             * bias beyond the legacy implementation.
              */
             template<
                 typename T,
