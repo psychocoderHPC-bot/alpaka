@@ -73,13 +73,21 @@ version-checked against the pinned native alpaka at configure time.
 Use `aV2P_add_executable(target ...)` or `aV2P_add_library(target ...)`.
 When CUDA or HIP is enabled these helpers enable the language, tag `.cpp`
 sources as CUDA/HIP, and set `CUDA_SEPARABLE_COMPILATION` or `HIP_STANDARD`
-on the target. A plain `add_executable` must do the same three steps itself.
+on the target. The helpers also schedule `aV2P_finalize(target)` at the end
+of the directory scope, so the usual `target_link_libraries(target ...
+aV2P::aV2P)` call runs first. You do not call the finalize step yourself.
 
-PENDING. The native alpaka 3 package additionally requires
-`alpaka_finalize(target)` when a target links `alpaka::alpaka` directly.
-The aV2P tree has no `aV2P_finalize` wrapper, and a consumer linking only
-`aV2P::aV2P` does not link `alpaka::alpaka` directly. Verify and document
-this path when a finalize helper is added.
+Native alpaka 3 requires every target that links it to be finalized before
+it compiles an alpaka header. `cmake/aV2PFinalize.cmake` defines
+`aV2P_finalize(target)` as the aV2P equivalent of `alpaka_finalize()`. A
+target created with plain `add_executable` or `add_library` must do the
+language and property steps above itself and call
+`aV2P_finalize(target)` after `target_link_libraries(target ... aV2P::aV2P)`.
+The call is idempotent, accepts a target already finalized by native
+`alpaka_finalize()`, and requires the target to link `aV2P::aV2P` or native
+alpaka. A target that links `aV2P::aV2P` directly and never finalizes
+reports a fatal error at configure time. Targets that reach aV2P through an
+interface target are finalized automatically.
 
 Build and run:
 
