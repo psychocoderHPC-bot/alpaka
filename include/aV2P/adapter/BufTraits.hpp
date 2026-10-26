@@ -7,6 +7,7 @@
 
 #include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Buf.hpp"
+#include "aV2P/adapter/Platform.hpp"
 #include "aV2P/adapter/WorkDiv.hpp"
 #include "aV2P/dev/Traits.hpp"
 #include "aV2P/mem/buf/Traits.hpp"
@@ -118,18 +119,19 @@ namespace aV2P::trait
         }
     };
 
-    //! The legacy buffer is contiguous: pitches are derived from the logical extents.
+    //! Report the pitches of the alpaka 3 allocation itself.
     //!
-    //! alpaka 3 host allocations may pad the row pitch for alignment.  The legacy buffer API
-    //! exposes contiguous memory to the user, so the adapter reports contiguous pitches even
-    //! though the underlying allocation may be larger.  Phase 3b must revisit this for device
-    //! buffers that require the native pitch.
+    //! alpaka 3 pads the innermost row pitch to the backend alignment, so the allocation is not
+    //! contiguous for dimensions greater than one.  Synthesizing contiguous pitches from the
+    //! logical extents would make every pointer computation, copy, fill and kernel access disagree
+    //! with the real memory layout.  Forward the native pitches instead; `data()`, the view
+    //! accessor and all memory operations use them.
     template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
     struct GetPitchesInBytes<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
     {
         AV2P_FN_HOST auto operator()(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) const
         {
-            return detail::calculatePitchesFromExtents<TElem>(aV2P::getExtents(buf));
+            return aV2P::adapter::fromAlpaka(buf.getAlpaka3().getPitches());
         }
     };
 
@@ -138,7 +140,7 @@ namespace aV2P::trait
     {
         AV2P_FN_HOST auto operator()(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) const
         {
-            return detail::calculatePitchesFromExtents<TElem>(aV2P::getExtents(buf));
+            return aV2P::adapter::fromAlpaka(buf.getAlpaka3().getPitches());
         }
     };
 
@@ -261,6 +263,64 @@ namespace aV2P::trait
                 return Buffer{
                     alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), adapter::toAlpaka(extent)),
                     dev};
+        }
+    };
+
+    //! The legacy CPU platform supports pinned/mapped host memory (it is plain host memory).
+    //!
+    //! The capability is reported for every alpaka 3 platform spec to keep the legacy
+    //! `hasMappedBufSupport` contract.  The allocator below only implements the host platform in
+    //! this phase; requesting mapped memory for a different platform produces a compile-time
+    //! diagnostic instead of silently returning unpinned or wrongly-owned memory.
+    template<typename TDevSpec>
+    struct HasMappedBufSupport<PlatformAlpaka3<TDevSpec>> : std::true_type
+    {
+    };
+
+    template<typename TDevSpec, typename TElem, typename TDim, typename TIdx>
+    struct BufAllocMapped<PlatformAlpaka3<TDevSpec>, TElem, TDim, TIdx>
+    {
+        template<typename TExtent>
+        AV2P_FN_HOST static auto allocMappedBuf(
+            DevCpu const& host,
+            PlatformAlpaka3<TDevSpec> const& /* platform */,
+            TExtent const& extent) -> BufAlpaka3<TDevSpec, TElem, TDim, TIdx>
+        {
+            static_assert(
+                std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>,
+                "aV2P Phase 3b-3: allocMappedBuf is implemented for the host platform only. "
+                "Mapped memory on a real device needs a device-side alpaka 3 allocation and is a "
+                "Phase 3b GPU task.");
+            using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
+            if constexpr(std::is_integral_v<TExtent>)
+                return Buffer{alpaka::onHost::allocMapped<TElem>(host.getAlpaka3(), alpaka::Vec{extent}), host};
+            else
+                return Buffer{
+                    alpaka::onHost::allocMapped<TElem>(host.getAlpaka3(), adapter::toAlpaka(extent)),
+                    host};
+        }
+    };
+
+    template<typename TDevSpec, typename TElem, typename TDim, typename TIdx>
+    struct BufAllocManaged<PlatformAlpaka3<TDevSpec>, TElem, TDim, TIdx>
+    {
+        template<typename TExtent>
+        AV2P_FN_HOST static auto allocManagedBuf(
+            DevCpu const& host,
+            PlatformAlpaka3<TDevSpec> const& /* platform */,
+            TExtent const& extent) -> BufAlpaka3<TDevSpec, TElem, TDim, TIdx>
+        {
+            static_assert(
+                std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>,
+                "aV2P Phase 3b-3: allocManagedBuf is implemented for the host platform only. "
+                "Unified memory on a real device is a Phase 3b GPU task.");
+            using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
+            if constexpr(std::is_integral_v<TExtent>)
+                return Buffer{alpaka::onHost::allocUnified<TElem>(host.getAlpaka3(), alpaka::Vec{extent}), host};
+            else
+                return Buffer{
+                    alpaka::onHost::allocUnified<TElem>(host.getAlpaka3(), adapter::toAlpaka(extent)),
+                    host};
         }
     };
 } // namespace aV2P::trait

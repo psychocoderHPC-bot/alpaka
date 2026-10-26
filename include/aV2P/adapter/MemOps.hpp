@@ -7,6 +7,7 @@
 
 #include "aV2P/adapter/Dev.hpp"
 #include "aV2P/adapter/Queue.hpp"
+#include "aV2P/adapter/ViewTraits.hpp"
 #include "aV2P/adapter/WorkDiv.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/dev/Traits.hpp"
@@ -18,19 +19,6 @@
 
 #include <cstdint>
 #include <type_traits>
-
-namespace aV2P::adapter
-{
-    //! Create an alpaka 3 non-owning view for a legacy aV2P view.
-    template<typename TView>
-    AV2P_FN_HOST auto makeAlpakaView(TView&& view)
-    {
-        auto const apiTag = alpaka::getApi(aV2P::getDev(view).getAlpaka3());
-        auto const extents = toAlpaka(aV2P::getExtents(view));
-        auto const pitches = toAlpaka(aV2P::getPitchesInBytes(view));
-        return alpaka::makeView(apiTag, aV2P::getPtrNative(view), extents, pitches);
-    }
-} // namespace aV2P::adapter
 
 namespace aV2P
 {
