@@ -717,7 +717,6 @@ if(aV2P_ACC_SYCL_ENABLE)
             set(aV2P_SYCL_ONEAPI_CPU_ISA "avx2" CACHE STRING "Intel ISA to compile for")
             set_property(CACHE aV2P_SYCL_ONEAPI_CPU_ISA PROPERTY STRINGS "sse4.2;avx;avx2;avx512")
 
-            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_CPU")
             target_link_options(aV2P INTERFACE "SHELL:-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_CPU_TARGET} \"-march=${aV2P_SYCL_ONEAPI_CPU_ISA}\"")
         endif()
 
@@ -729,8 +728,6 @@ if(aV2P_ACC_SYCL_ENABLE)
                         PROPERTY STRINGS "intel_gpu_pvc;intel_gpu_acm_g12;intel_gpu_acm_g11;intel_gpu_acm_g10;intel_gpu_dg1;intel_gpu_adl_n;intel_gpu_adl_p;intel_gpu_rpl_s;intel_gpu_adl_s;intel_gpu_rkl;intel_gpu_tgllp;intel_gpu_icllp;intel_gpu_cml;intel_gpu_aml;intel_gpu_whl;intel_gpu_glk;intel_gpu_apl;intel_gpu_cfl;intel_gpu_kbl;intel_gpu_skl;intel_gpu_bdw")
             # If the user has given us a list turn all ';' into ',' to pacify the Intel OpenCL compiler.
             string(REPLACE ";" "," aV2P_SYCL_ONEAPI_GPU_DEVICES "${aV2P_SYCL_ONEAPI_GPU_DEVICES}")
-
-            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU")
         endif()
 
         if(aV2P_SYCL_ONEAPI_GPU_NVIDIA)
@@ -741,17 +738,6 @@ if(aV2P_ACC_SYCL_ENABLE)
                         PROPERTY STRINGS "nvidia_gpu_sm_50;nvidia_gpu_sm_52;nvidia_gpu_sm_53;nvidia_gpu_sm_60;nvidia_gpu_sm_61;nvidia_gpu_sm_62;nvidia_gpu_sm_70;nvidia_gpu_sm_72;nvidia_gpu_sm_75;nvidia_gpu_sm_80;nvidia_gpu_sm_86;nvidia_gpu_sm_87;nvidia_gpu_sm_89;nvidia_gpu_sm_90")
             # If the user has given us a list turn all ';' into ',' to pacify the Intel OpenCL compiler.
             string(REPLACE ";" "," aV2P_SYCL_ONEAPI_GPU_DEVICES "${aV2P_SYCL_ONEAPI_GPU_DEVICES}")
-
-            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU_NVIDIA")
-
-            # oneAPI 2025.0 cannot compile the CUDA device code with debug symbols: ptxas fails on the debug information
-            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 2025.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 2025.1)
-                if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-                    message(FATAL_ERROR "The SYCL backend for NVIDIA GPUs does not support Debug builds with oneAPI ${CMAKE_CXX_COMPILER_VERSION}, because ptxas fails on the device debug information. Use a different build type or a different version of oneAPI.")
-                endif()
-                # with multi-config generators the build type is known only at build time
-                target_compile_definitions(aV2P INTERFACE "$<$<CONFIG:Debug>:AV2P_SYCL_ONEAPI_GPU_NVIDIA_DEBUG_UNSUPPORTED>")
-            endif()
         endif()
 
         if(aV2P_SYCL_ONEAPI_GPU_AMD)
@@ -762,8 +748,6 @@ if(aV2P_ACC_SYCL_ENABLE)
                         PROPERTY STRINGS "amd_gpu_gfx700;amd_gpu_gfx701;amd_gpu_gfx702;amd_gpu_gfx801;amd_gpu_gfx802;amd_gpu_gfx803;amd_gpu_gfx805;amd_gpu_gfx810;amd_gpu_gfx900;amd_gpu_gfx902;amd_gpu_gfx904;amd_gpu_gfx906;amd_gpu_gfx908;amd_gpu_gfx909;amd_gpu_gfx90a;amd_gpu_gfx90c;amd_gpu_gfx940;amd_gpu_gfx941;amd_gpu_gfx942;amd_gpu_gfx1010;amd_gpu_gfx1011;amd_gpu_gfx1012;amd_gpu_gfx1013;amd_gpu_gfx1030;amd_gpu_gfx1031;amd_gpu_gfx1032;amd_gpu_gfx1033;amd_gpu_gfx1034;amd_gpu_gfx1035;amd_gpu_gfx1036;amd_gpu_gfx1100;amd_gpu_gfx1101;amd_gpu_gfx1102;amd_gpu_gfx1103;amd_gpu_gfx1150;amd_gpu_gfx1151;amd_gpu_gfx1200;amd_gpu_gfx1201")
             # If the user has given us a list turn all ';' into ',' to pacify the Intel OpenCL compiler.
             string(REPLACE ";" "," aV2P_SYCL_ONEAPI_GPU_DEVICES "${aV2P_SYCL_ONEAPI_GPU_DEVICES}")
-
-            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU_AMD")
         endif()
 
         #-----------------------------------------------------------------------------------------------------------------
@@ -846,6 +830,31 @@ if(aV2P_ACC_SYCL_ENABLE)
     endif()
     if(aV2P_SYCL_ONEAPI_GPU_AMD)
         target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_GPU_AMD")
+    endif()
+
+    # Legacy device-kind macros. They are derived from the same selection as
+    # AV2P_SYCL_TARGET_* so the adapter and the tests see one consistent set on
+    # both the native alpaka 3 and the legacy dependency paths.
+    if(aV2P_SYCL_ONEAPI_CPU)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_CPU")
+    endif()
+    if(aV2P_SYCL_ONEAPI_GPU)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU")
+    endif()
+    if(aV2P_SYCL_ONEAPI_GPU_NVIDIA)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU_NVIDIA")
+
+        # oneAPI 2025.0 cannot compile the CUDA device code with debug symbols: ptxas fails on the debug information
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 2025.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 2025.1)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                message(FATAL_ERROR "The SYCL backend for NVIDIA GPUs does not support Debug builds with oneAPI ${CMAKE_CXX_COMPILER_VERSION}, because ptxas fails on the device debug information. Use a different build type or a different version of oneAPI.")
+            endif()
+            # with multi-config generators the build type is known only at build time
+            target_compile_definitions(aV2P INTERFACE "$<$<CONFIG:Debug>:AV2P_SYCL_ONEAPI_GPU_NVIDIA_DEBUG_UNSUPPORTED>")
+        endif()
+    endif()
+    if(aV2P_SYCL_ONEAPI_GPU_AMD)
+        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_GPU_AMD")
     endif()
 
     message(STATUS aV2P_ACC_SYCL_ENABLED)
