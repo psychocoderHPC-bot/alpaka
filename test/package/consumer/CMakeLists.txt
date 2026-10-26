@@ -12,3 +12,5 @@ find_package(aV2P CONFIG REQUIRED)
 
 add_executable(aV2P-consumer main.cpp)
 target_link_libraries(aV2P-consumer PRIVATE aV2P::aV2P)
+# Native alpaka 3 requires finalizing every target that links it.
+aV2P_finalize(aV2P-consumer)

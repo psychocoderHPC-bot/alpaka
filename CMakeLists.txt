@@ -104,6 +104,11 @@ set(aV2P_USE_NATIVE_ALPAKA3 ON)
 include(${_aV2P_ROOT_DIR}/cmake/aV2PDependencies.cmake)
 include(${_aV2P_ROOT_DIR}/cmake/aV2PCommon.cmake)
 
+# Native alpaka requires every target that links it to be finalized. This file
+# defines aV2P_finalize() and the deferred finalize used by the build helpers.
+# It is included after the native dependency so the alpaka helpers are available.
+include(${_aV2P_ROOT_DIR}/cmake/aV2PFinalize.cmake)
+
 # The native target is linked as a build-interface dependency only. The installed
 # aV2PConfig.cmake restores it after find_dependency(alpaka). This keeps the
 # exported target free of a non-exported build-tree target.
@@ -241,6 +246,7 @@ endif()
 install(FILES "${_aV2P_ROOT_DIR}/cmake/addExecutable.cmake"
               "${_aV2P_ROOT_DIR}/cmake/addLibrary.cmake"
               "${_aV2P_ROOT_DIR}/cmake/aV2PCommon.cmake"
+              "${_aV2P_ROOT_DIR}/cmake/aV2PFinalize.cmake"
               "${_aV2P_ROOT_DIR}/cmake/aV2POptions.cmake"
               "${_aV2P_ROOT_DIR}/cmake/aV2PNativeOptions.cmake"
               "${_aV2P_ROOT_DIR}/cmake/aV2POptionMapping.csv"

@@ -169,6 +169,28 @@ grep -q "alpaka_DEP_CUDA" "${CONFLICT_LOG}" \
 echo "conflict test passed (see ${CONFLICT_LOG})"
 
 #-------------------------------------------------------------------------------
+echo "== negative unfinalized-target test"
+UNFINALIZED_LOG="${WORK_DIR}/unfinalized.log"
+set +e
+cmake -S "${SOURCE_DIR}/test/package/unfinalized" -B "${WORK_DIR}/unfinalized-build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DAV2P_SOURCE_DIR="${SOURCE_DIR}" \
+    "${ALPAKA3_BUILD_ARG}" >"${UNFINALIZED_LOG}" 2>&1
+UNFINALIZED_STATUS=$?
+set -e
+if [ "${UNFINALIZED_STATUS}" -eq 0 ]; then
+    echo "error: unfinalized fixture configured successfully" >&2
+    exit 1
+fi
+grep -q "link aV2P/native alpaka directly" "${UNFINALIZED_LOG}" \
+    || { cat "${UNFINALIZED_LOG}" >&2; die "unfinalized diagnostic missing"; }
+grep -q "aV2P_finalize" "${UNFINALIZED_LOG}" \
+    || { cat "${UNFINALIZED_LOG}" >&2; die "aV2P_finalize hint missing from diagnostic"; }
+grep -q "aV2P-unfinalized" "${UNFINALIZED_LOG}" \
+    || { cat "${UNFINALIZED_LOG}" >&2; die "unfinalized target name missing from diagnostic"; }
+echo "unfinalized diagnostic test passed (see ${UNFINALIZED_LOG})"
+
+#-------------------------------------------------------------------------------
 echo "== reconfigure aV2P without re-downloading native alpaka"
 run cmake -S "${SOURCE_DIR}" -B "${WORK_DIR}/av2p-build" \
     -DaV2P_ALPAKA3_OFFLINE=ON

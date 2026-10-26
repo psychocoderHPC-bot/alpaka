@@ -19,3 +19,5 @@ add_subdirectory("${AV2P_SOURCE_DIR}" aV2P)
 
 add_executable(aV2P-add-subdirectory main.cpp)
 target_link_libraries(aV2P-add-subdirectory PRIVATE aV2P::aV2P)
+# Native alpaka 3 requires finalizing every target that links it.
+aV2P_finalize(aV2P-add-subdirectory)

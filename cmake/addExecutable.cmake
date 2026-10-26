@@ -53,4 +53,8 @@ macro(aV2P_add_executable In_Name)
                               HIP_STANDARD ${aV2P_CXX_STANDARD}
                               HIP_STANDARD_REQUIRED ON)
     endif()
+    # Native alpaka 3 requires finalizing every target that links it. The call is
+    # deferred so it runs after the usual target_link_libraries(<target> ...
+    # aV2P::aV2P) in this directory. See cmake/aV2PFinalize.cmake.
+    _aV2P_schedule_finalize(${In_Name})
 endmacro()

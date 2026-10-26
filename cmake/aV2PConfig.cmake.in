@@ -28,6 +28,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/common.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/addExecutable.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/addLibrary.cmake")
 
+# Native alpaka 3 requires targets to be finalized. Include after
+# find_dependency(alpaka) so the native helpers are already available.
+include("${CMAKE_CURRENT_LIST_DIR}/aV2PFinalize.cmake")
+
 include("${CMAKE_CURRENT_LIST_DIR}/aV2PTargets.cmake")
 
 # The build tree links the native target through a BUILD_INTERFACE expression so
