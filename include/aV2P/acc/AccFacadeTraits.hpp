@@ -111,6 +111,11 @@ namespace aV2P::adapter::detail
         };                                                                                                           \
                                                                                                                      \
         template<typename TDim, typename TIdx>                                                                       \
+        struct GetAccDevProps<ACC<TDim, TIdx>> : GetAccDevProps<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                \
+        {                                                                                                            \
+        };                                                                                                           \
+                                                                                                                     \
+        template<typename TDim, typename TIdx>                                                                       \
         struct IsSingleThreadAcc<ACC<TDim, TIdx>>                                                                    \
             : IsSingleThreadAcc<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                                               \
         {                                                                                                            \
@@ -134,6 +139,29 @@ namespace aV2P::adapter::detail
                   ACC<TDim, TIdx>,                                                                                   \
                   TDim,                                                                                              \
                   TIdx,                                                                                              \
+                  TWorkDiv,                                                                                          \
+                  TKernelFnObj,                                                                                      \
+                  TArgs...>                                                                                          \
+        {                                                                                                            \
+        };                                                                                                           \
+                                                                                                                     \
+        template<                                                                                                    \
+            typename TDim,                                                                                           \
+            typename TIdx,                                                                                           \
+            typename TDev,                                                                                           \
+            typename TKernelFnObj,                                                                                   \
+            typename TWorkDim,                                                                                       \
+            typename TWorkIdx,                                                                                       \
+            typename... TArgs>                                                                                       \
+        struct MaxActiveBlocks<ACC<TDim, TIdx>, TDev, TKernelFnObj, TWorkDim, TWorkIdx, TArgs...>                    \
+            : MaxActiveBlocks<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG), TDev, TKernelFnObj, TWorkDim, TWorkIdx, TArgs...>\
+        {                                                                                                            \
+        };                                                                                                           \
+                                                                                                                     \
+        template<typename TDim, typename TIdx, typename TWorkDiv, typename TKernelFnObj, typename... TArgs>          \
+        struct CreateTaskCooperativeKernel<ACC<TDim, TIdx>, TWorkDiv, TKernelFnObj, TArgs...>                        \
+            : CreateTaskCooperativeKernel<                                                                           \
+                  AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG),                                                             \
                   TWorkDiv,                                                                                          \
                   TKernelFnObj,                                                                                      \
                   TArgs...>                                                                                          \

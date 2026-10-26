@@ -26,6 +26,12 @@
 #include "aV2P/warp/Traits.hpp"
 #include "aV2P/workdiv/Traits.hpp"
 
+namespace aV2P
+{
+    //! Grid-synchronization concept (defined in `aV2P/grid/Traits.hpp`).
+    struct ConceptGridSync;
+} // namespace aV2P
+
 namespace aV2P::adapter
 {
     template<typename TBase>
@@ -39,6 +45,7 @@ namespace aV2P::adapter
         , public interface::Implements<ConceptAtomicBlocks, TBase>
         , public interface::Implements<ConceptAtomicThreads, TBase>
         , public interface::Implements<ConceptBlockSync, TBase>
+        , public interface::Implements<ConceptGridSync, TBase>
         , public interface::Implements<ConceptBlockSharedDyn, TBase>
         , public interface::Implements<ConceptBlockSharedSt, TBase>
         , public interface::Implements<ConceptMemFence, TBase>

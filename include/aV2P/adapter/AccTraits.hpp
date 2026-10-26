@@ -215,7 +215,23 @@ namespace aV2P
             AV2P_FN_HOST static auto getAccDevProps(DevAlpaka3<TDevSpec> const& dev) -> AccDevProps<TDim, TIdx>
             {
                 auto const prop = dev.getAlpaka3().getDeviceProperties();
-                AccDevProps<TDim, TIdx> accProps{
+
+                // 2.2 reported both a per-dimension block-thread extent maximum and a total block-thread
+                // count maximum.  alpaka 3 exposes exactly the same two limits: `getMaxThreadsPerBlock()`
+                // is the per-dimension vector (CUDA `maxThreadsDim`, where e.g. z is 64) and
+                // `maxThreadsPerBlock` is the total (CUDA `maxThreadsPerBlock`).  Using the warp size for
+                // every dimension, as the first adapter pass did, rejects any multi-dimensional block
+                // that is valid at the total limit.
+                Vec<TDim, TIdx> blockThreadExtentMax = Vec<TDim, TIdx>::all(1);
+                TIdx blockThreadCountMax = static_cast<TIdx>(1);
+                if constexpr(!alpaka::exec::isSeqExecutor_v<TExecutor>)
+                {
+                    blockThreadExtentMax = aV2P::castVec<TIdx>(
+                        adapter::fromAlpaka(prop.template getMaxThreadsPerBlock<TDim::value>()));
+                    blockThreadCountMax = static_cast<TIdx>(prop.maxThreadsPerBlock);
+                }
+
+                return AccDevProps<TDim, TIdx>{
                     // m_multiProcessorCount
                     static_cast<TIdx>(prop.multiProcessorCount),
                     // m_gridBlockExtentMax
@@ -223,9 +239,9 @@ namespace aV2P
                     // m_gridBlockCountMax
                     static_cast<TIdx>(std::numeric_limits<TIdx>::max()),
                     // m_blockThreadExtentMax
-                    Vec<TDim, TIdx>::all(32u),
+                    blockThreadExtentMax,
                     // m_blockThreadCountMax
-                    static_cast<TIdx>(prop.maxThreadsPerBlock),
+                    blockThreadCountMax,
                     // m_threadElemExtentMax
                     Vec<TDim, TIdx>::all(std::numeric_limits<TIdx>::max()),
                     // m_threadElemCountMax
@@ -244,12 +260,6 @@ namespace aV2P
                     // and the grid-sync test skips them instead of claiming support.
                     std::is_same_v<TExecutor, alpaka::exec::CpuSerial>
                         || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>};
-                if constexpr(alpaka::exec::isSeqExecutor_v<TExecutor>)
-                {
-                    accProps.m_blockThreadCountMax = static_cast<TIdx>(1);
-                    accProps.m_blockThreadExtentMax = Vec<TDim, TIdx>::all(1);
-                }
-                return accProps;
             }
         };
 

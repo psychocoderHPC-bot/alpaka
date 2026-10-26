@@ -183,14 +183,45 @@ namespace aV2P
 
     namespace adapter
     {
+        //! True in a translation unit compiled for the host API only (`AV2P_HOST_ONLY`).
+        //!
+        //! Such a translation unit cannot construct a native GPU platform: alpaka 2.2 compiled the GPU
+        //! accelerator headers with the host compiler and resolved the device through the host API.  The
+        //! adapter reproduces that by mapping every legacy accelerator to the host api/device kind while
+        //! keeping its executor identity, so the trait and tag mappings still describe the same
+        //! accelerator.
+#ifdef AV2P_HOST_ONLY
+        inline constexpr bool hostOnlyTranslationUnit = true;
+#else
+        inline constexpr bool hostOnlyTranslationUnit = false;
+#endif
+
+        namespace detail
+        {
+            template<typename TTag, bool THostOnly>
+            struct LegacyAccSpec : LegacyAccMapping<TTag>
+            {
+            };
+
+#ifdef AV2P_HOST_ONLY
+            template<typename TTag>
+            struct LegacyAccSpec<TTag, true>
+            {
+                using Api = alpaka::api::Host;
+                using DeviceKind = alpaka::deviceKind::Cpu;
+                using Executor = typename LegacyAccMapping<TTag>::Executor;
+            };
+#endif
+        } // namespace detail
+
         //! The `AccAlpaka3` instantiation behind one implemented legacy accelerator tag.
         template<typename TDim, typename TIdx, typename TTag>
         using LegacyAcc = AccAlpaka3<
             TDim,
             TIdx,
-            typename LegacyAccMapping<TTag>::Api,
-            typename LegacyAccMapping<TTag>::DeviceKind,
-            typename LegacyAccMapping<TTag>::Executor>;
+            typename detail::LegacyAccSpec<TTag, hostOnlyTranslationUnit>::Api,
+            typename detail::LegacyAccSpec<TTag, hostOnlyTranslationUnit>::DeviceKind,
+            typename detail::LegacyAccSpec<TTag, hostOnlyTranslationUnit>::Executor>;
     } // namespace adapter
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED

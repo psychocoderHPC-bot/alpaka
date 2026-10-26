@@ -44,8 +44,9 @@ namespace aV2P
             typename TAccView>
         struct SyncGridThreads<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
+            // No AV2P_NO_HOST_ACC_WARNING here: under nvcc the pragma must immediately precede a
+            // declaration, which the templated default argument above prevents.
             template<typename TAcc = AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
-            AV2P_NO_HOST_ACC_WARNING
             AV2P_FN_ACC static auto syncGridThreads([[maybe_unused]] TAcc const& /*acc*/) -> void
             {
                 if constexpr(std::is_same_v<TExecutor, alpaka::exec::CpuSerial>)
