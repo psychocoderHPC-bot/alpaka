@@ -117,6 +117,11 @@ TEMPLATE_LIST_TEST_CASE("memBufFillNonPrimitiveValuesTest", "[memBuf]", aV2P::te
     CHECK(passed);
 }
 
+// aV2P 0D limitation: alpaka 3.0.0 has no zero-dimensional memory support
+// (onHost::alloc rejects Vec<T,0> extents via dim()/x() in api/util.hpp:106;
+// View requires T_Extents::UniVec, mem/View.hpp:104).
+// Restore when alpaka 3 supports 0D Buf/View/alloc; re-enable together with the adapter.
+#if 0
 TEMPLATE_LIST_TEST_CASE("memBufFillScalarFloatTest", "[memBuf]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
@@ -153,3 +158,4 @@ TEMPLATE_LIST_TEST_CASE("memBufFillScalarFloatTest", "[memBuf]", aV2P::test::Tes
     ElemT const* ptr = std::data(bufHost);
     CHECK(std::fabs(ptr[0] - fillVal) < epsilon);
 }
+#endif

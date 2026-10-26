@@ -35,6 +35,11 @@ using Scalar = aV2P::Vec<Dim0D, Idx>;
 // enabled accelerators with 1-dimensional kernel space
 using TestAccs = aV2P::test::EnabledAccs<Dim1D, Idx>;
 
+// aV2P 0D limitation: alpaka 3.0.0 has no zero-dimensional memory support
+// (onHost::alloc rejects Vec<T,0> extents via dim()/x() in api/util.hpp:106;
+// View requires T_Extents::UniVec, mem/View.hpp:104).
+// Restore when alpaka 3 supports 0D Buf/View/alloc; re-enable together with the adapter.
+#if 0
 TEMPLATE_LIST_TEST_CASE("zeroDimBuffer", "[zeroDimBuffer]", TestAccs)
 {
     using DeviceAcc = TestType;
@@ -139,3 +144,4 @@ TEMPLATE_LIST_TEST_CASE("zeroDimBuffer", "[zeroDimBuffer]", TestAccs)
     CHECK(expected1 == *h_buffer1);
     CHECK(expected2 == *h_buffer2);
 }
+#endif

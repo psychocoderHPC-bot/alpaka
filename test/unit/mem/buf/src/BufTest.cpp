@@ -315,6 +315,11 @@ TEMPLATE_LIST_TEST_CASE("memBufAccessorAdaptorTest", "[memBuf]", aV2P::test::Tes
     testBufferAccessorAdaptor<Acc>(aV2P::test::extentBuf<Dim, Idx>, aV2P::test::offset<Dim, Idx>);
 }
 
+// aV2P 0D limitation: alpaka 3.0.0 has no zero-dimensional memory support
+// (onHost::alloc rejects Vec<T,0> extents via dim()/x() in api/util.hpp:106;
+// View requires T_Extents::UniVec, mem/View.hpp:104).
+// Restore when alpaka 3 supports 0D Buf/View/alloc; re-enable together with the adapter.
+#if 0
 TEMPLATE_LIST_TEST_CASE("memBufMove", "[memBuf]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
@@ -362,6 +367,7 @@ TEMPLATE_LIST_TEST_CASE("memBufMove", "[memBuf]", aV2P::test::TestAccs)
         CHECK(read(buf2) == 1);
     } // both buffers destruct fine here
 }
+#endif
 
 //! Copy between views that use different index types, like a std::vector, whose index type is always
 //! std::size_t, and a buffer allocated with the index type of the accelerator.
@@ -440,10 +446,16 @@ TEMPLATE_LIST_TEST_CASE("memBufAccessors", "[memBuf]", aV2P::test::TestAccs)
     using Elem = std::size_t;
     using Dim = aV2P::Dim<Acc>;
 
-    auto const platformHost = aV2P::PlatformCpu{};
-    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
     auto const platformAcc = aV2P::Platform<Acc>{};
     auto const dev = aV2P::getDevByIdx(platformAcc, 0);
+
+    // aV2P 0D limitation: alpaka 3.0.0 has no zero-dimensional memory support
+    // (onHost::alloc rejects Vec<T,0> extents via dim()/x() in api/util.hpp:106;
+    // View requires T_Extents::UniVec, mem/View.hpp:104).
+    // Restore when alpaka 3 supports 0D Buf/View/alloc; re-enable together with the adapter.
+#if 0
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
     // accessors for scalar buffers
     {
@@ -455,6 +467,7 @@ TEMPLATE_LIST_TEST_CASE("memBufAccessors", "[memBuf]", aV2P::test::TestAccs)
             = buftest::allocBuf<aV2P::DimInt<0u>, DummyType, Idx>(devHost, aV2P::Vec<aV2P::DimInt<0u>, Idx>{});
         CHECK(buf2->check());
     }
+#endif
 
     if constexpr(Dim::value == 1)
     {

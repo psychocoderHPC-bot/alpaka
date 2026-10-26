@@ -40,6 +40,11 @@ inline void fixBooleanValue(bool& value)
     value = reinterpret_cast<char const&>(value) == 0x00 ? false : true;
 }
 
+// aV2P 0D limitation: alpaka 3.0.0 has no zero-dimensional memory support
+// (onHost::alloc rejects Vec<T,0> extents via dim()/x() in api/util.hpp:106;
+// View requires T_Extents::UniVec, mem/View.hpp:104).
+// Restore when alpaka 3 supports 0D Buf/View/alloc; re-enable together with the adapter.
+#if 0
 TEMPLATE_LIST_TEST_CASE("oncePerGrid", "[exec]", aV2P::test::TestAccs)
 {
     using Host = aV2P::DevCpu;
@@ -85,6 +90,7 @@ TEMPLATE_LIST_TEST_CASE("oncePerGrid", "[exec]", aV2P::test::TestAccs)
     REQUIRE(*status == true);
     REQUIRE(*value == 1);
 }
+#endif
 
 class KernelOncePerBlock
 {
@@ -112,6 +118,11 @@ public:
     }
 };
 
+// aV2P 0D limitation: alpaka 3.0.0 has no zero-dimensional memory support
+// (onHost::alloc rejects Vec<T,0> extents via dim()/x() in api/util.hpp:106;
+// View requires T_Extents::UniVec, mem/View.hpp:104).
+// Restore when alpaka 3 supports 0D Buf/View/alloc; re-enable together with the adapter.
+#if 0
 TEMPLATE_LIST_TEST_CASE("oncePerBlock", "[exec]", aV2P::test::TestAccs)
 {
     using Host = aV2P::DevCpu;
@@ -158,3 +169,4 @@ TEMPLATE_LIST_TEST_CASE("oncePerBlock", "[exec]", aV2P::test::TestAccs)
     REQUIRE(*status == true);
     REQUIRE(*value == blocks);
 }
+#endif
