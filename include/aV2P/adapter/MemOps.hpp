@@ -202,5 +202,3 @@ namespace aV2P
 #endif
     } // namespace trait
 } // namespace aV2P
-    } // namespace trait
-} // namespace aV2P
