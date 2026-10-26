@@ -23,9 +23,10 @@ namespace aV2P::adapter
      * wrapped allocation.  alpaka 3 can express exactly that: `alpaka::View` stores only a raw
      * pointer, extents, pitches and an alignment.  The explicit-pitch `alpaka::makeView` overload
      * used here preserves the origin pointer and the pitches, so sub-views, external pitched
-     * memory and contiguous 2.2-layout buffer allocations all reach `onHost::memcpy`, `memset` and
-     * `fill` unchanged.  Buffers are re-viewed with contiguous pitches by the allocator, so a
-     * native alpaka 3 consumer of the buffer handle sees the same offsets.
+     * memory and buffer allocations all reach `onHost::memcpy`, `memset` and `fill` unchanged.
+     * Host-API buffers carry the contiguous 2.2 pitches, device-API buffers carry the native
+     * padded alpaka 3 pitches, and `getAlpaka3()` exposes the same layout, so a native alpaka 3
+     * consumer of the buffer handle sees the same element offsets.
      *
      * The returned view does not keep the aV2P view, its device or its allocation alive.  This
      * matches the legacy task lifetime contract: the caller must keep the memory valid until the
@@ -43,29 +44,21 @@ namespace aV2P::adapter
         static_assert(
             std::is_same_v<std::remove_cvref_t<decltype(extents)>, std::remove_cvref_t<decltype(pitches)>>,
             "aV2P adapter: extents and pitches must translate to the same alpaka 3 vector type");
-        // Buffers know the alignment promised by the alpaka 3 allocation; plain views and sub-views
-        // do not, so they fall back to the element alignment (sub-view pointer arithmetic can
+        // Buffers know the alignment their storage really provides; plain views and sub-views do
+        // not, so they fall back to the element alignment (sub-view pointer arithmetic can
         // invalidate a stronger claim).
         //
-        // aV2P re-views buffers with contiguous 2.2 pitches.  For more than one dimension the
-        // interior row starts are no longer guaranteed to be a multiple of the allocation's SIMD
-        // alignment (the padded alpaka 3 row pitch provided that guarantee), so claiming the strong
-        // alignment would let alpaka's vectorized fill/copy assume aligned rows and perform
-        // misaligned stores.  Multi-dimensional buffers therefore advertise only the element
-        // alignment; one-dimensional buffers keep the allocation alignment because all accesses
-        // start from the aligned base pointer.
+        // The buffer type already encodes the correct promise: a host-API multi-dimensional buffer
+        // is a contiguous 2.2 re-view and only advertises the element alignment, while a device-API
+        // buffer keeps the native alpaka 3 alignment of its padded allocation.  Forwarding the
+        // alignment of `getAlpaka3()` therefore preserves both contracts.
         if constexpr(requires { view.getAlpaka3(); })
-        {
-            if constexpr(aV2P::Dim<std::remove_cvref_t<TView>>::value <= 1u)
-                return alpaka::makeView(
-                    apiTag,
-                    aV2P::getPtrNative(view),
-                    extents,
-                    pitches,
-                    alpaka::getAlignment(view.getAlpaka3()));
-            else
-                return alpaka::makeView(apiTag, aV2P::getPtrNative(view), extents, pitches);
-        }
+            return alpaka::makeView(
+                apiTag,
+                aV2P::getPtrNative(view),
+                extents,
+                pitches,
+                alpaka::getAlignment(view.getAlpaka3()));
         else
             return alpaka::makeView(apiTag, aV2P::getPtrNative(view), extents, pitches);
     }

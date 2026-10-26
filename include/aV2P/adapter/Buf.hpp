@@ -38,6 +38,26 @@ namespace aV2P::detail
     {
         using type = alpaka::onHost::SharedBuffer<TApi, TType, TExtents, alpaka::Alignment<>>;
     };
+
+    /*! Pick the buffer type a buffer wrapper stores.
+     *
+     * Host-API allocations are re-viewed with the 2.2 contiguous pitches, so a multi-dimensional
+     * buffer only promises element alignment (see `NativeBufferWithMatchingAlignment`).  Device-API
+     * allocations keep the native alpaka 3 type, which carries the native padded pitches and the
+     * native alignment of the allocation.  `TIsHostApi` is the API tag check and
+     * `TIsOneDimensional` is `TDim::value <= 1u`.
+     */
+    template<typename TDevSpec, typename TBuffer, bool TIsHostApi, bool TIsOneDimensional>
+    struct NativeBufferForSpec
+    {
+        using type = TBuffer;
+    };
+
+    template<typename TDevSpec, typename TBuffer, bool TIsOneDimensional>
+    struct NativeBufferForSpec<TDevSpec, TBuffer, true, TIsOneDimensional>
+    {
+        using type = typename NativeBufferWithMatchingAlignment<TBuffer, TIsOneDimensional>::type;
+    };
 } // namespace aV2P::detail
 
 namespace aV2P
@@ -59,8 +79,10 @@ namespace aV2P
         using AllocatedBufferType = decltype(alpaka::onHost::alloc<TElem>(
             std::declval<DevType&>().getAlpaka3(),
             std::declval<alpaka::Vec<TIdx, static_cast<std::uint32_t>(TDim::value)>>()));
-        using AlpakaBufferType = typename detail::NativeBufferWithMatchingAlignment<
+        using AlpakaBufferType = typename detail::NativeBufferForSpec<
+            TDevSpec,
             AllocatedBufferType,
+            std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>,
             (TDim::value <= 1u)>::type;
 
         [[nodiscard]] auto getAlpaka3() & noexcept -> AlpakaBufferType&
@@ -138,8 +160,10 @@ namespace aV2P
         using AllocatedBufferType = decltype(alpaka::onHost::alloc<TElem>(
             std::declval<DevType&>().getAlpaka3(),
             std::declval<alpaka::Vec<TIdx, static_cast<std::uint32_t>(TDim::value)>>()));
-        using AlpakaBufferType = typename detail::NativeBufferWithMatchingAlignment<
+        using AlpakaBufferType = typename detail::NativeBufferForSpec<
+            TDevSpec,
             AllocatedBufferType,
+            std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>,
             (TDim::value <= 1u)>::type;
 
         [[nodiscard]] auto getAlpaka3() & noexcept -> AlpakaBufferType&

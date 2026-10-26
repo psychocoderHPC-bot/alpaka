@@ -6,6 +6,24 @@ with the evidence and the restoration condition for each. aV2P keeps the
 (commit `eb677e8d7f70d79b35df25d9002f94ba669b6f44`). The entries below are
 the features where that layer cannot preserve 2.2 behavior.
 
+## Memory layout
+
+aV2P keeps the 2.2 host layout and exposes the native alpaka 3 device layout:
+
+- **CPU (host API) buffers, multi-dimensional:** contiguous row-major
+  (`pitch[i] == product(extents[i+1:]) * sizeof(T)`). `std::data(buf)` spans the
+  whole buffer linearly. Because rows are adjacent, a multi-dimensional host
+  buffer only guarantees element alignment, not SIMD row alignment.
+  One-dimensional host buffers keep the allocation alignment.
+- **CUDA, HIP and SYCL device buffers:** the native alpaka 3 allocation is
+  returned unchanged, so `getPitchesInBytes()` reports the padded row pitches
+  (`pitch >= row bytes`) and `data()`, views, sub-views, copies and kernels all
+  use those native pitches. `getAlpaka3()` returns the same native buffer.
+- **Mapped and unified buffers:** `allocMappedBuf` and `allocManagedBuf` return
+  a host-bound `BufCpu` whose contiguous host view covers the same allocation.
+  The underlying allocation may be padded; the host view shares its base
+  pointer and ownership, and no copy is made.
+
 ## 1. Backend support
 
 | Legacy accelerator | Native alpaka 3 executor | Adapter state |

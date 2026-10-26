@@ -13,7 +13,10 @@
 #include <aV2P/alpaka.hpp>
 #include <aV2P/mem/buf/Traits.hpp>
 #include <aV2P/mem/view/Traits.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <alpaka/alpaka.hpp>
@@ -214,4 +217,104 @@ TEST_CASE("memBufDoesNotTouchPadding", "[memBuf][layout]")
         CHECK(raw[i] == 0xFFu);
     for(std::size_t i = contiguousBytes; i < paddedBytes; ++i)
         CHECK(raw[i] == poison);
+}
+
+// ---------------------------------------------------------------------------
+// Cross-backend layout contract.
+//
+// Host-API buffers are contiguous row-major with element alignment for more
+// than one dimension.  CUDA/HIP/SYCL device buffers expose the native alpaka 3
+// padded row pitch: `getPitchesInBytes()` and `getAlpaka3()` agree, element
+// offsets follow the pitched layout and copies between pitched buffers are
+// correct.  The test runs for every enabled accelerator on a two-dimensional
+// allocation whose row bytes are not a multiple of the usual SIMD alignment.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+    template<typename TAcc>
+    void testCrossBackendLayout()
+    {
+        using Dev = aV2P::Dev<TAcc>;
+        using Queue = aV2P::test::DefaultQueue<Dev>;
+        using Dim = aV2P::DimInt<2u>;
+        using Idx = std::uint32_t;
+        using Elem = std::uint32_t;
+        constexpr bool isHostApi = std::is_same_v<typename Dev::DevSpec::Api, alpaka::api::Host>;
+
+        // 5 elements per row = 20 bytes, deliberately not a power-of-two multiple.
+        auto const extent = aV2P::Vec<Dim, Idx>{3u, 5u};
+        auto const dev = aV2P::getDevByIdx(aV2P::Platform<TAcc>{}, 0);
+        Queue queue(dev);
+
+        auto src = aV2P::allocBuf<Elem, Idx>(dev, extent);
+        auto dst = aV2P::allocBuf<Elem, Idx>(dev, extent);
+        auto const hostDev = makeHostCpuDev();
+        auto host = aV2P::allocBuf<Elem, Idx>(hostDev, extent);
+
+        auto const pitches = aV2P::getPitchesInBytes(src);
+        auto const alpakaPitches = src.getAlpaka3().getPitches();
+
+        // The pitches aV2P uses are the pitches of getAlpaka3() on every backend.
+        CHECK(pitches[0] == static_cast<Idx>(alpakaPitches[0]));
+        CHECK(pitches[1] == static_cast<Idx>(alpakaPitches[1]));
+        CHECK(pitches[1] == sizeof(Elem));
+
+        auto const rowBytes = static_cast<std::size_t>(extent[1]) * sizeof(Elem);
+        WARN(
+            "2D layout " << aV2P::getAccName<TAcc>() << ": pitch=" << pitches[0] << " bytes, row=" << rowBytes
+                         << " bytes, host=" << isHostApi);
+
+        if constexpr(isHostApi)
+        {
+            // Contiguous row-major host layout: pitch == extents * sizeof(T) and linear storage.
+            auto const contiguous = aV2P::detail::calculatePitchesFromExtents<Elem>(extent);
+            CHECK(pitches[0] == contiguous[0]);
+            CHECK(pitches[0] == static_cast<Idx>(rowBytes));
+
+            for(Idx r = 0; r < extent[0]; ++r)
+                for(Idx c = 0; c < extent[1]; ++c)
+                    src[aV2P::Vec{r, c}] = r * extent[1] + c;
+
+            for(Idx r = 0; r < extent[0]; ++r)
+                for(Idx c = 0; c < extent[1]; ++c)
+                    CHECK(std::data(src)[r * extent[1] + c] == src[aV2P::Vec{r, c}]);
+        }
+        else
+        {
+            // Native device layout: the row pitch covers at least the row bytes, and aV2P element
+            // access uses the same pitched offset as the native alpaka 3 view.
+            CHECK(pitches[0] >= static_cast<Idx>(rowBytes));
+
+            auto const* base = std::data(src);
+            for(Idx r = 0; r < extent[0]; ++r)
+                for(Idx c = 0; c < extent[1]; ++c)
+                {
+                    auto const byteOffset = static_cast<std::size_t>(r) * pitches[0]
+                                            + static_cast<std::size_t>(c) * pitches[1];
+                    auto const* expected = base + byteOffset / sizeof(Elem);
+                    auto const* nativeElement = &src.getAlpaka3()[alpaka::Vec<Idx, 2u>{r, c}];
+                    CHECK(nativeElement == expected);
+                }
+        }
+
+        // A fill and a copy between two pitched buffers preserve every element.  The result is
+        // read back through a contiguous host buffer, which exercises the pitched source view.
+        constexpr Elem value = 0xA1B2C3D4u;
+        aV2P::fill(queue, src, value);
+        aV2P::memcpy(queue, dst, src);
+        aV2P::memcpy(queue, host, dst);
+        aV2P::wait(queue);
+
+        for(Idx r = 0; r < extent[0]; ++r)
+            for(Idx c = 0; c < extent[1]; ++c)
+                CHECK(host[aV2P::Vec{r, c}] == value);
+    }
+} // namespace
+
+using LayoutContractAccs = aV2P::test::EnabledAccs<aV2P::DimInt<2u>, std::uint32_t>;
+
+TEMPLATE_LIST_TEST_CASE("memBufLayoutContract2d", "[memBuf][layout]", LayoutContractAccs)
+{
+    testCrossBackendLayout<TestType>();
 }

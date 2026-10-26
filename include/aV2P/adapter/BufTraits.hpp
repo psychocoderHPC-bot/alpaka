@@ -14,7 +14,9 @@
 #include "aV2P/mem/view/Traits.hpp"
 
 #include <alpaka/alpaka.hpp>
+#include <alpaka/api/util.hpp>
 
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -47,7 +49,10 @@ namespace aV2P::adapter::detail
             return getDevByIdx(platform, 0);
     }
 
-    /*! Re-view an alpaka 3 allocation with the legacy 2.2 contiguous pitches.
+    /*! Re-view a host-API alpaka 3 allocation with the legacy 2.2 contiguous pitches.
+     *
+     * This helper is used only for `api::Host` allocations.  Device-API buffers keep the native
+     * alpaka 3 `SharedBuffer` with its padded row pitches and native alignment.
      *
      * alpaka 3 host allocations pad the innermost row pitch to the backend SIMD alignment, so a
      * multi-dimensional allocation is larger than the logical extent product and rows are not
@@ -125,7 +130,17 @@ namespace aV2P::adapter::detail
         return Buffer{hostBuffer, host};
     }
 
-    //! Build a 2.2-contiguous buffer around memory obtained from a legacy allocator.
+    /*! Build an aV2P buffer around memory obtained from a legacy 2.2 allocator.
+     *
+     * A legacy allocator only exposes a raw allocation, so there is no native alpaka 3 allocation
+     * to preserve.  Reproduce the layout of the matching alpaka 3 allocator:
+     *  - Host API: contiguous row-major pitches (`pitch[i] == product(extents[i+1:]) * sizeof(T)`),
+     *    exactly like the contiguous host re-view.  Multi-dimensional buffers advertise only the
+     *    element alignment, one-dimensional buffers the host allocation alignment.
+     *  - Device API: the padded row pitches of `api::util::emulatedAlignedMemDescription` with the
+     *    native alignment of the buffer type, so `getAlpaka3()`, the device kernels and the
+     *    allocator-backed storage agree on the same pitched offsets.
+     */
     template<typename TElem, typename TDim, typename TIdx, typename TDevSpec, typename TAllocator, typename TExtents>
     AV2P_FN_HOST auto makeAllocatorBuffer(
         DevAlpaka3<TDevSpec> const& dev,
@@ -134,15 +149,28 @@ namespace aV2P::adapter::detail
     {
         using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
         using NativeBuffer = typename Buffer::AlpakaBufferType;
+        constexpr bool isHostApi = std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>;
         // The alpaka 3 allocation type fixes the alignment of the buffer.  Request exactly that
         // alignment from the legacy allocator so the resulting metadata is not stronger than the
         // pointer guarantee.
         constexpr auto alignment = NativeBuffer::getAlignment();
-        auto const elements = static_cast<std::size_t>(extents.product());
-        void* const memPtr = allocator.allocate(elements * sizeof(TElem), alignment.template get<TElem>());
+        auto const pitches = [&]()
+        {
+            if constexpr(isHostApi)
+                return alpaka::calculatePitchesFromExtents<TElem>(extents);
+            else
+                return std::get<1>(alpaka::api::util::emulatedAlignedMemDescription<TElem>(
+                    alignment.template get<TElem>(),
+                    extents));
+        }();
+        std::size_t elements;
+        if constexpr(isHostApi)
+            elements = static_cast<std::size_t>(extents.product());
+        else
+            elements = static_cast<std::size_t>(pitches[0]) * static_cast<std::size_t>(extents[0]) / sizeof(TElem);
+        void* const memPtr = allocator.allocate(elements, alignment.template get<TElem>());
         // alpaka 3 deleters take no arguments; capture the pointer and the allocator.
         auto deleter = [alloc = std::move(allocator), memPtr]() mutable { alloc.deallocate(memPtr); };
-        auto const pitches = alpaka::calculatePitchesFromExtents<TElem>(extents);
         return Buffer{
             NativeBuffer{
                 alpaka::getApi(dev.getAlpaka3()),
@@ -256,12 +284,14 @@ namespace aV2P::trait
         }
     };
 
-    //! Report the 2.2 contiguous pitches of the re-viewed allocation.
+    //! Report the pitches of the buffer together with its `getAlpaka3()` view.
     //!
-    //! `getAlpaka3()` is not the raw padded alpaka 3 allocation: the allocator re-views the same
-    //! memory with contiguous pitches (see `adapter::detail::makeContiguous2p2Buffer`).  The
-    //! pitches reported here therefore equal `extents * sizeof(TElem)` and match `data()`, the view
-    //! accessor, all memory operations and a native alpaka 3 consumer of `getAlpaka3()`.
+    //! Host-API buffers are re-viewed with contiguous 2.2 pitches (see
+    //! `adapter::detail::makeContiguous2p2Buffer`), so the reported pitches equal
+    //! `extents * sizeof(TElem)`.  Device-API buffers keep the native alpaka 3 allocation, so the
+    //! reported pitches are the native padded row pitches.  In both cases the pitches match
+    //! `data()`, the view accessor, all memory operations and a native alpaka 3 consumer of
+    //! `getAlpaka3()`.
     template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
     struct GetPitchesInBytes<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
     {
@@ -368,16 +398,30 @@ namespace aV2P::trait
             -> BufAlpaka3<TDevSpec, TElem, TDim, TIdx>
         {
             using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
-            if constexpr(std::is_integral_v<TExtent>)
-                return Buffer{
-                    adapter::detail::makeContiguous2p2Buffer<TElem>(
-                        alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), alpaka::Vec{extent})),
-                    dev};
+            // Host allocations are re-viewed with the 2.2 contiguous pitches.  Device allocations
+            // keep the native alpaka 3 buffer with its padded row pitches and native alignment.
+            if constexpr(std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>)
+            {
+                if constexpr(std::is_integral_v<TExtent>)
+                    return Buffer{
+                        adapter::detail::makeContiguous2p2Buffer<TElem>(
+                            alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), alpaka::Vec{extent})),
+                        dev};
+                else
+                    return Buffer{
+                        adapter::detail::makeContiguous2p2Buffer<TElem>(
+                            alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent))),
+                        dev};
+            }
             else
-                return Buffer{
-                    adapter::detail::makeContiguous2p2Buffer<TElem>(
-                        alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent))),
-                    dev};
+            {
+                if constexpr(std::is_integral_v<TExtent>)
+                    return Buffer{alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), alpaka::Vec{extent}), dev};
+                else
+                    return Buffer{
+                        alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent)),
+                        dev};
+            }
         }
     };
 
@@ -395,16 +439,32 @@ namespace aV2P::trait
         {
             using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
             auto const dev = aV2P::getDev(queue);
-            if constexpr(std::is_integral_v<TExtent>)
-                return Buffer{
-                    adapter::detail::makeContiguous2p2Buffer<TElem>(
-                        alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent})),
-                    dev};
+            if constexpr(std::is_same_v<typename TDevSpec::Api, alpaka::api::Host>)
+            {
+                if constexpr(std::is_integral_v<TExtent>)
+                    return Buffer{
+                        adapter::detail::makeContiguous2p2Buffer<TElem>(
+                            alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent})),
+                        dev};
+                else
+                    return Buffer{
+                        adapter::detail::makeContiguous2p2Buffer<TElem>(
+                            alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), adapter::toAlpaka(extent))),
+                        dev};
+            }
             else
-                return Buffer{
-                    adapter::detail::makeContiguous2p2Buffer<TElem>(
-                        alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), adapter::toAlpaka(extent))),
-                    dev};
+            {
+                if constexpr(std::is_integral_v<TExtent>)
+                    return Buffer{
+                        alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent}),
+                        dev};
+                else
+                    return Buffer{
+                        alpaka::onHost::allocDeferred<TElem>(
+                            queue.getAlpaka3(),
+                            adapter::toAlpaka(extent)),
+                        dev};
+            }
         }
     };
 
