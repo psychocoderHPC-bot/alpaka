@@ -5,6 +5,7 @@
 #pragma once
 
 #include "aV2P/acc/Traits.hpp"
+#include "aV2P/acc/AccFacadeBase.hpp"
 #include "aV2P/adapter/AccType.hpp"
 #include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Mapping.hpp"
@@ -67,7 +68,7 @@ namespace aV2P
         alpaka::concepts::DeviceKind TDeviceKind,
         alpaka::concepts::Executor TExecutor,
         typename TAccView = typename adapter::AlpakaAccType<TDim, TIdx, TApi, TDeviceKind, TExecutor>::type>
-    class AccAlpaka3 final
+    class AccAlpaka3
         : public interface::Implements<
               InterfaceAcc,
               AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
@@ -180,44 +181,60 @@ namespace aV2P
     inline constexpr bool isTriviallyCopyableAccFacade
         = std::is_trivially_copyable_v<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>;
 
+    namespace adapter
+    {
+        //! The `AccAlpaka3` instantiation behind one implemented legacy accelerator tag.
+        template<typename TDim, typename TIdx, typename TTag>
+        using LegacyAcc = AccAlpaka3<
+            TDim,
+            TIdx,
+            typename LegacyAccMapping<TTag>::Api,
+            typename LegacyAccMapping<TTag>::DeviceKind,
+            typename LegacyAccMapping<TTag>::Executor>;
+    } // namespace adapter
+
 #ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
     template<typename TDim, typename TIdx>
-    using AccCpuSerial = AccAlpaka3<
-        TDim,
-        TIdx,
-        typename adapter::LegacyAccMapping<TagCpuSerial>::Api,
-        typename adapter::LegacyAccMapping<TagCpuSerial>::DeviceKind,
-        typename adapter::LegacyAccMapping<TagCpuSerial>::Executor>;
+    class AccCpuSerial : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuSerial>>
+    {
+        using Base = adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuSerial>>;
+
+    public:
+        using Base::Base;
+    };
 #endif
 
 #ifdef AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED
     template<typename TDim, typename TIdx>
-    using AccCpuOmp2Blocks = AccAlpaka3<
-        TDim,
-        TIdx,
-        typename adapter::LegacyAccMapping<TagCpuOmp2Blocks>::Api,
-        typename adapter::LegacyAccMapping<TagCpuOmp2Blocks>::DeviceKind,
-        typename adapter::LegacyAccMapping<TagCpuOmp2Blocks>::Executor>;
+    class AccCpuOmp2Blocks : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuOmp2Blocks>>
+    {
+        using Base = adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuOmp2Blocks>>;
+
+    public:
+        using Base::Base;
+    };
 #endif
 
 #ifdef AV2P_ACC_GPU_CUDA_ENABLED
     template<typename TDim, typename TIdx>
-    using AccGpuCudaRt = AccAlpaka3<
-        TDim,
-        TIdx,
-        typename adapter::LegacyAccMapping<TagGpuCudaRt>::Api,
-        typename adapter::LegacyAccMapping<TagGpuCudaRt>::DeviceKind,
-        typename adapter::LegacyAccMapping<TagGpuCudaRt>::Executor>;
+    class AccGpuCudaRt : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagGpuCudaRt>>
+    {
+        using Base = adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagGpuCudaRt>>;
+
+    public:
+        using Base::Base;
+    };
 #endif
 
 #ifdef AV2P_ACC_GPU_HIP_ENABLED
     template<typename TDim, typename TIdx>
-    using AccGpuHipRt = AccAlpaka3<
-        TDim,
-        TIdx,
-        typename adapter::LegacyAccMapping<TagGpuHipRt>::Api,
-        typename adapter::LegacyAccMapping<TagGpuHipRt>::DeviceKind,
-        typename adapter::LegacyAccMapping<TagGpuHipRt>::Executor>;
+    class AccGpuHipRt : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagGpuHipRt>>
+    {
+        using Base = adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagGpuHipRt>>;
+
+    public:
+        using Base::Base;
+    };
 #endif
 
 // The oneAPI accelerator aliases exist only for the device kinds the build actually targets: the
@@ -225,22 +242,24 @@ namespace aV2P
 // not compiled into the SYCL kernel set cannot be launched.
 #if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_CPU)
     template<typename TDim, typename TIdx>
-    using AccCpuSycl = AccAlpaka3<
-        TDim,
-        TIdx,
-        typename adapter::LegacyAccMapping<TagCpuSycl>::Api,
-        typename adapter::LegacyAccMapping<TagCpuSycl>::DeviceKind,
-        typename adapter::LegacyAccMapping<TagCpuSycl>::Executor>;
+    class AccCpuSycl : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuSycl>>
+    {
+        using Base = adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuSycl>>;
+
+    public:
+        using Base::Base;
+    };
 #endif
 
 #if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_GPU)
     template<typename TDim, typename TIdx>
-    using AccGpuSyclIntel = AccAlpaka3<
-        TDim,
-        TIdx,
-        typename adapter::LegacyAccMapping<TagGpuSyclIntel>::Api,
-        typename adapter::LegacyAccMapping<TagGpuSyclIntel>::DeviceKind,
-        typename adapter::LegacyAccMapping<TagGpuSyclIntel>::Executor>;
+    class AccGpuSyclIntel : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagGpuSyclIntel>>
+    {
+        using Base = adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagGpuSyclIntel>>;
+
+    public:
+        using Base::Base;
+    };
 #endif
 
     // Legacy accelerators without an implementation or without a mapping.  Naming them produces a
@@ -255,32 +274,35 @@ namespace aV2P
             "to an unrelated executor; see aV2P/adapter/Mapping.hpp.");
     };
 
+#define AV2P_DEFINE_UNIMPLEMENTED_ACC(ACC, TAG)                                                                      \
+    template<typename TDim, typename TIdx>                                                                           \
+    class ACC : public UnimplementedAcc<TDim, TIdx, TAG>                                                            \
+    {                                                                                                                \
+        using Base = UnimplementedAcc<TDim, TIdx, TAG>;                                                             \
+                                                                                                                     \
+    public:                                                                                                          \
+        using Base::Base;                                                                                            \
+    }
+
 #ifdef AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED
-    template<typename TDim, typename TIdx>
-    using AccCpuThreads = UnimplementedAcc<TDim, TIdx, TagCpuThreads>;
+    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccCpuThreads, TagCpuThreads);
 #endif
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLED
-    template<typename TDim, typename TIdx>
-    using AccCpuOmp2Threads = UnimplementedAcc<TDim, TIdx, TagCpuOmp2Threads>;
+    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccCpuOmp2Threads, TagCpuOmp2Threads);
 #endif
 
 #ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
-    template<typename TDim, typename TIdx>
-    using AccCpuTbbBlocks = UnimplementedAcc<TDim, TIdx, TagCpuTbbBlocks>;
+    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccCpuTbbBlocks, TagCpuTbbBlocks);
 #endif
 
 #ifdef AV2P_ACC_SYCL_ENABLED
-    template<typename TDim, typename TIdx>
-    using AccFpgaSyclIntel = UnimplementedAcc<TDim, TIdx, TagFpgaSyclIntel>;
-
-    template<typename TDim, typename TIdx>
-    using AccGenericSycl = UnimplementedAcc<TDim, TIdx, TagGenericSycl>;
-
-    template<typename TDim, typename TIdx>
-    using AccGpuSyclNvidia = UnimplementedAcc<TDim, TIdx, TagGpuSyclNvidia>;
-
-    template<typename TDim, typename TIdx>
-    using AccGpuSyclAmd = UnimplementedAcc<TDim, TIdx, TagGpuSyclAmd>;
+    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccFpgaSyclIntel, TagFpgaSyclIntel);
+    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccGenericSycl, TagGenericSycl);
+    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccGpuSyclNvidia, TagGpuSyclNvidia);
+    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccGpuSyclAmd, TagGpuSyclAmd);
 #endif
+
+#undef AV2P_DEFINE_UNIMPLEMENTED_ACC
+
 } // namespace aV2P

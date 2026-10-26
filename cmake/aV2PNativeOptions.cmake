@@ -150,6 +150,19 @@ endfunction()
 
 _aV2P_apply_native_option_mapping()
 
+# Native alpaka enables its OpenMP dependency by default even when no executor needs it.  Drive the
+# native option from the enabled aV2P options instead: no aV2P option requires OpenMP unless one of
+# the OpenMP backends is enabled.  An application that set alpaka_DEP_OMP explicitly keeps its value
+# (the mapping marker is only created when aV2P wrote the option), and a conflicting request still
+# fails through _aV2P_set_native_option.
+if(NOT (aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE OR aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE))
+    if(NOT DEFINED alpaka_DEP_OMP)
+        _aV2P_set_native_option("aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE" "alpaka_DEP_OMP" BOOL OFF)
+    elseif(DEFINED _aV2P_NATIVE_MAPPED_alpaka_DEP_OMP)
+        _aV2P_set_native_option("aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE" "alpaka_DEP_OMP" BOOL OFF)
+    endif()
+endif()
+
 # The SYCL backend selects exactly one aV2P device kind per accelerator tag. Enabling it without any
 # oneAPI target would compile native SYCL kernels for none of the device kinds aV2P exposes, leaving
 # the build with no usable aV2P SYCL accelerator. Fail with a clear selection error instead.

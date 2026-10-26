@@ -7,3 +7,4 @@
 //! Legacy accelerator name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
 #include "aV2P/adapter/Acc.hpp"
+#include "aV2P/acc/AccFacadeTraits.hpp"

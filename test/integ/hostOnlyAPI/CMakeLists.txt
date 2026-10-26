@@ -20,4 +20,8 @@ set_target_properties(${_TARGET_NAME} PROPERTIES FOLDER "test/integ")
 
 if(aV2P_ACC_GPU_CUDA_ENABLE OR aV2P_ACC_GPU_HIP_ENABLE)
     add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})
+elseif(NOT aV2P_ACC_SYCL_ENABLE)
+    # Host-only configuration: the test exercises the host API and the enabled host accelerators and
+    # has no GPU dependency, so it must actually run instead of being built but never registered.
+    add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})
 endif()
