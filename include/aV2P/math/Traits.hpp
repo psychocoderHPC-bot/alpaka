@@ -851,6 +851,17 @@ namespace aV2P::math
                 return trunc(arg);
             }
         };
+
+        /* alpaka 2.2 customization entry point.
+         *
+         * The 2.2 math implementations dispatch through
+         * `alpakaMathTrait<interface::ImplementationBase<ConceptMathX, TMathImplementation>, TArgs...>`.
+         * `InterfaceBase` resolves the concept to a per-function implementation marker type, so the
+         * specializations live next to the marker classes in `MathStdLib.hpp` and
+         * `MathUniformCudaHipBuiltIn.hpp`.
+         */
+        template<typename TImplementation, typename... TArgs>
+        struct alpakaMathTrait;
     } // namespace trait
 
     //! Computes the absolute value.
@@ -1486,3 +1497,9 @@ namespace aV2P::math
         return trait::Trunc<ImplementationBase, TArg>{}(trunc_ctx, arg);
     }
 } // namespace aV2P::math
+
+// The 2.2 math implementation markers and their `alpakaMathTrait` specializations are part of the public
+// customization surface.  They are included here so that `<aV2P/alpaka.hpp>` (which includes this header)
+// exposes `MathStdLib`, `MathUniformCudaHipBuiltIn` and the trait dispatcher.
+#include "aV2P/math/MathStdLib.hpp"
+#include "aV2P/math/MathUniformCudaHipBuiltIn.hpp"
