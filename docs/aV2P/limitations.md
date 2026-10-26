@@ -227,6 +227,7 @@ feature in pinned alpaka 3.0.0 that aV2P cannot bridge), `blocked`
 | Zero-dimensional buffer and View | gap | alpaka 3.0.0 lacks 0D allocation; compile probe fails in the host-alloc path |
 | Warp mask width, 2.2 per-backend type | limitation | 2.2 `TWarp::mask_type` vs alpaka 3 conditional width; no wrapper type |
 | Warp `all`/`any` return type | limitation | `std::int32_t` in 2.2 vs `bool` in alpaka 3 |
+| SYCL CPU per-kernel warp size | gap | alpaka 3.0.0 has no per-kernel warp-size trait; the sub-group size comes from the device properties |
 | Device lambdas as kernel objects | limitation | aV2P does not forward device lambda closures; use a named functor |
 | RISC-V or cross-compiled backends | blocked | no RISC-V toolchain in the current environment |
 | Grid synchronization on `AccCpuSerial` | supported | `test/unit/grid` passes with `m_cooperativeLaunch == true` |
@@ -276,3 +277,36 @@ test use regular 1D buffers and do not emulate 0D memory.
 Restoration condition for the GPU gap: an alpaka release with cooperative
 launch support. Then replace the diagnostic with the native cooperative
 barrier and map `m_cooperativeLaunch` to the backend query.
+
+## 8. SYCL CPU per-kernel warp size
+
+alpaka 2.2 provides the per-kernel trait `alpaka::trait::WarpSize<TKernelFnObj, TAcc>`.
+`TaskKernelGenericSycl` reads it into the kernel's `reqd_sub_group_size` and, on
+the SYCL CPU device with a multi-dimensional block, throws `std::runtime_error`
+when the innermost block extent is not a multiple of the requested warp size.
+aV2P keeps the 2.2 trait declaration in `include/aV2P/kernel/Traits.hpp`
+(`trait::WarpSize`, `trait::warpSize`) for source compatibility.
+
+alpaka 3.0.0 does not provide a per-kernel warp-size or sub-group-size
+mechanism:
+
+- `alpaka::KernelBundle` stores only the kernel functor and its arguments; it
+  has no warp-size attribute.
+- The oneAPI queue selects the compile-time warp size with
+  `syclGeneric::Warpsize::Dispatch` from the device property
+  `warpSize` (`include/alpaka/api/syclGeneric/Queue.hpp`) and annotates each
+  kernel instantiation with `[[sycl::reqd_sub_group_size(T_warpSize)]]`
+  (`include/alpaka/api/oneApi/Queue.hpp`).
+- No aV2P code consumes `trait::WarpSize`, so a requested warp size is not
+  forwarded to the launch.
+
+Consequence on the SYCL CPU device: a block whose innermost extent is not a
+multiple of the requested warp size is not rejected at launch. The kernel runs
+with the device-provided sub-group size instead of the requested one. In
+`test/unit/warp/src/SyclCpuWarpLayout.cpp` the valid innermost layout still
+passes; the unsupported outer layout is kept in the source but guarded with
+`#if 0`, with the reason and the restoration condition next to it.
+
+Restoration condition: restore the guarded `CHECK_THROWS_AS` case once alpaka
+exposes per-kernel sub-group/warp size selection (a kernel trait or a launch
+attribute) and aV2P forwards it to the oneAPI launch.

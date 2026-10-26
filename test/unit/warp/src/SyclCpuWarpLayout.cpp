@@ -45,9 +45,17 @@ void testSyclCpuWarpLayout()
     auto good = ExecutionFixture{typename ExecutionFixture::WorkDiv{Vec{2, 2}, Vec{1, TWarpSize}, Vec{1, 1}}};
     CHECK(good(SyclCpuWarpLayoutTestKernel<TWarpSize>{}));
 
-    // the warp is laid out along the outer dimension: rejected when the kernel is launched
+    // The warp is laid out along the outer dimension. alpaka 2.2 rejected this layout when the kernel was
+    // launched, using the per-kernel trait::WarpSize. alpaka 3.0.0 has no per-kernel sub-group size selection:
+    // the oneAPI queue derives the sub-group size from the device properties, so there is no trait for aV2P to
+    // forward and the launch cannot be rejected. The kernel instead observes the device sub-group size, which
+    // is 1 here because sub-groups form only along the innermost dimension.
+#if 0
     auto bad = ExecutionFixture{typename ExecutionFixture::WorkDiv{Vec{2, 2}, Vec{TWarpSize, 1}, Vec{1, 1}}};
     CHECK_THROWS_AS(bad(SyclCpuWarpLayoutTestKernel<TWarpSize>{}), std::runtime_error);
+#endif
+    // Restoration condition: restore this block once alpaka exposes per-kernel sub-group/warp size selection and
+    // aV2P forwards it (see docs/aV2P/limitations.md, Section 8).
 }
 
 TEST_CASE("syclCpuWarpLayout", "[warp]")
