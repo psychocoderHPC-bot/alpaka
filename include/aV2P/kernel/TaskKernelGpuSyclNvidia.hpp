@@ -1,26 +1,9 @@
-/* Copyright 2026 Aurora Perego, Andrea Bocci
+/* Copyright 2026 René Widera
  * SPDX-License-Identifier: MPL-2.0
  */
 
 #pragma once
 
-#include "aV2P/acc/Tag.hpp"
-#include "aV2P/kernel/TaskKernelGenericSycl.hpp"
+//! Legacy task-kernel name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
-#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_ONEAPI_GPU_NVIDIA)
-
-namespace aV2P
-{
-    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
-    using TaskKernelGpuSyclNvidia = TaskKernelGenericSycl<
-        TagGpuSyclNvidia,
-        AccGpuSyclNvidia<TDim, TIdx>,
-        TDim,
-        TIdx,
-        TKernelFnObj,
-        TCooperative,
-        TArgs...>;
-
-} // namespace aV2P
-
-#endif
+#include "aV2P/adapter/Kernel.hpp"

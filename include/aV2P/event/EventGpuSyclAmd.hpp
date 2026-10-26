@@ -1,17 +1,9 @@
-/* Copyright 2025 Aurora Perego
+/* Copyright 2026 René Widera
  * SPDX-License-Identifier: MPL-2.0
  */
 
 #pragma once
 
-#include "aV2P/acc/Tag.hpp"
-#include "aV2P/event/EventGenericSycl.hpp"
+//! Legacy event name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
-#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_ONEAPI_GPU_AMD)
-
-namespace aV2P
-{
-    using EventGpuSyclAmd = EventGenericSycl<TagGpuSyclAmd>;
-} // namespace aV2P
-
-#endif
+#include "aV2P/adapter/Event.hpp"

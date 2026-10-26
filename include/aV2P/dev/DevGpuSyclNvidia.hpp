@@ -1,17 +1,9 @@
-/* Copyright 2025 Aurora Perego
+/* Copyright 2026 René Widera
  * SPDX-License-Identifier: MPL-2.0
  */
 
 #pragma once
 
-#include "aV2P/acc/Tag.hpp"
-#include "aV2P/dev/DevGenericSycl.hpp"
+//! Legacy device name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
-#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_ONEAPI_GPU_NVIDIA)
-
-namespace aV2P
-{
-    using DevGpuSyclNvidia = DevGenericSycl<TagGpuSyclNvidia>;
-} // namespace aV2P
-
-#endif
+#include "aV2P/adapter/Dev.hpp"

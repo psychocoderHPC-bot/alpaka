@@ -18,7 +18,6 @@
 
 namespace aV2P
 {
-    class DevCpu;
 } // namespace aV2P
 
 namespace aV2P::concepts
@@ -28,13 +27,13 @@ namespace aV2P::concepts
         typename Idx<TView>;
         typename Dim<TView>;
         {
-            getPtrNative(std::declval<TView>())
+            aV2P::getPtrNative(std::declval<TView>())
         };
         {
-            getPitchesInBytes(std::declval<TView>())
+            aV2P::getPitchesInBytes(std::declval<TView>())
         };
         {
-            getExtents(std::declval<TView>())
+            aV2P::getExtents(std::declval<TView>())
         };
     };
 } // namespace aV2P::concepts
@@ -57,12 +56,12 @@ namespace aV2P::internal
     public:
         [[nodiscard]] AV2P_FN_HOST auto data() -> pointer
         {
-            return getPtrNative(*static_cast<TView*>(this));
+            return aV2P::getPtrNative(*static_cast<TView*>(this));
         }
 
         [[nodiscard]] AV2P_FN_HOST auto data() const -> const_pointer
         {
-            return getPtrNative(*static_cast<TView const*>(this));
+            return aV2P::getPtrNative(*static_cast<TView const*>(this));
         }
 
         AV2P_FN_HOST auto begin() -> pointer requires(Dim::value == 1)
@@ -82,17 +81,17 @@ namespace aV2P::internal
 
         AV2P_FN_HOST auto end() -> pointer requires(Dim::value == 1)
         {
-            return data() + getExtents(*static_cast<TView*>(this))[0];
+            return data() + aV2P::getExtents(*static_cast<TView*>(this))[0];
         }
 
         AV2P_FN_HOST auto end() const -> const_pointer requires(Dim::value == 1)
         {
-            return data() + getExtents(*static_cast<TView const*>(this))[0];
+            return data() + aV2P::getExtents(*static_cast<TView const*>(this))[0];
         }
 
         AV2P_FN_HOST auto cend() const -> const_pointer requires(Dim::value == 1)
         {
-            return data() + getExtents(*static_cast<TView const*>(this))[0];
+            return data() + aV2P::getExtents(*static_cast<TView const*>(this))[0];
         }
 
         AV2P_FN_HOST auto rank() const -> Idx
@@ -102,17 +101,17 @@ namespace aV2P::internal
 
         AV2P_FN_HOST auto size() const -> Idx requires(Dim::value == 1)
         {
-            return getExtents(*static_cast<TView const*>(this))[0];
+            return aV2P::getExtents(*static_cast<TView const*>(this))[0];
         }
 
         AV2P_FN_HOST auto size() const -> Idx requires(Dim::value > 1)
         {
-            return getExtents(*static_cast<TView const*>(this)).prod();
+            return aV2P::getExtents(*static_cast<TView const*>(this)).prod();
         }
 
         AV2P_FN_HOST auto extent(Idx dim) const -> Idx
         {
-            return getExtents(*static_cast<TView const*>(this))[dim];
+            return aV2P::getExtents(*static_cast<TView const*>(this))[dim];
         }
 
         AV2P_FN_HOST auto extents() const -> Vec<Dim, Idx>;
@@ -201,7 +200,7 @@ namespace aV2P::internal
             if constexpr(Dim::value > 0)
             {
                 ptr += static_cast<std::uintptr_t>(
-                    (getPitchesInBytes(*static_cast<TView const*>(this)) * castVec<Idx>(index)).sum());
+                    (aV2P::getPitchesInBytes(*static_cast<TView const*>(this)) * aV2P::castVec<Idx>(index)).sum());
             }
             return reinterpret_cast<const_pointer>(ptr);
         }
@@ -222,7 +221,7 @@ namespace aV2P::internal
         template<typename TIdx>
         AV2P_FN_HOST auto at(Vec<Dim, TIdx> index) -> reference
         {
-            auto extent = getExtents(*static_cast<TView*>(this));
+            auto extent = aV2P::getExtents(*static_cast<TView*>(this));
             if(!(index < extent).all())
             {
                 std::stringstream msg;
@@ -235,7 +234,7 @@ namespace aV2P::internal
         template<typename TIdx>
         [[nodiscard]] AV2P_FN_HOST auto at(Vec<Dim, TIdx> index) const -> const_reference
         {
-            auto extent = getExtents(*static_cast<TView const*>(this));
+            auto extent = aV2P::getExtents(*static_cast<TView const*>(this));
             if(!(index < extent).all())
             {
                 std::stringstream msg;

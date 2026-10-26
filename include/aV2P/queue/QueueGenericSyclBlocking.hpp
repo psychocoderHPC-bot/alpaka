@@ -1,17 +1,9 @@
-/* Copyright 2024 Jan Stephan, Aurora Perego
+/* Copyright 2026 René Widera
  * SPDX-License-Identifier: MPL-2.0
  */
 
 #pragma once
 
-#include "aV2P/queue/sycl/QueueGenericSyclBase.hpp"
+//! Legacy queue name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
-#ifdef AV2P_ACC_SYCL_ENABLED
-
-namespace aV2P
-{
-    template<concepts::Tag TTag>
-    using QueueGenericSyclBlocking = detail::QueueGenericSyclBase<TTag, true>;
-} // namespace aV2P
-
-#endif
+#include "aV2P/adapter/Queue.hpp"

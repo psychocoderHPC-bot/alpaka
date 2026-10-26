@@ -1,13 +1,9 @@
-/* Copyright 2020 Jeffrey Kelling, Bernhard Manfred Gruber
+/* Copyright 2026 René Widera
  * SPDX-License-Identifier: MPL-2.0
  */
 
 #pragma once
 
-#include "aV2P/dev/DevCpu.hpp"
-#include "aV2P/event/EventGenericThreads.hpp"
+//! Legacy event name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
-namespace aV2P
-{
-    using EventCpu = EventGenericThreads<DevCpu>;
-} // namespace aV2P
+#include "aV2P/adapter/Event.hpp"

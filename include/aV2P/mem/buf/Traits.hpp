@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "aV2P/adapter/Dev.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/core/Config.hpp"
 #include "aV2P/mem/view/Traits.hpp"
@@ -16,8 +17,6 @@
 
 namespace aV2P
 {
-    //! The CPU device handle.
-    class DevCpu;
 
     namespace concepts
     {

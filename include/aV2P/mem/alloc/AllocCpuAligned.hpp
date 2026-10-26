@@ -7,7 +7,7 @@
 #include "aV2P/core/AlignedAlloc.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/core/Interface.hpp"
-#include "aV2P/dev/cpu/SysInfo.hpp"
+#include <alpaka/alpaka.hpp>
 #include "aV2P/mem/alloc/Traits.hpp"
 
 #include <algorithm>
@@ -41,7 +41,7 @@ namespace aV2P
                 // https://rocm-developer-tools.github.io/HIP/group__Memory.html#gab8258f051e1a1f7385f794a15300e674
                 // On most x86 systems the page size is 4KiB and on OpenPower 64KiB.
                 // Page size can be tested on the terminal with: `getconf PAGE_SIZE`
-                size_t minAlignement = std::max<size_t>(TAlignment::value, cpu::detail::getPageSize());
+                size_t minAlignement = std::max<size_t>(TAlignment::value, alpaka::onHost::getPageSize());
 #else
                 constexpr size_t minAlignement = TAlignment::value;
 #endif
@@ -56,7 +56,7 @@ namespace aV2P
             AV2P_FN_HOST static auto free(AllocCpuAligned<TAlignment> const& /* alloc */, T const* const ptr) -> void
             {
 #if defined(AV2P_ACC_GPU_CUDA_ENABLED) || defined(AV2P_ACC_GPU_HIP_ENABLED)
-                size_t minAlignement = std::max<size_t>(TAlignment::value, cpu::detail::getPageSize());
+                size_t minAlignement = std::max<size_t>(TAlignment::value, alpaka::onHost::getPageSize());
 #else
                 constexpr size_t minAlignement = TAlignment::value;
 #endif

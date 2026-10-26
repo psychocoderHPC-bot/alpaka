@@ -1,0 +1,266 @@
+/* Copyright 2026 Alexander Matthes, Axel Huebl, Benjamin Worpitz, Andrea Bocci, Jan Stephan, Bernhard Manfred Gruber,
+ *                Anton Reinhard, Maria Michailidi
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+#pragma once
+
+#include "aV2P/adapter/DeviceSpec.hpp"
+#include "aV2P/adapter/Buf.hpp"
+#include "aV2P/adapter/WorkDiv.hpp"
+#include "aV2P/dev/Traits.hpp"
+#include "aV2P/mem/buf/Traits.hpp"
+#include "aV2P/mem/view/Traits.hpp"
+
+#include <alpaka/alpaka.hpp>
+
+#include <type_traits>
+#include <utility>
+
+namespace aV2P::trait
+{
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct BufType<DevAlpaka3<TDevSpec>, TElem, TDim, TIdx>
+    {
+        using type = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct ConstBufType<DevAlpaka3<TDevSpec>, TElem, TDim, TIdx>
+    {
+        using type = ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct DevType<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        using type = DevAlpaka3<TDevSpec>;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct DevType<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        using type = DevAlpaka3<TDevSpec>;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetDev<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST static auto getDev(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf)
+            -> DevAlpaka3<TDevSpec>
+        {
+            return buf.m_dev;
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetDev<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST static auto getDev(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf)
+            -> DevAlpaka3<TDevSpec>
+        {
+            return buf.m_dev;
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct DimType<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        using type = TDim;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct DimType<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        using type = TDim;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct ElemType<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        using type = TElem;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct ElemType<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        // The inner alpaka 3 view carries the const element type.
+        using type = TElem const;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct IdxType<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        using type = TIdx;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct IdxType<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        using type = TIdx;
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetExtents<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST auto operator()(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) const
+        {
+            return adapter::fromAlpaka(buf.getAlpaka3().getExtents());
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetExtents<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST auto operator()(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) const
+        {
+            return adapter::fromAlpaka(buf.getAlpaka3().getExtents());
+        }
+    };
+
+    //! The legacy buffer is contiguous: pitches are derived from the logical extents.
+    //!
+    //! alpaka 3 host allocations may pad the row pitch for alignment.  The legacy buffer API
+    //! exposes contiguous memory to the user, so the adapter reports contiguous pitches even
+    //! though the underlying allocation may be larger.  Phase 3b must revisit this for device
+    //! buffers that require the native pitch.
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetPitchesInBytes<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST auto operator()(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) const
+        {
+            return detail::calculatePitchesFromExtents<TElem>(aV2P::getExtents(buf));
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetPitchesInBytes<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST auto operator()(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) const
+        {
+            return detail::calculatePitchesFromExtents<TElem>(aV2P::getExtents(buf));
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetPtrNative<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST static auto getPtrNative(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) -> TElem const*
+        {
+            return buf.getAlpaka3().data();
+        }
+
+        AV2P_FN_HOST static auto getPtrNative(BufAlpaka3<TDevSpec, TElem, TDim, TIdx>& buf) -> TElem*
+        {
+            return buf.getAlpaka3().data();
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetPtrNative<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST static auto getPtrNative(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf)
+            -> TElem const*
+        {
+            return buf.getAlpaka3().data();
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetPtrDev<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>, DevAlpaka3<TDevSpec>>
+    {
+        AV2P_FN_HOST static auto getPtrDev(
+            BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf,
+            DevAlpaka3<TDevSpec> const& dev) -> TElem const*
+        {
+            if(!(dev == getDev(buf)))
+                throw std::runtime_error("The buffer is not accessible from the given device!");
+            return buf.getAlpaka3().data();
+        }
+
+        AV2P_FN_HOST static auto getPtrDev(
+            BufAlpaka3<TDevSpec, TElem, TDim, TIdx>& buf,
+            DevAlpaka3<TDevSpec> const& dev) -> TElem*
+        {
+            if(!(dev == getDev(buf)))
+                throw std::runtime_error("The buffer is not accessible from the given device!");
+            return buf.getAlpaka3().data();
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetOffsets<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST auto operator()(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const&) const -> Vec<TDim, TIdx>
+        {
+            return Vec<TDim, TIdx>::zeros();
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct GetOffsets<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST auto operator()(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const&) const -> Vec<TDim, TIdx>
+        {
+            return Vec<TDim, TIdx>::zeros();
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct MakeConstBuf<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+    {
+        AV2P_FN_HOST static auto makeConstBuf(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf)
+            -> ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>
+        {
+            return ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>(buf);
+        }
+
+        AV2P_FN_HOST static auto makeConstBuf(BufAlpaka3<TDevSpec, TElem, TDim, TIdx>&& buf)
+            -> ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>
+        {
+            return ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>(std::move(buf));
+        }
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct BufAlloc<TElem, TDim, TIdx, DevAlpaka3<TDevSpec>>
+    {
+        template<typename TExtent>
+        AV2P_FN_HOST static auto allocBuf(DevAlpaka3<TDevSpec> const& dev, TExtent const& extent)
+            -> BufAlpaka3<TDevSpec, TElem, TDim, TIdx>
+        {
+            using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
+            if constexpr(std::is_integral_v<TExtent>)
+                return Buffer{alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), alpaka::Vec{extent}), dev};
+            else
+                return Buffer{
+                    alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent)),
+                    dev};
+        }
+    };
+
+    template<typename TDim, typename TDevSpec>
+    struct HasAsyncBufSupport<TDim, DevAlpaka3<TDevSpec>> : std::true_type
+    {
+    };
+
+    template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
+    struct AsyncBufAlloc<TElem, TDim, TIdx, DevAlpaka3<TDevSpec>>
+    {
+        template<typename TQueue, typename TExtent>
+        AV2P_FN_HOST static auto allocAsyncBuf(TQueue queue, TExtent const& extent)
+            -> BufAlpaka3<TDevSpec, TElem, TDim, TIdx>
+        {
+            using Buffer = BufAlpaka3<TDevSpec, TElem, TDim, TIdx>;
+            auto const dev = aV2P::getDev(queue);
+            if constexpr(std::is_integral_v<TExtent>)
+                return Buffer{
+                    alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent}),
+                    dev};
+            else
+                return Buffer{
+                    alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), adapter::toAlpaka(extent)),
+                    dev};
+        }
+    };
+} // namespace aV2P::trait

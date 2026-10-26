@@ -18,6 +18,8 @@
 #include "aV2P/meta/IntegerSequence.hpp"
 #include "aV2P/vec/Traits.hpp"
 
+#include <alpaka/Vec.hpp>
+
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -49,6 +51,18 @@ namespace aV2P
         using IdxSequence = std::make_integer_sequence<std::size_t, TDim::value>;
 
     public:
+        //! Convert to the alpaka 3 vector type used by the adapter layer.
+        AV2P_FN_HOST_ACC constexpr auto getAlpaka3() const
+        {
+            alpaka::Vec<TVal, static_cast<std::uint32_t>(TDim::value)> result{};
+            if constexpr(TDim::value > 0u)
+            {
+                for(typename TDim::value_type i = 0; i < TDim::value; ++i)
+                    result[i] = m_data[i];
+            }
+            return result;
+        }
+
         AV2P_FN_HOST_ACC constexpr Vec() : m_data{}
         {
         }

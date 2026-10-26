@@ -1,17 +1,9 @@
-/* Copyright 2024 Jan Stephan, Andrea Bocci, Aurora Perego
+/* Copyright 2026 René Widera
  * SPDX-License-Identifier: MPL-2.0
  */
 
 #pragma once
 
-#include "aV2P/acc/Tag.hpp"
-#include "aV2P/event/EventGenericSycl.hpp"
+//! Legacy event name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
-#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_ONEAPI_CPU)
-
-namespace aV2P
-{
-    using EventCpuSycl = EventGenericSycl<TagCpuSycl>;
-} // namespace aV2P
-
-#endif
+#include "aV2P/adapter/Event.hpp"

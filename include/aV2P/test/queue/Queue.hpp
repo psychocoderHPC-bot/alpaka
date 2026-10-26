@@ -58,15 +58,15 @@ namespace aV2P::test
         struct IsBlockingQueue;
 
         //! The blocking queue trait specialization for a blocking CPU queue.
-        template<typename TDev>
-        struct IsBlockingQueue<QueueGenericThreadsBlocking<TDev>>
+        template<>
+        struct IsBlockingQueue<QueueCpuBlocking>
         {
             static constexpr bool value = true;
         };
 
         //! The blocking queue trait specialization for a non-blocking CPU queue.
-        template<typename TDev>
-        struct IsBlockingQueue<QueueGenericThreadsNonBlocking<TDev>>
+        template<>
+        struct IsBlockingQueue<QueueCpuNonBlocking>
         {
             static constexpr bool value = false;
         };

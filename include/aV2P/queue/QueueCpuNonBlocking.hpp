@@ -1,13 +1,9 @@
-/* Copyright 2020 Jeffrey Kelling, Bernhard Manfred Gruber
+/* Copyright 2026 René Widera
  * SPDX-License-Identifier: MPL-2.0
  */
 
 #pragma once
 
-#include "aV2P/event/EventCpu.hpp"
-#include "aV2P/queue/QueueGenericThreadsNonBlocking.hpp"
+//! Legacy queue name kept for source compatibility; the implementation is the alpaka 3 adapter.
 
-namespace aV2P
-{
-    using QueueCpuNonBlocking = QueueGenericThreadsNonBlocking<DevCpu>;
-} // namespace aV2P
+#include "aV2P/adapter/Queue.hpp"
