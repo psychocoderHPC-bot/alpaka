@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 namespace
 {
@@ -139,7 +140,15 @@ TEST_CASE("memBufNativeBulkFillUsesContiguousAlignment", "[memBuf][layout]")
     REQUIRE(rowBytes % allocationAlignment != 0u);
 
     // A contiguous multi-dimensional re-view must not advertise the padded allocation alignment.
-    CHECK(alpaka::getAlignment(buf.getAlpaka3()).get<Elem>() == alignof(Elem));
+    //
+    // Query the alignment through the native buffer type instead of through the handle value.
+    // `Alignment::get<Elem>()` is consteval, so its object expression is evaluated in a constant
+    // expression; passing the non-constexpr `buf.getAlpaka3()` makes that expression non-constant.
+    // clang rejects it and nvcc 12.5 ICEs in `diagnose_consteval_routine_node`.  The buffer's
+    // alignment is a type-level property (a static constexpr member), so reading it from the type
+    // is equivalent and keeps the assertion unchanged.
+    using NativeBuffer = std::remove_cvref_t<decltype(buf.getAlpaka3())>;
+    CHECK(NativeBuffer::getAlignment().template get<Elem>() == alignof(Elem));
 
     // A native alpaka 3 SIMD fill must not assume aligned interior rows of this re-view.
     constexpr Elem fillValue = 0xA1B2C3D4u;
