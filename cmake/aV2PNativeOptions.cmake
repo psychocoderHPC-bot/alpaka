@@ -117,11 +117,24 @@ function(_aV2P_apply_native_option_mapping)
                     "aV2P option '${_legacy}' is set to '${_value}', but native alpaka 3.0.0 "
                     "cannot provide it: ${_note}. Set '${_legacy}' to '${_default}'.")
             endif()
+        elseif(_mode STREQUAL "sycl_device")
+            # A oneAPI device kind selected through a legacy option has to be active on the native
+            # side, and a kind that is not selected must not be compiled. Forward in both directions
+            # only while the SYCL backend is enabled; otherwise the native option stays untouched so
+            # a plain alpaka 3 (non-aV2P) configuration keeps its default.
+            if(aV2P_ACC_SYCL_ENABLE)
+                if(_value)
+                    _aV2P_set_native_option("${_legacy}" "${_native}" "${_type}" ON)
+                else()
+                    _aV2P_set_native_option("${_legacy}" "${_native}" "${_type}" OFF)
+                endif()
+            endif()
         elseif(_mode STREQUAL "sycl_unsupported")
             if(aV2P_ACC_SYCL_ENABLE AND NOT "${_value}" STREQUAL "${_default}")
                 message(FATAL_ERROR
                     "aV2P option '${_legacy}' is set to '${_value}', but native alpaka 3.0.0 "
-                    "cannot provide it: ${_note}. Set '${_legacy}' to '${_default}'.")
+                    "cannot provide it: ${_note}. Set '${_legacy}' to '${_default}' or select a "
+                    "supported alpaka 3 backend.")
             endif()
         elseif(_mode STREQUAL "sycl_warn")
             if(aV2P_ACC_SYCL_ENABLE AND NOT "${_value}" STREQUAL "${_default}")
@@ -136,6 +149,21 @@ function(_aV2P_apply_native_option_mapping)
 endfunction()
 
 _aV2P_apply_native_option_mapping()
+
+# The SYCL backend selects exactly one aV2P device kind per accelerator tag. Enabling it without any
+# oneAPI target would compile native SYCL kernels for none of the device kinds aV2P exposes, leaving
+# the build with no usable aV2P SYCL accelerator. Fail with a clear selection error instead.
+if(aV2P_ACC_SYCL_ENABLE
+   AND NOT (aV2P_SYCL_ONEAPI_CPU
+            OR aV2P_SYCL_ONEAPI_FPGA
+            OR aV2P_SYCL_ONEAPI_GPU
+            OR aV2P_SYCL_ONEAPI_GPU_NVIDIA
+            OR aV2P_SYCL_ONEAPI_GPU_AMD))
+    message(FATAL_ERROR
+        "aV2P_ACC_SYCL_ENABLE=ON but no oneAPI target is selected. Set at least one of "
+        "aV2P_SYCL_ONEAPI_CPU, aV2P_SYCL_ONEAPI_FPGA, aV2P_SYCL_ONEAPI_GPU, "
+        "aV2P_SYCL_ONEAPI_GPU_NVIDIA, aV2P_SYCL_ONEAPI_GPU_AMD to ON.")
+endif()
 
 # ONLY_MODE has no native switch in alpaka 3: native alpaka already permits
 # mixing with vendor code. Keep the 2.2 validation and explain the translation.

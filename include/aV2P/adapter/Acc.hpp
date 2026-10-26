@@ -50,6 +50,15 @@ namespace aV2P
      * `WorkDivPayload` and a pointer to the backend-owned `alpaka::onAcc::Acc` view.  The view lives for
      * the duration of one kernel invocation, so the pointer never points to host state and never escapes
      * the kernel.  Only plain values are stored in the host-side use of the type.
+     *
+     * The oneAPI executor is different: it instantiates one kernel (and therefore one accelerator
+     * type) per runtime subgroup size and selects the instantiation at runtime, so no single accelerator
+     * type exists at host time.  The public oneAPI facade type carries `void` as `TAccView`, which means
+     * "the accelerator view is not stored in this instantiation".  `adapter::LegacyKernel` then passes
+     * the kernel functor an instantiation of this same class in which `TAccView` is the concrete
+     * `alpaka::onAcc::Acc` type of the current kernel instantiation, and the device primitive adapters
+     * forward to `alpaka::onAcc::*` through that view.  For oneAPI the kernel accelerator parameter
+     * therefore has to be a template parameter.
      */
     template<
         typename TDim,
@@ -137,12 +146,20 @@ namespace aV2P
         }
 
         //! The alpaka 3 accelerator view for the current kernel invocation.
-        [[nodiscard]] AV2P_FN_HOST_ACC auto getAlpaka3Acc() const noexcept -> TAccView const&
+        //!
+        //! The deduced return type keeps the declaration well-formed for facades without a stored view
+        //! (oneAPI public types, where `TAccView` is `void`): the body is only instantiated when the
+        //! function is called, which then yields the `static_assert` below instead of an ill-formed
+        //! class declaration.
+        [[nodiscard]] AV2P_FN_HOST_ACC decltype(auto) getAlpaka3Acc() const noexcept
         {
             static_assert(
                 !std::is_void_v<TAccView>,
-                "aV2P: this facade has no alpaka 3 accelerator view.  Device primitives are not available "
-                "for this backend.");
+                "aV2P: this facade instantiation carries no alpaka 3 accelerator view, so device primitives "
+                "are not available through it.  For the oneAPI accelerators this is the public accelerator "
+                "type: declare the kernel parameter as a template parameter "
+                "(`template<typename TAcc> ... void operator()(TAcc const& acc, ...)`) so the in-kernel "
+                "facade carries the concrete accelerator type.");
             return *m_alpaka3Acc;
         }
 
@@ -203,7 +220,10 @@ namespace aV2P
         typename adapter::LegacyAccMapping<TagGpuHipRt>::Executor>;
 #endif
 
-#ifdef AV2P_ACC_SYCL_ENABLED
+// The oneAPI accelerator aliases exist only for the device kinds the build actually targets: the
+// public facade selects the alpaka 3 device kind at template time, and a facade whose device kind is
+// not compiled into the SYCL kernel set cannot be launched.
+#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_CPU)
     template<typename TDim, typename TIdx>
     using AccCpuSycl = AccAlpaka3<
         TDim,
@@ -211,7 +231,9 @@ namespace aV2P
         typename adapter::LegacyAccMapping<TagCpuSycl>::Api,
         typename adapter::LegacyAccMapping<TagCpuSycl>::DeviceKind,
         typename adapter::LegacyAccMapping<TagCpuSycl>::Executor>;
+#endif
 
+#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_GPU)
     template<typename TDim, typename TIdx>
     using AccGpuSyclIntel = AccAlpaka3<
         TDim,

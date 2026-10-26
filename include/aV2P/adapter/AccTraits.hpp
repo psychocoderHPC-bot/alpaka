@@ -31,6 +31,7 @@ namespace aV2P
     namespace trait
     {
         //! Map every implemented legacy tag to its accelerator facade.
+#ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
         template<typename TDim, typename TIdx>
         struct TagToAcc<aV2P::TagCpuSerial, TDim, TIdx>
         {
@@ -42,6 +43,7 @@ namespace aV2P
         {
             using type = aV2P::TagCpuSerial;
         };
+#endif
 
 #ifdef AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED
         template<typename TDim, typename TIdx>
@@ -85,7 +87,11 @@ namespace aV2P
         };
 #endif
 
-#ifdef AV2P_ACC_SYCL_ENABLED
+// Only the oneAPI device kinds enabled by the build map to a tag: the tag stands for a selectable
+// accelerator identity, and a device kind that is not compiled into the SYCL kernel set has no tag.
+// This keeps EnabledAccTags in sync with the selectable accelerators, independent of whether oneAPI
+// runs on CPU, Intel GPU, or (later) Nvidia/AMD GPU targets.
+#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_CPU)
         template<typename TDim, typename TIdx>
         struct TagToAcc<aV2P::TagCpuSycl, TDim, TIdx>
         {
@@ -97,7 +103,9 @@ namespace aV2P
         {
             using type = aV2P::TagCpuSycl;
         };
+#endif
 
+#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_GPU)
         template<typename TDim, typename TIdx>
         struct TagToAcc<aV2P::TagGpuSyclIntel, TDim, TIdx>
         {
@@ -110,6 +118,53 @@ namespace aV2P
             using type = aV2P::TagGpuSyclIntel;
         };
 #endif
+
+        //! Reverse tag mapping for every facade instantiation, independent of the accelerator view.
+        //!
+        //! The per-tag specializations above key on the public 2.2 accelerator types.  For the oneAPI
+        //! accelerators the in-kernel facade is a different instantiation of the same class (it carries
+        //! the concrete `alpaka::onAcc::Acc` type of the current kernel instantiation instead of `void`),
+        //! so `accMatchesTags` and friends need the tag of the runtime facade as well.  The tag is a pure
+        //! function of (api, device kind, executor) - the same mapping `adapter::LegacyAccMapping` uses
+        //! in the forward direction - so one partial specialization covers all views, including `void`.
+        //
+        //! The fully specialized per-tag entries above take precedence for the public accelerator
+        //! types; every other facade instantiation resolves through this template.
+        namespace detail
+        {
+            template<typename TApi, typename TDeviceKind, typename TExecutor>
+            struct AccFacadeTag
+            {
+                using type = std::conditional_t<
+                    std::is_same_v<TExecutor, alpaka::exec::CpuSerial>,
+                    aV2P::TagCpuSerial,
+                    std::conditional_t<
+                        std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>,
+                        aV2P::TagCpuOmp2Blocks,
+                        std::conditional_t<
+                            std::is_same_v<TExecutor, alpaka::exec::GpuCuda>,
+                            aV2P::TagGpuCudaRt,
+                            std::conditional_t<
+                                std::is_same_v<TExecutor, alpaka::exec::GpuHip>,
+                                aV2P::TagGpuHipRt,
+                                std::conditional_t<
+                                    std::is_same_v<TDeviceKind, alpaka::deviceKind::Cpu>,
+                                    aV2P::TagCpuSycl,
+                                    aV2P::TagGpuSyclIntel>>>>>;
+            };
+        } // namespace detail
+
+        template<
+            typename TDim,
+            typename TIdx,
+            alpaka::concepts::Api TApi,
+            alpaka::concepts::DeviceKind TDeviceKind,
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct AccToTag<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
+        {
+            using type = detail::AccFacadeTag<TApi, TDeviceKind, TExecutor>::type;
+        };
 
         template<
             typename TDim,
