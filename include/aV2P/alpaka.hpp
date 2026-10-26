@@ -60,6 +60,13 @@
 #include "aV2P/exec/UniformElements.hpp"
 // extent
 #include "aV2P/extent/Traits.hpp"
+// grid
+#include "aV2P/grid/GridSyncBarrierCpuOmp.hpp"
+#include "aV2P/grid/GridSyncBarrierCpuThread.hpp"
+#include "aV2P/grid/GridSyncCpuTbbBlocks.hpp"
+#include "aV2P/grid/GridSyncGpuCudaHip.hpp"
+#include "aV2P/grid/GridSyncNoOp.hpp"
+#include "aV2P/grid/Traits.hpp"
 // idx
 #include "aV2P/idx/Accessors.hpp"
 #include "aV2P/idx/MapIdx.hpp"

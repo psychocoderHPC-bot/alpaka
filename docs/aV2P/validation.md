@@ -9,7 +9,7 @@ run logs; UNVERIFIED marks a cell that was not checked in that configuration.
 
 | Role | SHA | Verified |
 |---|---|---|
-| aV2P branch tip (test subject) | `a7f58b7481ce660fde61d2780bee11aafa4cf243` | exists in fork; `av2p/develop` |
+| aV2P branch tip (test subject) | `4660930f0a9b00c733bdbf3b81a171202f0fb65f` | exists in fork; `av2p/develop` |
 | Base: fork `develop` | `61c5a7113a1b4b3ac2648ceaed88874635d05c7d` | exists; source identical to 2.2.0 apart from version and changelog |
 | Legacy release 2.2.0 | `4dc5ea558defeab95427e114a2dd9da83cc4d215` | exists; tag `2.2.0` resolves to this commit |
 | Dependency: native alpaka 3.0.0 | `eb677e8d7f70d79b35df25d9002f94ba669b6f44` | exists |
@@ -32,11 +32,17 @@ export alpaka_DEP_HWLOC=OFF
 `/tmp/av2p-base/src` is a clone of native alpaka checked out at the pinned SHA
 (3.0.0). Build in the aV2P fork worktree at the branch tip SHA.
 
+The commands in this section were validated against
+`4660930f0a9b00c733bdbf3b81a171202f0fb65f` on the named machines (fwk394 for the
+CPU and CUDA configurations, hal for HIP and oneAPI).
+
 CPU serial + OpenMP (fwk394, g++ 13.3; nvcc 12.5 present but not used):
 
 ```sh
 cmake -S . -B build \
   -DCMAKE_CXX_COMPILER=g++ \
+  -DaV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE=ON \
+  -DaV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE=ON \
   -Dalpaka_DEP_HWLOC=OFF \
   -DaV2P_ALPAKA3_SOURCE_DIR=/tmp/av2p-base/src
 cmake --build build -j
@@ -48,8 +54,8 @@ CPU + TBB (fwk394, oneTBB 2023.2 prefix):
 ```sh
 cmake -S . -B build-tbb \
   -DCMAKE_CXX_COMPILER=g++ \
-  -Dalpaka_ACC_CPU_B_TBB_T_SE_MULTI=ON \
-  -DTbb_DIR=/path/to/onetbb-install/lib/cmake/tbb \
+  -DaV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE=ON \
+  -DTBB_DIR=/path/to/onetbb-install/lib/cmake/tbb \
   -Dalpaka_DEP_HWLOC=OFF \
   -DaV2P_ALPAKA3_SOURCE_DIR=/tmp/av2p-base/src
 cmake --build build-tbb -j
@@ -63,8 +69,8 @@ CUDA 12.5 (fwk394, sm_70 GV100 and sm_75 RTX 2080 Ti):
 ```sh
 cmake -S . -B build-cuda \
   -DCMAKE_CXX_COMPILER=g++ \
-  -Dalpaka_ACC_GPU_CUDA_ENABLE=ON \
-  -DCUDA_ARCH=70-75 \
+  -DaV2P_ACC_GPU_CUDA_ENABLE=ON \
+  -DCMAKE_CUDA_ARCHITECTURES="70;75" \
   -Dalpaka_DEP_HWLOC=OFF \
   -DaV2P_ALPAKA3_SOURCE_DIR=/tmp/av2p-base/src
 cmake --build build-cuda -j
@@ -78,8 +84,8 @@ HIP ROCm 7.2 (hal, gfx1100 RX 7900 XTX, amdclang 22):
 cmake -S . -B build-hip \
   -DCMAKE_CXX_COMPILER=clang++ \
   -DROCm_PATH=/opt/rocm \
-  -Dalpaka_ACC_GPU_HIP_ENABLE=ON \
-  -Dhip__HIP_ARCH="gfx1100" \
+  -DaV2P_ACC_GPU_HIP_ENABLE=ON \
+  -DCMAKE_HIP_ARCHITECTURES="gfx1100" \
   -Dalpaka_DEP_HWLOC=OFF \
   -DaV2P_ALPAKA3_SOURCE_DIR=/tmp/av2p-base/src
 cmake --build build-hip -j
@@ -91,13 +97,17 @@ compiler via the oneAPI env first:
 
 ```sh
 source /opt/intel/oneapi/setvars.sh
+# Arc A770 GPU run. For the EPYC 7452 CPU run use
+# -DaV2P_SYCL_ONEAPI_CPU=ON -DaV2P_SYCL_ONEAPI_GPU=OFF instead.
 cmake -S . -B build-sycl \
   -DCMAKE_CXX_COMPILER=icpx \
-  -Dalpaka_ACC_DPCPP_ENABLE=ON \
+  -DaV2P_ACC_SYCL_ENABLE=ON \
+  -DaV2P_SYCL_ONEAPI_GPU=ON \
+  -DaV2P_SYCL_ONEAPI_CPU=OFF \
   -Dalpaka_DEP_HWLOC=OFF \
   -DaV2P_ALPAKA3_SOURCE_DIR=/tmp/av2p-base/src
 cmake --build build-sycl -j
-ctest --test-dir build-sycl --output-on-failure   # GPU: --launch-device level_zero:gpu
+ctest --test-dir build-sycl --output-on-failure   # GPU: --launch-device level_zero:gpu; CPU: omit the flag
 ```
 
 The FP64-emulation run on the A770 used the device's floating-point emulation
@@ -128,8 +138,9 @@ Build counts are targets compiled; ctest and examples are pass/total.
 | oneAPI 2026.2 GPU (hal) | 281/281 | 46/51 | 15/17 | PASS, interop PASS | Arc A770 |
 | oneAPI 2026.2 CPU (hal) | 281/281 | 51/51 | 18/18 | PASS, interop PASS | EPYC 7452 |
 
-TBB detail runs, all green: accTest 682/296, devTest 192/192, kernelTest
-1682/1157, blockShared 144/144, blockSync 144/96, workDiv 223/55.
+TBB detail runs, all green. The numbers are `assertions/cases`, not
+pass/total: accTest 682/296, devTest 192/192, kernelTest 1682/1157,
+blockShared 144/144, blockSync 144/96, workDiv 223/55.
 
 Memory layout (2D extent `{3,5}` of `uint32_t`): native pitches are 20 B on
 CPU (contiguous row), 512 B on CUDA, 256 B on HIP, 32 B on oneAPI. aV2P view
