@@ -42,8 +42,9 @@ namespace aV2P::adapter::detail
 
             auto const payload = adapter::makeWorkDivPayload<TDim, TIdx>(workDiv);
 
-            // Both host executors run one thread per block (CpuOmpBlocks parallelises blocks, not
-            // threads).  Keep the legacy 2.2 diagnostic instead of letting the backend throw later.
+            // The sequential host executors and CpuOmpBlocks run one thread per block (CpuOmpBlocks
+            // parallelises blocks, not threads).  Keep the legacy 2.2 diagnostic instead of letting the
+            // backend throw later.
             if constexpr(alpaka::exec::isSeqExecutor_v<typename TFacade::Executor>)
             {
                 if(payload.blockThreadExtent.prod() != static_cast<TIdx>(1u))
@@ -175,6 +176,10 @@ AV2P_DEFINE_PUBLIC_ACC_TRAITS(::aV2P::AccCpuSerial, ::aV2P::TagCpuSerial);
 
 #ifdef AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED
 AV2P_DEFINE_PUBLIC_ACC_TRAITS(::aV2P::AccCpuOmp2Blocks, ::aV2P::TagCpuOmp2Blocks);
+#endif
+
+#ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
+AV2P_DEFINE_PUBLIC_ACC_TRAITS(::aV2P::AccCpuTbbBlocks, ::aV2P::TagCpuTbbBlocks);
 #endif
 
 #ifdef AV2P_ACC_GPU_CUDA_ENABLED

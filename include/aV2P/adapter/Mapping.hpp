@@ -21,6 +21,7 @@ namespace aV2P::adapter
      * |-------------------------|-------------------|----------------------|-----------------------|-------------|
      * | TagCpuSerial            | api::Host         | deviceKind::Cpu      | exec::CpuSerial       | yes         |
      * | TagCpuOmp2Blocks        | api::Host         | deviceKind::Cpu      | exec::CpuOmpBlocks    | yes         |
+     * | TagCpuTbbBlocks         | api::Host         | deviceKind::Cpu      | exec::CpuTbbBlocks    | yes         |
      * | TagGpuCudaRt            | api::Cuda         | deviceKind::NvidiaGpu| exec::GpuCuda         | yes         |
      * | TagGpuHipRt             | api::Hip          | deviceKind::AmdGpu   | exec::GpuHip          | yes         |
      * | TagCpuSycl              | api::OneApi       | deviceKind::Cpu      | exec::OneApi          | yes         |
@@ -48,6 +49,17 @@ namespace aV2P::adapter
         using Api = alpaka::api::Host;
         using DeviceKind = alpaka::deviceKind::Cpu;
         using Executor = alpaka::exec::CpuOmpBlocks;
+        static constexpr bool implemented = true;
+    };
+#endif
+
+#ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
+    template<>
+    struct LegacyAccMapping<TagCpuTbbBlocks>
+    {
+        using Api = alpaka::api::Host;
+        using DeviceKind = alpaka::deviceKind::Cpu;
+        using Executor = alpaka::exec::CpuTbbBlocks;
         static constexpr bool implemented = true;
     };
 #endif
@@ -96,13 +108,14 @@ namespace aV2P::adapter
 
     //! Executors reached by an explicitly mapped legacy accelerator.
     //!
-    //! Omp2Threads/Threads/TbbBlocks are deliberately absent: there is no alpaka 3 executor
-    //! with their semantics, so they keep the `UnimplementedAcc` diagnostic instead of silently running on
+    //! Omp2Threads/Threads are deliberately absent: there is no alpaka 3 executor with their
+    //! semantics, so they keep the `UnimplementedAcc` diagnostic instead of silently running on
     //! an unrelated executor.
     template<typename TExecutor>
     inline constexpr bool isImplementedExecutor
         = std::is_same_v<TExecutor, alpaka::exec::CpuSerial>
           || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>
+          || std::is_same_v<TExecutor, alpaka::exec::CpuTbbBlocks>
           || std::is_same_v<TExecutor, alpaka::exec::GpuCuda>
           || std::is_same_v<TExecutor, alpaka::exec::GpuHip>
           || std::is_same_v<TExecutor, alpaka::exec::OneApi>;

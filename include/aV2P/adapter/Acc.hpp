@@ -246,6 +246,17 @@ namespace aV2P
     };
 #endif
 
+#ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
+    template<typename TDim, typename TIdx>
+    class AccCpuTbbBlocks : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuTbbBlocks>>
+    {
+        using Base = adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagCpuTbbBlocks>>;
+
+    public:
+        using Base::Base;
+    };
+#endif
+
 #ifdef AV2P_ACC_GPU_CUDA_ENABLED
     template<typename TDim, typename TIdx>
     class AccGpuCudaRt : public adapter::PublicAccFacade<adapter::LegacyAcc<TDim, TIdx, TagGpuCudaRt>>
@@ -301,7 +312,7 @@ namespace aV2P
         static_assert(
             sizeof(TDim) == 0,
             "aV2P: this legacy accelerator has no alpaka 3 executor with the same semantics and is not "
-            "implemented.  CpuOmp2Threads/CpuThreads/CpuTbbBlocks are deliberately not mapped "
+            "implemented.  CpuOmp2Threads/CpuThreads are deliberately not mapped "
             "to an unrelated executor; see aV2P/adapter/Mapping.hpp.");
     };
 
@@ -321,10 +332,6 @@ namespace aV2P
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLED
     AV2P_DEFINE_UNIMPLEMENTED_ACC(AccCpuOmp2Threads, TagCpuOmp2Threads);
-#endif
-
-#ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
-    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccCpuTbbBlocks, TagCpuTbbBlocks);
 #endif
 
 #ifdef AV2P_ACC_SYCL_ENABLED

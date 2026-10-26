@@ -150,6 +150,21 @@ endfunction()
 
 _aV2P_apply_native_option_mapping()
 
+# The TBB blocks accelerator needs the oneTBB development package.  alpaka 3 requests TBB itself
+# when alpaka_DEP_TBB is ON, but that check only runs while alpaka is configured; a reused native
+# alpaka package or a later reconfigure would otherwise surface the missing dependency as an opaque
+# compile or link error in aV2P.  Probe it here so a TBB-enabled aV2P configuration without TBB
+# fails at the option boundary with an actionable message.
+if(aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE)
+    find_package(TBB 2021.10 COMPONENTS tbb QUIET)
+    if(NOT TBB_FOUND)
+        message(FATAL_ERROR
+            "aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE=ON requires the oneTBB development package "
+            "(TBB >= 2021.10, including the TBBConfig.cmake package configuration). Install it "
+            "or set aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE=OFF.")
+    endif()
+endif()
+
 # Native alpaka enables its OpenMP dependency by default even when no executor needs it.  Drive the
 # native option from the enabled aV2P options instead: no aV2P option requires OpenMP unless one of
 # the OpenMP backends is enabled.  An application that set alpaka_DEP_OMP explicitly keeps its value

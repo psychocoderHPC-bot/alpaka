@@ -87,6 +87,52 @@ namespace aV2P::adapter
                         std::ref(std::declval<std::uint32_t&>()))})});
         };
 
+#if defined(AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED)
+        //! Accelerator type of the alpaka 3 TBB blocks executor.
+        //!
+        //! `cpu::TbbBlocks` stores the block count in the block layer by value, while `cpu::Serial`
+        //! (and therefore `HostAccType`) stores a reference to it.  The dictionary value type is part
+        //! of the accelerator type, so the TBB executor needs its own expression to keep the
+        //! in-kernel re-instantiation static_assert in `AccAlpaka3` valid.
+        template<typename TDim, typename TIdx, typename TExecutor>
+        struct TbbHostAccType
+        {
+            using Vec = alpaka::Vec<TIdx, TDim::value>;
+            using Spec = alpaka::onHost::ThreadSpec<Vec, Vec, TExecutor>;
+            using NumBlocksVec = typename Spec::NumBlocksVecType;
+            using NumThreadsVec = typename Spec::NumThreadsVecType;
+
+            static constexpr std::uint32_t simdWidth
+                = alpaka::getArchSimdWidth<std::uint8_t>(alpaka::api::host, alpaka::deviceKind::cpu);
+            using Shared = alpaka::onAcc::cpu::SingleThreadStaticShared<simdWidth>;
+
+            using type = decltype(alpaka::onAcc::Acc{alpaka::joinDict(
+                alpaka::Dict{
+                    alpaka::DictEntry(
+                        alpaka::layer::block,
+                        alpaka::onAcc::cpu::GenericLayer{
+                            std::cref(std::declval<NumBlocksVec const&>()),
+                            std::declval<NumBlocksVec>()}),
+                    alpaka::DictEntry(
+                        alpaka::layer::thread,
+                        alpaka::onAcc::cpu::OneLayer<NumThreadsVec>{}),
+                    alpaka::DictEntry(alpaka::layer::shared, std::ref(std::declval<Shared&>())),
+                    alpaka::DictEntry(alpaka::action::threadBlockSync, alpaka::onAcc::cpu::NoOp{}),
+                    alpaka::DictEntry(
+                        alpaka::object::warpSize,
+                        std::integral_constant<std::uint32_t, 1u>{})},
+                alpaka::Dict{
+                    alpaka::DictEntry(alpaka::object::launchedWidthFrameSpec, std::false_type{}),
+                    alpaka::DictEntry(alpaka::object::api, alpaka::api::Host{}),
+                    alpaka::DictEntry(alpaka::object::deviceKind, alpaka::deviceKind::Cpu{}),
+                    alpaka::DictEntry(alpaka::object::exec, TExecutor{}),
+                    alpaka::DictEntry(alpaka::layer::dynShared, std::ref(std::declval<Shared&>())),
+                    alpaka::DictEntry(
+                        alpaka::object::dynSharedMemBytes,
+                        std::ref(std::declval<std::uint32_t&>()))})});
+        };
+#endif
+
 #if ALPAKA_LANG_CUDA || ALPAKA_LANG_HIP
         template<typename TDim, typename TIdx, typename TApi, typename TDeviceKind, typename TExecutor>
         struct GpuAccType
@@ -128,6 +174,14 @@ namespace aV2P::adapter
     {
         using type = typename detail::HostAccType<TDim, TIdx, TExecutor>::type;
     };
+
+#if defined(AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED)
+    template<typename TDim, typename TIdx>
+    struct AlpakaAccType<TDim, TIdx, alpaka::api::Host, alpaka::deviceKind::Cpu, alpaka::exec::CpuTbbBlocks>
+    {
+        using type = typename detail::TbbHostAccType<TDim, TIdx, alpaka::exec::CpuTbbBlocks>::type;
+    };
+#endif
 
 #if ALPAKA_LANG_CUDA
     template<typename TDim, typename TIdx, typename TExecutor>

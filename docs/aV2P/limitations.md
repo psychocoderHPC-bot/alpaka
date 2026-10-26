@@ -33,9 +33,9 @@ aV2P keeps the 2.2 host layout and exposes the native alpaka 3 device layout:
 | `AccGpuCudaRt` | `api::Cuda` / `deviceKind::NvidiaGpu` / `exec::GpuCuda` | PENDING VALIDATION, adapter in progress |
 | `AccGpuHipRt` | `api::Hip` / `deviceKind::AmdGpu` / `exec::GpuHip` | PENDING VALIDATION, adapter in progress |
 | `AccCpuSycl`, `AccGpuSyclIntel` | `api::OneApi` / `exec::OneApi` | PENDING VALIDATION, adapter in progress |
+| `AccCpuTbbBlocks` (`aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE`) | `api::Host` / `deviceKind::Cpu` / `exec::CpuTbbBlocks` | implemented and tested |
 | `AccCpuThreads` | none | no faithful alpaka 3 executor |
 | `AccCpuOmp2Threads` | none | no faithful alpaka 3 executor |
-| `AccCpuTbbBlocks` | none native | PENDING VALIDATION, adapter in progress |
 | `AccGpuSyclAmd`, `AccGpuSyclNvidia` | none | no native vendor-GPU SYCL target |
 
 FPGA SYCL support is intentionally removed from aV2P: this is a deliberate
@@ -43,10 +43,20 @@ aV2P scope decision, not an alpaka 3 capability gap. The FPGA accelerator,
 device, platform, event, queue and buffer types, their headers and their CMake
 options no longer exist.
 
-Only the serial CPU path has passing test evidence in the current
-inventory: host serial builds of the ported examples and the kernel,
-math and memview unit tests. The other backends are PENDING VALIDATION
-because the adapter is in progress and no test evidence exists yet.
+Passing evidence exists for the serial CPU path (host serial build of the
+ported examples and the kernel, math and memview unit tests) and for the
+TBB blocks accelerator (`accTest`, `devTest`, `kernelTest`,
+`blockSharedTest`, `blockSyncTest` and `workDivTest`, plus a 52/52 full
+`ctest` on the serial configuration). The other backends are PENDING
+VALIDATION because the adapter is in progress and no test evidence exists
+yet.
+
+`AccCpuThreads` and `AccCpuOmp2Threads` remain deliberate stubs: the
+pinned alpaka 3 `exec::allExecutors` contains only `GpuCuda`, `GpuHip`,
+`OneApi`, `CpuOmpBlocks`, `CpuTbbBlocks` and `CpuSerial`, so there is no
+std::thread or OpenMP block-thread executor with 2.2 semantics. The CMake
+mapping table marks both options `unsupported` and the public names stay
+`UnimplementedAcc`.
 
 ## 2. Warp mask API
 
@@ -210,7 +220,7 @@ feature in pinned alpaka 3.0.0 that aV2P cannot bridge), `blocked`
 | CUDA backend | unvalidated | adapter in progress, no GPU in the current environment |
 | HIP backend | unvalidated | adapter in progress, no AMD GPU or HIP toolchain verified |
 | SYCL CPU, Intel and AMD GPU backends | unvalidated | adapter in progress, no oneAPI toolchain verified |
-| TBB blocks backend | unvalidated | native dependency present, no TBB build verified |
+| TBB blocks backend | supported | serial+TBB build: `accTest` 480 assertions, `devTest` 128, `kernelTest` 1058, `blockSharedTest` 96, `blockSyncTest` 96, `workDivTest` 151; probe reports enabled tags `TagCpuSerial,TagCpuTbbBlocks`, mapped executor `CpuTbbBlocks`, and 28 TBB worker threads on a 10000-block kernel |
 | std::thread backend | limitation | no faithful alpaka 3 executor exists |
 | OpenMP block-thread backend | limitation | no faithful alpaka 3 executor exists |
 | FPGA SYCL backend | removed | intentionally removed from aV2P, not an alpaka 3 capability gap |
@@ -241,6 +251,9 @@ kernel task trait for `AccAlpaka3`.
   thread and the grid sync is an OpenMP barrier. `getMaxActiveBlocks` returns
   `omp_get_max_threads()`, and the grid must have exactly that many blocks; a
   smaller grid would leave team threads outside the barrier.
+- `AccCpuTbbBlocks`: false. The executor runs one thread per block and alpaka 3
+  provides no grid-wide barrier for the TBB task arena; the grid-sync test
+  skips this accelerator instead of claiming support.
 - CUDA, HIP, CPU/CUDA/HIP SYCL: false. A grid-wide barrier needs a cooperative
   launch, which the pinned alpaka 3.0.0 does not provide.
 

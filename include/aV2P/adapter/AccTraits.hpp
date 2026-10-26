@@ -59,6 +59,20 @@ namespace aV2P
         };
 #endif
 
+#ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
+        template<typename TDim, typename TIdx>
+        struct TagToAcc<aV2P::TagCpuTbbBlocks, TDim, TIdx>
+        {
+            using type = aV2P::AccCpuTbbBlocks<TDim, TIdx>;
+        };
+
+        template<typename TDim, typename TIdx>
+        struct AccToTag<aV2P::AccCpuTbbBlocks<TDim, TIdx>>
+        {
+            using type = aV2P::TagCpuTbbBlocks;
+        };
+#endif
+
 #ifdef AV2P_ACC_GPU_CUDA_ENABLED
         template<typename TDim, typename TIdx>
         struct TagToAcc<aV2P::TagGpuCudaRt, TDim, TIdx>
@@ -142,15 +156,18 @@ namespace aV2P
                         std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>,
                         aV2P::TagCpuOmp2Blocks,
                         std::conditional_t<
-                            std::is_same_v<TExecutor, alpaka::exec::GpuCuda>,
-                            aV2P::TagGpuCudaRt,
+                            std::is_same_v<TExecutor, alpaka::exec::CpuTbbBlocks>,
+                            aV2P::TagCpuTbbBlocks,
                             std::conditional_t<
-                                std::is_same_v<TExecutor, alpaka::exec::GpuHip>,
-                                aV2P::TagGpuHipRt,
+                                std::is_same_v<TExecutor, alpaka::exec::GpuCuda>,
+                                aV2P::TagGpuCudaRt,
                                 std::conditional_t<
-                                    std::is_same_v<TDeviceKind, alpaka::deviceKind::Cpu>,
-                                    aV2P::TagCpuSycl,
-                                    aV2P::TagGpuSyclIntel>>>>>;
+                                    std::is_same_v<TExecutor, alpaka::exec::GpuHip>,
+                                    aV2P::TagGpuHipRt,
+                                    std::conditional_t<
+                                        std::is_same_v<TDeviceKind, alpaka::deviceKind::Cpu>,
+                                        aV2P::TagCpuSycl,
+                                        aV2P::TagGpuSyclIntel>>>>>>;
             };
         } // namespace detail
 
@@ -386,8 +403,9 @@ namespace aV2P
 
                 auto const payload = adapter::makeWorkDivPayload<TDim, TIdx>(workDiv);
 
-                // Both host executors run one thread per block (CpuOmpBlocks parallelises blocks, not
-                // threads).  Keep the legacy 2.2 diagnostic instead of letting the backend throw later.
+                // The sequential host executors and CpuOmpBlocks run one thread per block (CpuOmpBlocks
+                // parallelises blocks, not threads).  Keep the legacy 2.2 diagnostic instead of letting the
+                // backend throw later.
                 if constexpr(alpaka::exec::isSeqExecutor_v<TExecutor>)
                 {
                     if(payload.blockThreadExtent.prod() != static_cast<TIdx>(1u))
