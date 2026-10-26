@@ -228,7 +228,7 @@ namespace aV2P::warp
     AV2P_FN_ACC auto shfl(TWarp const& warp, T value, std::int32_t srcLane, std::int32_t width = 0)
     {
         using ImplementationBase = interface::ImplementationBase<ConceptWarp, TWarp>;
-        return trait::Shfl<ImplementationBase>::shfl(warp, value, srcLane, width ? width : getSize(warp));
+        return trait::Shfl<ImplementationBase>::shfl(warp, value, srcLane, width ? width : aV2P::warp::getSize(warp));
     }
 
     //! Exchange data between threads within a warp.
@@ -266,7 +266,7 @@ namespace aV2P::warp
     AV2P_FN_ACC auto shfl_up(TWarp const& warp, T value, std::uint32_t offset, std::int32_t width = 0)
     {
         using ImplementationBase = interface::ImplementationBase<ConceptWarp, TWarp>;
-        return trait::ShflUp<ImplementationBase>::shfl_up(warp, value, offset, width ? width : getSize(warp));
+        return trait::ShflUp<ImplementationBase>::shfl_up(warp, value, offset, width ? width : aV2P::warp::getSize(warp));
     }
 
     //! Exchange data between threads within a warp.
@@ -304,7 +304,7 @@ namespace aV2P::warp
     AV2P_FN_ACC auto shfl_down(TWarp const& warp, T value, std::uint32_t offset, std::int32_t width = 0)
     {
         using ImplementationBase = interface::ImplementationBase<ConceptWarp, TWarp>;
-        return trait::ShflDown<ImplementationBase>::shfl_down(warp, value, offset, width ? width : getSize(warp));
+        return trait::ShflDown<ImplementationBase>::shfl_down(warp, value, offset, width ? width : aV2P::warp::getSize(warp));
     }
 
     //! Exchange data between threads within a warp.
@@ -342,6 +342,6 @@ namespace aV2P::warp
     AV2P_FN_ACC auto shfl_xor(TWarp const& warp, T value, std::int32_t mask, std::int32_t width = 0)
     {
         using ImplementationBase = interface::ImplementationBase<ConceptWarp, TWarp>;
-        return trait::ShflXor<ImplementationBase>::shfl_xor(warp, value, mask, width ? width : getSize(warp));
+        return trait::ShflXor<ImplementationBase>::shfl_xor(warp, value, mask, width ? width : aV2P::warp::getSize(warp));
     }
 } // namespace aV2P::warp

@@ -116,10 +116,11 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct AccType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct AccType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
-            using type = AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>;
+            using type = AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>;
         };
 
         template<
@@ -127,8 +128,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct IsSingleThreadAcc<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct IsSingleThreadAcc<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
             : std::bool_constant<alpaka::exec::isSeqExecutor_v<TExecutor>>
         {
         };
@@ -138,8 +140,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct IsMultiThreadAcc<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct IsMultiThreadAcc<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
             : std::bool_constant<!alpaka::exec::isSeqExecutor_v<TExecutor>>
         {
         };
@@ -149,8 +152,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct GetAccDevProps<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct GetAccDevProps<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             template<typename TDevSpec>
             AV2P_FN_HOST static auto getAccDevProps(DevAlpaka3<TDevSpec> const& dev) -> AccDevProps<TDim, TIdx>
@@ -191,8 +195,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct GetAccName<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct GetAccName<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             AV2P_FN_HOST static auto getAccName() -> std::string
             {
@@ -205,8 +210,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct DevType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct DevType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             using type = DevAlpaka3<adapter::DeviceSpec<TApi, TDeviceKind>>;
         };
@@ -216,8 +222,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct DimType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct DimType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             using type = TDim;
         };
@@ -227,8 +234,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct IdxType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct IdxType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             using type = TIdx;
         };
@@ -238,8 +246,9 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct PlatformType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct PlatformType<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             using type = PlatformAlpaka3<adapter::DeviceSpec<TApi, TDeviceKind>>;
         };
@@ -248,13 +257,14 @@ namespace aV2P
             typename TApi,
             typename TDeviceKind,
             typename TExecutor,
+            typename TAccView,
             typename TDim,
             typename TIdx,
             typename TDev,
             typename TKernelFn,
             typename... TArgs>
         struct FunctionAttributes<
-            AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>,
+            AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TDev,
             TKernelFn,
             TArgs...>
@@ -265,8 +275,14 @@ namespace aV2P
                 [[maybe_unused]] TArgs&&... args) -> aV2P::KernelFunctionAttributes
             {
                 aV2P::KernelFunctionAttributes attributes;
-                auto const& props = aV2P::getAccDevProps<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>(dev);
+                auto const& props = aV2P::getAccDevProps<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>(dev);
                 attributes.maxThreadsPerBlock = static_cast<int>(props.m_blockThreadCountMax);
+                if constexpr(adapter::isHostExecutor<TExecutor>)
+                {
+                    // Legacy CPU backends report the host dynamic shared-memory member allocation here.
+                    attributes.maxDynamicSharedSizeBytes
+                        = static_cast<int>(aV2P::BlockSharedDynMemberAllocKiB * 1024);
+                }
                 return attributes;
             }
         };
@@ -276,13 +292,14 @@ namespace aV2P
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
             alpaka::concepts::Executor TExecutor,
+            typename TAccView,
             typename TDim,
             typename TIdx,
             typename TWorkDiv,
             typename TKernelFnObj,
             typename... TArgs>
         struct CreateTaskKernel<
-            AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>,
+            AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TWorkDiv,
             TKernelFnObj,
             TArgs...>
@@ -292,7 +309,7 @@ namespace aV2P
                 TKernelFnObj const& kernelFnObj,
                 TArgs&&... args)
             {
-                using Acc = AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>;
+                using Acc = AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>;
 
                 auto const payload = adapter::makeWorkDivPayload<TDim, TIdx>(workDiv);
 
@@ -339,11 +356,12 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Grid, unit::Blocks>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>, origin::Grid, unit::Blocks>
         {
             AV2P_FN_HOST_ACC static auto getWorkDiv(
-                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc) -> Vec<TDim, TIdx>
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc) -> Vec<TDim, TIdx>
             {
                 return acc.getWorkDivPayload().gridBlockExtent;
             }
@@ -354,11 +372,12 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Block, unit::Threads>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>, origin::Block, unit::Threads>
         {
             AV2P_FN_HOST_ACC static auto getWorkDiv(
-                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc) -> Vec<TDim, TIdx>
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc) -> Vec<TDim, TIdx>
             {
                 return acc.getWorkDivPayload().blockThreadExtent;
             }
@@ -369,11 +388,12 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Thread, unit::Elems>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>, origin::Thread, unit::Elems>
         {
             AV2P_FN_HOST_ACC static auto getWorkDiv(
-                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc) -> Vec<TDim, TIdx>
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc) -> Vec<TDim, TIdx>
             {
                 return acc.getWorkDivPayload().threadElemExtent;
             }
@@ -384,12 +404,13 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct GetIdx<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Grid, unit::Blocks>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct GetIdx<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>, origin::Grid, unit::Blocks>
         {
             template<typename TWorkDiv>
             AV2P_FN_HOST_ACC static auto getIdx(
-                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc,
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc,
                 TWorkDiv const&) -> Vec<TDim, TIdx>
             {
                 return acc.getGridBlockIdx() + acc.getWorkDivPayload().gridBlockOffset;
@@ -401,12 +422,13 @@ namespace aV2P
             typename TIdx,
             alpaka::concepts::Api TApi,
             alpaka::concepts::DeviceKind TDeviceKind,
-            alpaka::concepts::Executor TExecutor>
-        struct GetIdx<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Block, unit::Threads>
+            alpaka::concepts::Executor TExecutor,
+            typename TAccView>
+        struct GetIdx<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>, origin::Block, unit::Threads>
         {
             template<typename TWorkDiv>
             AV2P_FN_HOST_ACC static auto getIdx(
-                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc,
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc,
                 TWorkDiv const&) -> Vec<TDim, TIdx>
             {
                 return acc.getBlockThreadIdx() + acc.getWorkDivPayload().blockThreadOffset;

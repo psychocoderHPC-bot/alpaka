@@ -117,7 +117,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicAdd>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicAdd>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic sub operation.
@@ -135,7 +135,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicSub>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicSub>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic min operation.
@@ -153,7 +153,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicMin>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicMin>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic max operation.
@@ -171,7 +171,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicMax>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicMax>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic exchange operation.
@@ -189,7 +189,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicExch>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicExch>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic increment operation.
@@ -207,7 +207,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicInc>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicInc>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic increment operation, using the numeric limit as ceiling.
@@ -222,7 +222,7 @@ namespace aV2P
     AV2P_FN_HOST_ACC auto atomicInc(TAtomic const& atomic, T* const addr, THierarchy const& hier = THierarchy()) -> T
     {
         T const value = std::numeric_limits<T>::max();
-        return atomicOp<AtomicInc>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicInc>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic decrement operation.
@@ -240,7 +240,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicDec>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicDec>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic decrement operation.
@@ -255,7 +255,7 @@ namespace aV2P
     AV2P_FN_HOST_ACC auto atomicDec(TAtomic const& atomic, T* const addr, THierarchy const& hier = THierarchy()) -> T
     {
         T const value = std::numeric_limits<T>::max();
-        return atomicOp<AtomicDec>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicDec>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic and operation.
@@ -273,7 +273,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicAnd>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicAnd>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic or operation.
@@ -291,7 +291,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicOr>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicOr>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic xor operation.
@@ -309,7 +309,7 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicXor>(atomic, addr, value, hier);
+        return aV2P::atomicOp<AtomicXor>(atomic, addr, value, hier);
     }
 
     //! Executes an atomic compare-and-swap operation.
@@ -329,6 +329,6 @@ namespace aV2P
         T const& value,
         THierarchy const& hier = THierarchy()) -> T
     {
-        return atomicOp<AtomicCas>(atomic, addr, compare, value, hier);
+        return aV2P::atomicOp<AtomicCas>(atomic, addr, compare, value, hier);
     }
 } // namespace aV2P

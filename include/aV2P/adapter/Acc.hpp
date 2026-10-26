@@ -5,9 +5,11 @@
 #pragma once
 
 #include "aV2P/acc/Traits.hpp"
+#include "aV2P/adapter/AccType.hpp"
 #include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Mapping.hpp"
 #include "aV2P/adapter/WorkDiv.hpp"
+#include "aV2P/block/shared/dyn/BlockSharedDynMemberAllocKiB.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/idx/Traits.hpp"
 #include "aV2P/vec/Vec.hpp"
@@ -22,25 +24,44 @@ namespace aV2P
     template<typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
     class TaskKernelAlpaka3;
 
+    namespace adapter
+    {
+        /** Conservative compile-time warp size derived from the backend tags.
+         *
+         * The in-kernel facade uses the exact warp size of the underlying alpaka accelerator; this
+         * fallback is only needed for facades without a stored accelerator type (oneAPI, see below).
+         */
+        template<typename TApi, typename TDeviceKind>
+        inline constexpr std::uint32_t warpSizeForTags
+            = std::is_same_v<TApi, alpaka::api::Host> ? 1u
+              : std::is_same_v<TDeviceKind, alpaka::deviceKind::NvidiaGpu> ? 32u
+              : std::is_same_v<TDeviceKind, alpaka::deviceKind::AmdGpu>    ? 64u
+                                                                           : 32u;
+    } // namespace adapter
+
     /** Legacy accelerator facade wrapping an alpaka 3 executor.
      *
-     * The same concrete type is used in two roles:
-     *  - host side it is the compile-time identity that maps the legacy accelerator type onto
-     *    `alpaka::api`, `alpaka::deviceKind` and `alpaka::exec`;
-     *  - in device code the kernel wrapper constructs it from the raw `alpaka::onAcc::Acc` plus the
-     *    trivially-copyable `WorkDivPayload` and passes it to the legacy kernel as `TAcc const&`.
+     * The five-parameter public form (see the `AccCpuSerial` / `AccCpuOmp2Blocks` aliases) additionally
+     * fixes the concrete `alpaka::onAcc::Acc` type of the current launch (last template parameter).  It
+     * is used both as the host-side accelerator identity and as the in-kernel object handed to the user
+     * kernel.
      *
-     * The in-kernel instance stores plain values (indices and the work-division payload), never a host
-     * pointer or a `thread_local`, so it is valid in CUDA/HIP/SYCL device code and trivially copyable.
+     * The in-kernel instance stores the current grid-block and block-thread index plus the full
+     * `WorkDivPayload` and a pointer to the backend-owned `alpaka::onAcc::Acc` view.  The view lives for
+     * the duration of one kernel invocation, so the pointer never points to host state and never escapes
+     * the kernel.  Only plain values are stored in the host-side use of the type.
      */
     template<
         typename TDim,
         typename TIdx,
         alpaka::concepts::Api TApi,
         alpaka::concepts::DeviceKind TDeviceKind,
-        alpaka::concepts::Executor TExecutor>
+        alpaka::concepts::Executor TExecutor,
+        typename TAccView = typename adapter::AlpakaAccType<TDim, TIdx, TApi, TDeviceKind, TExecutor>::type>
     class AccAlpaka3 final
-        : public interface::Implements<InterfaceAcc, AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>
+        : public interface::Implements<
+              InterfaceAcc,
+              AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
     {
         static_assert(
             sizeof(TIdx) >= sizeof(int),
@@ -55,8 +76,20 @@ namespace aV2P
 
         using DevSpec = adapter::DeviceSpec<TApi, TDeviceKind>;
         using Executor = TExecutor;
+        using Api = TApi;
+        using DeviceKind = TDeviceKind;
+        using AccView = TAccView;
         using Dim = TDim;
         using Idx = TIdx;
+
+        static constexpr std::uint32_t warpSize = []() constexpr
+        {
+            if constexpr(std::is_void_v<TAccView>)
+                return adapter::warpSizeForTags<TApi, TDeviceKind>;
+            else
+                return TAccView::getWarpSize();
+        }();
+        using mask_type = std::conditional_t<(warpSize <= 32u), std::uint32_t, std::uint64_t>;
 
         /** Host-side tag instance: carries no runtime state.
          *
@@ -68,7 +101,8 @@ namespace aV2P
         /** Construct the in-kernel facade from the raw alpaka 3 accelerator and the work-division payload.
          *
          * The raw accelerator is a reference-holding view owned by the backend for the duration of one
-         * kernel invocation.  Only values are read from it here.
+         * kernel invocation.  Only values are read from it here; the pointer to the view is kept so the
+         * device primitive adapters can forward to `alpaka::onAcc::*`.
          */
         template<typename TAlpakaAcc>
         AV2P_FN_ACC AccAlpaka3(TAlpakaAcc const& alpakaAcc, Payload const& payload)
@@ -78,6 +112,13 @@ namespace aV2P
             , m_blockThreadIdx{adapter::fromAlpaka(
                   alpakaAcc.getIdxWithin(alpaka::onAcc::origin::block, alpaka::onAcc::unit::threads))}
         {
+            if constexpr(!std::is_void_v<TAccView>)
+            {
+                static_assert(
+                    std::is_same_v<std::remove_cvref_t<TAlpakaAcc>, TAccView>,
+                    "aV2P: the alpaka accelerator type does not match the type computed for this facade.");
+                m_alpaka3Acc = &alpakaAcc;
+            }
         }
 
         [[nodiscard]] AV2P_FN_HOST_ACC auto getWorkDivPayload() const noexcept -> Payload const&
@@ -95,10 +136,21 @@ namespace aV2P
             return m_blockThreadIdx;
         }
 
+        //! The alpaka 3 accelerator view for the current kernel invocation.
+        [[nodiscard]] AV2P_FN_HOST_ACC auto getAlpaka3Acc() const noexcept -> TAccView const&
+        {
+            static_assert(
+                !std::is_void_v<TAccView>,
+                "aV2P: this facade has no alpaka 3 accelerator view.  Device primitives are not available "
+                "for this backend.");
+            return *m_alpaka3Acc;
+        }
+
     private:
         Payload m_payload{};
         Vec<TDim, TIdx> m_gridBlockIdx{};
         Vec<TDim, TIdx> m_blockThreadIdx{};
+        TAccView const* m_alpaka3Acc = nullptr;
     };
 
     template<
@@ -106,9 +158,10 @@ namespace aV2P
         typename TIdx,
         alpaka::concepts::Api TApi,
         alpaka::concepts::DeviceKind TDeviceKind,
-        alpaka::concepts::Executor TExecutor>
+        alpaka::concepts::Executor TExecutor,
+        typename TAccView>
     inline constexpr bool isTriviallyCopyableAccFacade
-        = std::is_trivially_copyable_v<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>;
+        = std::is_trivially_copyable_v<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>;
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
     template<typename TDim, typename TIdx>
