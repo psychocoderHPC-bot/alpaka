@@ -12,8 +12,10 @@
 # CMake step:
 #
 #   1. aV2P_add_executable()/aV2P_add_library() schedule a finalize call for the
-#      target. The call runs at the end of the top-level directory scope, i.e.
-#      after the usual target_link_libraries(<target> ... aV2P::aV2P) call.
+#      target. The call runs at the end of the directory in which the target was
+#      created, i.e. after the usual target_link_libraries(<target> ... aV2P::aV2P)
+#      call and while source-file properties and relative source paths still
+#      resolve in the target's own directory scope.
 #   2. aV2P_finalize(<target>) is the documented equivalent of alpaka_finalize()
 #      for targets created with plain add_executable()/add_library().
 #
@@ -56,6 +58,17 @@ function(aV2P_finalize target)
     if(_aV2P_defs AND "${_aV2P_defs}" MATCHES "ALPAKA_CMAKE_TARGET_[A-Z]+_FINALIZE_CALLED")
         set_property(TARGET "${target}" PROPERTY aV2P_FINALIZE_DONE TRUE)
         return()
+    endif()
+
+    # Native alpaka can reference toolkit imported targets (for example
+    # CUDA::cuda_driver) that were created in a sibling or child directory. Such
+    # imported targets are not visible in this directory scope, so acquire the
+    # toolkit packages here as well before the native finalize call runs.
+    if(aV2P_ACC_GPU_CUDA_ENABLE)
+        find_package(CUDAToolkit REQUIRED)
+    endif()
+    if(aV2P_ACC_GPU_HIP_ENABLE)
+        find_package(hip REQUIRED)
     endif()
 
     if(COMMAND alpaka_get_targets)
@@ -108,7 +121,17 @@ endfunction()
 # report targets that link aV2P directly without calling aV2P_finalize().
 
 function(_aV2P_schedule_finalize target)
-    set_property(GLOBAL APPEND PROPERTY _aV2P_FINALIZE_TARGETS "${target}")
+    # Keep the bookkeeping directory-local. A deferred call without DIRECTORY
+    # runs at the end of the directory scope in which it was registered, which is
+    # exactly the directory that created the target. Deferring to a global
+    # directory would move source-property and relative-path changes out of the
+    # target's own scope.
+    set_property(DIRECTORY APPEND PROPERTY _aV2P_FINALIZE_TARGETS "${target}")
+    get_property(_aV2P_defer_scheduled DIRECTORY PROPERTY _aV2P_DEFER_SCHEDULED)
+    if(NOT _aV2P_defer_scheduled)
+        set_property(DIRECTORY PROPERTY _aV2P_DEFER_SCHEDULED TRUE)
+        cmake_language(DEFER CALL _aV2P_process_directory_targets "${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
 endfunction()
 
 function(_aV2P_collect_buildsystem_targets directory out_var)
@@ -162,15 +185,14 @@ function(_aV2P_link_kind target out_var)
     set(${out_var} "${_aV2P_kind}" PARENT_SCOPE)
 endfunction()
 
-function(_aV2P_finalize_discovered_targets)
+function(_aV2P_finalize_target_list target_list)
     if(NOT COMMAND alpaka_get_targets)
         return()
     endif()
 
-    _aV2P_collect_buildsystem_targets("${CMAKE_SOURCE_DIR}" _aV2P_all_targets)
     set(_aV2P_unfinalized "")
     set(_aV2P_auto "")
-    foreach(_aV2P_target IN LISTS _aV2P_all_targets)
+    foreach(_aV2P_target IN LISTS target_list)
         get_target_property(_aV2P_type "${_aV2P_target}" TYPE)
         if(NOT _aV2P_type MATCHES "^(EXECUTABLE|STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY)$")
             continue()
@@ -217,10 +239,15 @@ function(_aV2P_finalize_discovered_targets)
     endif()
 endfunction()
 
-function(_aV2P_process_targets)
-    get_property(_aV2P_targets GLOBAL PROPERTY _aV2P_FINALIZE_TARGETS)
+function(_aV2P_finalize_discovered_targets)
+    _aV2P_collect_buildsystem_targets("${CMAKE_SOURCE_DIR}" _aV2P_all_targets)
+    _aV2P_finalize_target_list("${_aV2P_all_targets}")
+endfunction()
+
+function(_aV2P_process_directory_targets directory)
+    get_property(_aV2P_targets DIRECTORY "${directory}" PROPERTY _aV2P_FINALIZE_TARGETS)
     if(_aV2P_targets)
-        set_property(GLOBAL PROPERTY _aV2P_FINALIZE_TARGETS "")
+        set_property(DIRECTORY "${directory}" PROPERTY _aV2P_FINALIZE_TARGETS "")
         list(REMOVE_DUPLICATES _aV2P_targets)
         foreach(_aV2P_target IN LISTS _aV2P_targets)
             if(TARGET "${_aV2P_target}")
@@ -228,6 +255,25 @@ function(_aV2P_process_targets)
             endif()
         endforeach()
     endif()
+    # Also auto-finalize interface-linked targets of this directory and report
+    # directly linked but unfinalized ones while the directory scope is still the
+    # target's own scope.
+    get_property(_aV2P_here DIRECTORY "${directory}" PROPERTY BUILDSYSTEM_TARGETS)
+    _aV2P_finalize_target_list("${_aV2P_here}")
+endfunction()
+
+function(_aV2P_process_targets)
+    # Per-directory deferred calls finalize targets created by the aV2P helpers.
+    # The call for the top-level directory can be scheduled before the helper
+    # call registers its own deferred call. Process the top-level directory queue
+    # here first so a top-level target created by a source-tree consumer is not
+    # reported as unfinalized.
+    get_property(_aV2P_top_targets DIRECTORY "${CMAKE_SOURCE_DIR}" PROPERTY _aV2P_FINALIZE_TARGETS)
+    if(_aV2P_top_targets)
+        _aV2P_process_directory_targets("${CMAKE_SOURCE_DIR}")
+    endif()
+    # This final top-level sweep catches targets that were never scanned in their
+    # own directory and reports directly linked but unfinalized targets.
     _aV2P_finalize_discovered_targets()
 endfunction()
 
@@ -241,9 +287,10 @@ function(_aV2P_register_deferred_process)
         return()
     endif()
     set_property(GLOBAL PROPERTY _aV2P_DEFERRED_PROCESS_REGISTERED TRUE)
-    # Finalization must happen after all target_link_libraries() calls, including
-    # those in parent directories. The top-level directory scope is the only
-    # point where every target is fully configured.
+    # The helper-created targets are finalized in their own directory. This
+    # global-only sweep runs last merely to report targets that link aV2P
+    # directly without ever calling aV2P_finalize(), and to reach transitive
+    # targets from directories that contain no aV2P helper call.
     cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL _aV2P_process_targets)
 endfunction()
 

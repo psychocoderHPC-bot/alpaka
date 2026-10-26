@@ -158,6 +158,33 @@ if(NOT TARGET aV2P)
     add_library(aV2P::aV2P ALIAS aV2P)
 endif()
 
+# Native alpaka discovers CUDA/HIP in its own subdirectory. Language enablement
+# and imported toolkit targets are directory-scoped, so they are not visible in
+# this (parent) directory scope. Re-enable the languages and acquire the toolkit
+# packages here; otherwise finalize cannot set the device source language and a
+# source-tree consumer cannot resolve toolkit targets created in the nested
+# alpaka directory.
+if(aV2P_ACC_GPU_CUDA_ENABLE)
+    enable_language(CUDA)
+    checkCompilerCXXSupport(CUDA ${aV2P_MIN_CXX_STANDARD})
+    find_package(CUDAToolkit REQUIRED)
+    target_compile_features(aV2P INTERFACE cuda_std_${aV2P_CXX_STANDARD})
+    if(TARGET alpaka::cuda)
+        target_link_libraries(aV2P INTERFACE "$<BUILD_INTERFACE:alpaka::cuda>")
+    endif()
+endif()
+if(aV2P_ACC_GPU_HIP_ENABLE)
+    enable_language(HIP)
+    checkCompilerCXXSupport(HIP ${aV2P_MIN_CXX_STANDARD})
+    find_package(hip REQUIRED)
+    if(TARGET alpaka::hip)
+        target_link_libraries(aV2P INTERFACE "$<BUILD_INTERFACE:alpaka::hip>")
+    endif()
+endif()
+if(aV2P_ACC_SYCL_ENABLE AND TARGET alpaka::oneapi)
+    target_link_libraries(aV2P INTERFACE "$<BUILD_INTERFACE:alpaka::oneapi>")
+endif()
+
 set(aV2P_BLOCK_SHARED_DYN_MEMBER_ALLOC_KIB "47" CACHE STRING "Kibibytes (1024B) of memory to allocate for block shared memory for backends requiring static allocation (includes CPU_B_OMP2_T_SEQ, CPU_B_TBB_T_SEQ, CPU_B_SEQ_T_SEQ, SYCL)")
 aV2P_compiler_option(RELOCATABLE_DEVICE_CODE "Enable relocatable device code for CUDA, HIP and SYCL devices" DEFAULT)
 

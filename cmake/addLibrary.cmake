@@ -20,6 +20,10 @@ macro(aV2P_add_library In_Name)
 
     if(aV2P_ACC_GPU_CUDA_ENABLE)
         enable_language(CUDA)
+        # Imported toolkit targets are directory-scoped. Acquire them in the
+        # consumer directory so a source-tree/add_subdirectory consumer can see
+        # targets that native alpaka created in a nested directory.
+        find_package(CUDAToolkit REQUIRED)
         foreach(_file ${ARGN})
             if((${_file} MATCHES "\\.cpp$") OR
                (${_file} MATCHES "\\.cxx$") OR
@@ -39,6 +43,7 @@ macro(aV2P_add_library In_Name)
 
     if(aV2P_ACC_GPU_HIP_ENABLE)
         enable_language(HIP)
+        find_package(hip REQUIRED)
         foreach(_file ${ARGN})
             if((${_file} MATCHES "\\.cpp$") OR
                (${_file} MATCHES "\\.cxx$") OR

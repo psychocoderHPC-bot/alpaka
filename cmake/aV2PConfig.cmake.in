@@ -19,6 +19,19 @@ include("${CMAKE_CURRENT_LIST_DIR}/aV2PNativeOptions.cmake")
 
 find_dependency(alpaka 3.0.0 CONFIG)
 find_dependency(Threads)
+
+# The languages and imported toolkit targets belong to the directory scope in
+# which find_package(aV2P) runs. Enable the configured device languages here so
+# consumers that call aV2P_finalize() directly see the same environment as the
+# aV2P build helpers.
+if(aV2P_ACC_GPU_CUDA_ENABLE)
+    enable_language(CUDA)
+    find_dependency(CUDAToolkit)
+endif()
+if(aV2P_ACC_GPU_HIP_ENABLE)
+    enable_language(HIP)
+    find_dependency(hip)
+endif()
 if("@aV2P_CONFIG_NEEDS_BOOST_ATOMIC@" STREQUAL "ON")
     find_dependency(Boost 1.74.0 CONFIG OPTIONAL_COMPONENTS atomic)
 endif()
@@ -37,6 +50,19 @@ include("${CMAKE_CURRENT_LIST_DIR}/aV2PTargets.cmake")
 # The build tree links the native target through a BUILD_INTERFACE expression so
 # that the exported target stays free of non-exported build-tree targets.
 set_property(TARGET aV2P::aV2P APPEND PROPERTY INTERFACE_LINK_LIBRARIES alpaka::alpaka)
+
+# The build-tree target carries the device backend through a BUILD_INTERFACE
+# expression. Restore the same backend after installation so finalize detects
+# the device language of consumer targets.
+if(aV2P_ACC_GPU_CUDA_ENABLE AND TARGET alpaka::cuda)
+    set_property(TARGET aV2P::aV2P APPEND PROPERTY INTERFACE_LINK_LIBRARIES alpaka::cuda)
+endif()
+if(aV2P_ACC_GPU_HIP_ENABLE AND TARGET alpaka::hip)
+    set_property(TARGET aV2P::aV2P APPEND PROPERTY INTERFACE_LINK_LIBRARIES alpaka::hip)
+endif()
+if(aV2P_ACC_SYCL_ENABLE AND TARGET alpaka::oneapi)
+    set_property(TARGET aV2P::aV2P APPEND PROPERTY INTERFACE_LINK_LIBRARIES alpaka::oneapi)
+endif()
 
 set(aV2P_INCLUDE_DIR "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@")
 set(aV2P_INCLUDE_DIRECTORY "${aV2P_INCLUDE_DIR}")
