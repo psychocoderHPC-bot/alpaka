@@ -79,7 +79,8 @@ in the 2.2 tree:
 - `test/unit/mem/buf/src/FillBuffers.cpp`: `memBufFillScalarFloatTest`,
 - `test/unit/exec/src/Once.cpp`: `oncePerGrid` and `oncePerBlock`,
 - `test/unit/vec/src/VecTest.cpp`: 0D constructor block,
-- `example/helloWorldGridSync`: 0D result buffers.
+- `example/helloWorldGridSync`: 0D result buffers (the example also needs the
+  cooperative-launch API, see Section 7).
 
 ```cpp
 // 2.2, compiles and runs
@@ -199,3 +200,47 @@ feature in pinned alpaka 3.0.0 that aV2P cannot bridge), `blocked`
 | Warp `all`/`any` return type | limitation | `std::int32_t` in 2.2 vs `bool` in alpaka 3 |
 | Device lambdas as kernel objects | limitation | aV2P does not forward device lambda closures; use a named functor |
 | RISC-V or cross-compiled backends | blocked | no RISC-V toolchain in the current environment |
+| Grid synchronization on `AccCpuSerial` | supported | `test/unit/grid` passes with `m_cooperativeLaunch == true` |
+| Grid synchronization on `AccCpuOmp2Blocks` | supported | `test/unit/grid` passes with one block per OpenMP team thread |
+| Grid synchronization on CUDA, HIP, SYCL | gap | no cooperative launch in alpaka 3.0.0; dependent `static_assert` |
+| `example/helloWorldGridSync` | limitation | not built: 0D result buffer plus GPU cooperative launch |
+
+## 7. Grid synchronization
+
+The 2.2 public grid front-end is restored under `include/aV2P/grid/`:
+`ConceptGridSync`, `trait::SyncGridThreads`, `syncGridThreads()`, and the
+`GridSyncNoOp`, `GridSyncOmp`, `GridSyncBarrierThread`, `GridSyncBarrierTbb`,
+`GridSyncCudaHipBuiltIn` and `GridSyncGenericSycl` entry points. The
+accelerator facade implements `trait::SyncGridThreads` and the cooperative
+kernel task trait for `AccAlpaka3`.
+
+`m_cooperativeLaunch` follows the real barrier:
+
+- `AccCpuSerial`: true. The serial executor runs the grid on one thread in
+  order, so the 2.2 no-op is the complete barrier. `getMaxActiveBlocks` returns 1.
+- `AccCpuOmp2Blocks`: true. The executor runs one block per OpenMP team
+  thread and the grid sync is an OpenMP barrier. `getMaxActiveBlocks` returns
+  `omp_get_max_threads()`, and the grid must have exactly that many blocks; a
+  smaller grid would leave team threads outside the barrier.
+- CUDA, HIP, CPU/CUDA/HIP SYCL: false. A grid-wide barrier needs a cooperative
+  launch, which the pinned alpaka 3.0.0 does not provide.
+
+The GPU entry points remain source-compatible but fail at instantiation with:
+
+```text
+aV2P: grid-wide synchronization requires a cooperative kernel launch. The pinned alpaka 3.0.0
+does not provide cooperative launch, so grid synchronization is not supported on this back-end.
+Use a CPU back-end (CpuSerial or CpuOmp2Blocks) for grid synchronization.
+```
+
+`example/helloWorldGridSync` is not built. It stores its scalar result in a
+zero-dimensional buffer, which alpaka 3 does not support, and it launches the
+kernel through the cooperative-launch API. Adapting only the scalar storage
+would keep the CPU demonstration identical, but a GPU build would still fail on
+the cooperative-launch diagnostic, so the example stays out of the build. The
+zero-dimensional decision is example-only: the public grid API and the grid
+test use regular 1D buffers and do not emulate 0D memory.
+
+Restoration condition for the GPU gap: an alpaka release with cooperative
+launch support. Then replace the diagnostic with the native cooperative
+barrier and map `m_cooperativeLaunch` to the backend query.

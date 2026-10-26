@@ -18,6 +18,17 @@ set(_TARGET_NAME helloWorldGridSync)
 project(${_TARGET_NAME} LANGUAGES CXX)
 
 #-------------------------------------------------------------------------------
+# Not built with the alpaka 3 adapter.
+#
+# The example stores its scalar result in a zero-dimensional buffer, which alpaka 3 does not
+# support, and its kernel is launched through the cooperative-launch API, which the pinned
+# alpaka 3 does not provide for GPU back-ends.  Adapting only the scalar storage would keep the
+# CPU demonstration intact but still make every GPU build of this example fail on the intended
+# cooperative-launch diagnostic.  See docs/aV2P/limitations.md, "Grid synchronization".
+#-------------------------------------------------------------------------------
+return()
+
+#-------------------------------------------------------------------------------
 # Find alpaka.
 
 if(NOT TARGET aV2P::aV2P)

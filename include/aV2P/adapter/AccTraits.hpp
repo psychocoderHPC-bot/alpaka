@@ -235,7 +235,15 @@ namespace aV2P
                     // m_globalMemSizeBytes
                     prop.globalMemCapacityBytes,
                     // m_cooperativeLaunch
-                    false};
+                    //
+                    // A grid-wide barrier is real on the host back-ends that can keep the whole grid
+                    // resident while the barrier is executed.  `CpuSerial` runs the blocks on one thread
+                    // in order (its grid sync is the 2.2 no-op), and `CpuOmpBlocks` runs one block per
+                    // OpenMP team thread (its grid sync is an OpenMP barrier).  All GPU executors need a
+                    // cooperative launch, which the pinned alpaka 3 does not provide, so they stay false
+                    // and the grid-sync test skips them instead of claiming support.
+                    std::is_same_v<TExecutor, alpaka::exec::CpuSerial>
+                        || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>};
                 if constexpr(alpaka::exec::isSeqExecutor_v<TExecutor>)
                 {
                     accProps.m_blockThreadCountMax = static_cast<TIdx>(1);

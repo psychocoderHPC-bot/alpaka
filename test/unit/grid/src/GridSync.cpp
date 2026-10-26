@@ -10,6 +10,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <type_traits>
+#include <vector>
+
+#if defined(_OPENMP)
+#    include <omp.h>
+#endif
 
 class GridSyncTestKernel
 {
@@ -181,8 +186,18 @@ TEMPLATE_LIST_TEST_CASE("synchronize", "[gridSync]", aV2P::test::TestAccs)
     auto const platformAcc = aV2P::Platform<Acc>{};
     auto const devAcc = getDevByIdx(platformAcc, 0u);
 
+    // The host back-ends must advertise grid synchronization.  Without this check a wrong device
+    // property would silently turn the test into a no-op instead of failing.
+    auto const accDevProps = aV2P::trait::GetAccDevProps<Acc>::getAccDevProps(devAcc);
+    if constexpr(
+        std::is_same_v<typename Acc::Executor, alpaka::exec::CpuSerial>
+        || std::is_same_v<typename Acc::Executor, alpaka::exec::CpuOmpBlocks>)
+    {
+        REQUIRE(accDevProps.m_cooperativeLaunch);
+    }
+
     // Check if accelerator supports cooperative launch, don't do anything if it doesn't
-    if(aV2P::trait::GetAccDevProps<Acc>::getAccDevProps(devAcc).m_cooperativeLaunch)
+    if(accDevProps.m_cooperativeLaunch)
     {
         // Use the largest block size, and the largest number of blocks that can be active at the same time.
         auto const config = nativeCooperativeLaunchConfig<Acc>(devAcc);
@@ -196,8 +211,27 @@ TEMPLATE_LIST_TEST_CASE("synchronize", "[gridSync]", aV2P::test::TestAccs)
 
         GridSyncTestKernel kernel;
 
-        // Test both the largest grid, and a grid with fewer blocks than can be active at the same time.
-        for(int const numBlocks : {maxBlocks, (maxBlocks + 1) / 2})
+        // The OpenMP grid barrier requires one block per team thread; a smaller grid would leave
+        // threads outside the barrier and deadlock.  The serial executor has one block by
+        // construction.  Other back-ends can also test a grid smaller than the maximum.
+        std::vector<int> blockCounts{maxBlocks};
+        if constexpr(!std::is_same_v<typename Acc::Executor, alpaka::exec::CpuOmpBlocks>)
+            blockCounts.push_back((maxBlocks + 1) / 2);
+
+#if defined(_OPENMP)
+        if constexpr(std::is_same_v<typename Acc::Executor, alpaka::exec::CpuOmpBlocks>)
+        {
+            // The OpenMP barrier is a grid-wide barrier only when the block count equals the team
+            // size.  With a single available thread the cross-block barrier cannot be exercised;
+            // fail loudly instead of silently passing a vacuous test.
+            REQUIRE(maxBlocks == omp_get_max_threads());
+            REQUIRE(maxBlocks > 1);
+        }
+#endif
+        if constexpr(std::is_same_v<typename Acc::Executor, alpaka::exec::CpuSerial>)
+            REQUIRE(maxBlocks == 1);
+
+        for(int const numBlocks : blockCounts)
         {
             INFO("blocks per grid: " << numBlocks << " (maximum " << maxBlocks << ")");
             auto blocksPerGrid = aV2P::Vec<Dim, Idx>::all(1);
