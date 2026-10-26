@@ -28,12 +28,30 @@
 
 namespace aV2P::adapter
 {
+    namespace detail
+    {
+        //! Dependent false: keeps the unreachable diagnostic below dependent so ahead-of-time device
+        //! front ends (nvcc/EDG) do not evaluate it while discarding the oneAPI branch.
+        template<typename>
+        inline constexpr bool dependentFalse = false;
+    } // namespace detail
+
     /** Kernel functor wrapper that builds the legacy acc facade inside the device pass.
      *
      * The legacy work division travels with the launch as the first enqueued kernel argument
      * (`WorkDivPayload`), so it is visible in CUDA/HIP/SYCL device code and per invocation.  No
      * `thread_local` and no host global is involved.  The wrapper additionally carries the legacy static
      * dynamic shared-memory size which alpaka 3 reads from `kernelFn.dynSharedMemBytes`.
+     *
+     * For the Host/CUDA/HIP executors the alpaka accelerator is a pure function of the legacy launch
+     * shape, so the public facade type (`TAcc`, which stores the accelerator view) is constructed
+     * directly.  The oneAPI executor instantiates one kernel (and one accelerator type) per runtime
+     * subgroup size, so the concrete accelerator type is only known here, in the kernel.  For oneAPI
+     * the wrapper therefore instantiates the same `AccAlpaka3` class with the actual
+     * `alpaka::onAcc::Acc<...>` type (see `AccAlpaka3::AccView`) and hands that runtime facade to the
+     * kernel functor.  Kernels written against a single public oneAPI accelerator type (non-templated
+     * accelerator parameter) keep the 2.2 call convention and receive the payload-only public facade,
+     * whose device primitives remain unavailable for the same reason.
      */
     template<typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj>
     struct LegacyKernel
@@ -48,14 +66,62 @@ namespace aV2P::adapter
         TKernelFnObj kernel;
         std::uint32_t dynSharedMemBytes = 0u;
 
+        //! The facade the user kernel calls: the public facade type where the alpaka accelerator type is
+        //! known at host time, and the same class template instantiated with the concrete in-kernel
+        //! accelerator type otherwise (oneAPI).
+        template<typename TAlpakaAcc>
+        using FacadeForAlpakaAcc = AccAlpaka3<
+            TDim,
+            TIdx,
+            typename TAcc::Api,
+            typename TAcc::DeviceKind,
+            typename TAcc::Executor,
+            std::remove_cvref_t<TAlpakaAcc>>;
+
         template<typename TAlpakaAcc, typename... TArgs>
         AV2P_FN_ACC void operator()(
             TAlpakaAcc const& alpakaAcc,
             WorkDivPayload<TDim, TIdx> const& payload,
             TArgs const&... args) const
         {
-            TAcc const legacyAcc{alpakaAcc, payload};
-            kernel(legacyAcc, args...);
+            if constexpr(!std::is_void_v<typename TAcc::AccView>)
+            {
+                // Host/CUDA/HIP: the accelerator type is fixed by the launch shape.
+                TAcc const legacyAcc{alpakaAcc, payload};
+                kernel(legacyAcc, args...);
+            }
+            else
+            {
+                // oneAPI: one kernel instantiation per runtime subgroup size.
+                if constexpr(std::is_invocable_v<TKernelFnObj const&, FacadeForAlpakaAcc<TAlpakaAcc>, TArgs const&...>)
+                {
+                    // Generic accelerator parameter (a function template, or a functor whose class
+                    // template parameter is the accelerator): pass the in-kernel instantiation of the
+                    // facade that carries the concrete alpaka 3 accelerator type, so device primitives
+                    // forward to `alpaka::onAcc::*`.
+                    FacadeForAlpakaAcc<TAlpakaAcc> const legacyAcc{alpakaAcc, payload};
+                    kernel(legacyAcc, args...);
+                }
+                else if constexpr(std::is_invocable_v<TKernelFnObj const&, TAcc, TArgs const&...>)
+                {
+                    // 2.2 call convention: the functor takes the public accelerator type and nothing
+                    // else, so it receives the payload-only public facade.  Device primitives are not
+                    // available through it, because no single alpaka 3 accelerator type exists at
+                    // host time for this backend.
+                    TAcc const legacyAcc{alpakaAcc, payload};
+                    kernel(legacyAcc, args...);
+                }
+                else
+                {
+                    static_assert(
+                        detail::dependentFalse<TKernelFnObj>,
+                        "aV2P: this kernel functor cannot accept the accelerator facade of the current "
+                        "oneAPI kernel instantiation or the public accelerator type.  Declare the kernel "
+                        "parameter as a template parameter "
+                        "(`template<typename TAcc> ... void operator()(TAcc const& acc, ...)`) instead of "
+                        "a concrete aV2P accelerator type to get access to the device primitives.");
+                }
+            }
         }
     };
 } // namespace aV2P::adapter

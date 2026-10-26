@@ -25,15 +25,17 @@ namespace aV2P
 #elif defined(AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED)
     using ExampleDefaultAcc = aV2P::AccCpuThreads<TDim, TIdx>;
 #elif defined(AV2P_ACC_SYCL_ENABLED)
-#    if defined(AV2P_SYCL_ONEAPI_CPU)
+// AV2P_SYCL_TARGET_* are the device-kind macros on the native alpaka 3 path, AV2P_SYCL_ONEAPI_* the
+// ones on the self-contained backward-compatible path; both name the same selection.
+#    if defined(AV2P_SYCL_ONEAPI_CPU) || defined(AV2P_SYCL_TARGET_CPU)
     using ExampleDefaultAcc = aV2P::AccCpuSycl<TDim, TIdx>;
 #    elif defined(AV2P_SYCL_ONEAPI_FPGA)
     using ExampleDefaultAcc = aV2P::AccFpgaSyclIntel<TDim, TIdx>;
-#    elif defined(AV2P_SYCL_ONEAPI_GPU)
+#    elif defined(AV2P_SYCL_ONEAPI_GPU) || defined(AV2P_SYCL_TARGET_GPU)
     using ExampleDefaultAcc = aV2P::AccGpuSyclIntel<TDim, TIdx>;
-#    elif defined(AV2P_SYCL_ONEAPI_GPU_NVIDIA)
+#    elif defined(AV2P_SYCL_ONEAPI_GPU_NVIDIA) || defined(AV2P_SYCL_TARGET_GPU_NVIDIA)
     using ExampleDefaultAcc = aV2P::AccGpuSyclNvidia<TDim, TIdx>;
-#    elif defined(AV2P_SYCL_ONEAPI_GPU_AMD)
+#    elif defined(AV2P_SYCL_ONEAPI_GPU_AMD) || defined(AV2P_SYCL_TARGET_GPU_AMD)
     using ExampleDefaultAcc = aV2P::AccGpuSyclAmd<TDim, TIdx>;
 #    endif
 #elif defined(AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED)

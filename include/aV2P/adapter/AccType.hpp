@@ -20,7 +20,7 @@ namespace aV2P::adapter
      * The legacy accelerator type is a fixed type (for example `AccCpuSerial<Dim, Idx>`), and some
      * legacy kernels spell that type out instead of deducing the accelerator.  The device primitive
      * adapters therefore have to know the concrete `alpaka::onAcc::Acc<...>` type at the point where the
-     * facade is defined.  For the backends implemented here the accelerator type is a pure function of
+     * facade is defined.  For CUDA the accelerator type is a pure function of
      * (dimension, index type, api, device kind, executor): the aV2P launch always provides a kernel
      * function with a `dynSharedMemBytes` member and always launches with a `ThreadSpec`, which fixes
      * every optional dictionary entry.
@@ -29,8 +29,12 @@ namespace aV2P::adapter
      * produce a type (`decltype`), they are never evaluated.
      *
      * oneAPI is different: the backend instantiates one kernel (and one accelerator type) per possible
-     * sub-group size and selects it at runtime, so there is no single accelerator type per facade.
-     * Device primitives are therefore a documented gap for oneAPI (`AlpakaAccType` is `void`).
+     * sub-group size and selects it at runtime, so no single accelerator type exists per facade at host
+     * time.  HIP is different too: the AMD wavefront size is only fixed in device code.  For both the
+     * primary template therefore yields `void`, which means "the facade instantiation used at host time
+     * does not store the accelerator view".  `adapter::LegacyKernel` re-instantiates the facade class with
+     * the concrete in-kernel accelerator type (see `AccAlpaka3::AccView`), so device primitives work for
+     * oneAPI and HIP kernels whose accelerator parameter is a template parameter.
      */
     template<
         typename TDim,
@@ -138,16 +142,9 @@ namespace aV2P::adapter
     };
 #endif
 
-#if ALPAKA_LANG_HIP
-    template<typename TDim, typename TIdx, typename TExecutor>
-    struct AlpakaAccType<TDim, TIdx, alpaka::api::Hip, alpaka::deviceKind::AmdGpu, TExecutor>
-    {
-        using type = typename detail::GpuAccType<
-            TDim,
-            TIdx,
-            alpaka::api::Hip,
-            alpaka::deviceKind::AmdGpu,
-            TExecutor>::type;
-    };
-#endif
+// HIP is deliberately not specialized: AMD wavefront size is only known in device code (gfx9 is 64,
+// gfx10+ is 32), so a host-computed accelerator type would not match the type the device instantiates
+// and the kernel symbol would not resolve.  HIP therefore uses the same in-kernel re-instantiation as
+// oneAPI (`TAccView` is `void` at host time); templated accelerator parameters get the concrete
+// in-kernel view and device primitives work through it.
 } // namespace aV2P::adapter

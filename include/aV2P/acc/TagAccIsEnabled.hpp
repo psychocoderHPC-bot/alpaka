@@ -15,6 +15,7 @@
 #include "aV2P/acc/AccFpgaSyclIntel.hpp"
 #include "aV2P/acc/AccGpuCudaRt.hpp"
 #include "aV2P/acc/AccGpuHipRt.hpp"
+#include "aV2P/acc/AccGpuUniformCudaHipRt.hpp"
 #include "aV2P/acc/Tag.hpp"
 #include "aV2P/dim/DimIntegralConst.hpp"
 #include "aV2P/meta/Filter.hpp"
