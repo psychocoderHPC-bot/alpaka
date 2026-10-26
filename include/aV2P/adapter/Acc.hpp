@@ -336,4 +336,115 @@ namespace aV2P
 
 #undef AV2P_DEFINE_UNIMPLEMENTED_ACC
 
+    //! 2.2 task-kernel names.
+    //!
+    //! The legacy classes were the concrete execution tasks.  alpaka 3 builds one `TaskKernelAlpaka3`
+    //! for every launch (`CreateTaskKernel::type`), so these aliases only make the legacy names resolve;
+    //! a client that names the type gets the adapter task instead.  The legacy cooperative-launch flag
+    //! has no counterpart in alpaka 3 and is discarded.
+#ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
+    template<typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
+    using TaskKernelCpuSerial
+        = TaskKernelAlpaka3<AccCpuSerial<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+#endif
+
+#ifdef AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED
+    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelCpuOmp2Blocks
+        = TaskKernelAlpaka3<AccCpuOmp2Blocks<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+#endif
+
+#ifdef AV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLED
+    template<typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
+    using TaskKernelCpuOmp2Threads
+        = TaskKernelAlpaka3<AccCpuOmp2Threads<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+#endif
+
+#ifdef AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED
+    template<typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
+    using TaskKernelCpuThreads
+        = TaskKernelAlpaka3<AccCpuThreads<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+#endif
+
+#ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
+    template<typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
+    using TaskKernelCpuTbbBlocks
+        = TaskKernelAlpaka3<AccCpuTbbBlocks<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+#endif
+
+#ifdef AV2P_ACC_GPU_CUDA_ENABLED
+    template<typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelGpuCudaRt = TaskKernelAlpaka3<TAcc, TDim, TIdx, TKernelFnObj, TArgs...>;
+#endif
+
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+    template<typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelGpuHipRt = TaskKernelAlpaka3<TAcc, TDim, TIdx, TKernelFnObj, TArgs...>;
+#endif
+
+    //! 2.2 uniform CUDA/HIP task-kernel name.
+    template<typename TApi, typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelGpuUniformCudaHipRt = TaskKernelAlpaka3<TAcc, TDim, TIdx, TKernelFnObj, TArgs...>;
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+    //! 2.2 generic oneAPI task-kernel name.
+    template<
+        typename TTag,
+        typename TAcc,
+        typename TDim,
+        typename TIdx,
+        typename TKernelFnObj,
+        bool TCooperative,
+        typename... TArgs>
+    using TaskKernelGenericSycl = TaskKernelAlpaka3<TAcc, TDim, TIdx, TKernelFnObj, TArgs...>;
+
+#    if defined(AV2P_SYCL_TARGET_CPU)
+    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelCpuSycl
+        = TaskKernelGenericSycl<TagCpuSycl, AccCpuSycl<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>;
+#    endif
+
+#    if defined(AV2P_SYCL_TARGET_GPU)
+    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelGpuSyclIntel = TaskKernelGenericSycl<
+        TagGpuSyclIntel,
+        AccGpuSyclIntel<TDim, TIdx>,
+        TDim,
+        TIdx,
+        TKernelFnObj,
+        TCooperative,
+        TArgs...>;
+#    endif
+
+    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelGpuSyclNvidia = TaskKernelGenericSycl<
+        TagGpuSyclNvidia,
+        AccGpuSyclNvidia<TDim, TIdx>,
+        TDim,
+        TIdx,
+        TKernelFnObj,
+        TCooperative,
+        TArgs...>;
+
+    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelGpuSyclAmd = TaskKernelGenericSycl<
+        TagGpuSyclAmd,
+        AccGpuSyclAmd<TDim, TIdx>,
+        TDim,
+        TIdx,
+        TKernelFnObj,
+        TCooperative,
+        TArgs...>;
+
+    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    using TaskKernelFpgaSyclIntel = TaskKernelGenericSycl<
+        TagFpgaSyclIntel,
+        AccFpgaSyclIntel<TDim, TIdx>,
+        TDim,
+        TIdx,
+        TKernelFnObj,
+        TCooperative,
+        TArgs...>;
+#endif
+
 } // namespace aV2P

@@ -40,7 +40,6 @@
 #include "aV2P/core/Positioning.hpp"
 #include "aV2P/core/RemoveRestrict.hpp"
 #include "aV2P/core/RuntimeMacros.hpp"
-#include "aV2P/core/Sycl.hpp"
 #include "aV2P/core/ThreadPool.hpp"
 #include "aV2P/core/Unreachable.hpp"
 #include "aV2P/core/Unroll.hpp"

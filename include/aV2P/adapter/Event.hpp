@@ -77,7 +77,23 @@ namespace aV2P
 #ifdef AV2P_ACC_SYCL_ENABLED
     using EventCpuSycl = EventAlpaka3<DevCpuSycl>;
     using EventGpuSyclIntel = EventAlpaka3<DevGpuSyclIntel>;
+
+    //! 2.2 event name: the event of the oneAPI tag `TTag`.
+    template<typename TTag>
+    using EventGenericSycl = EventAlpaka3<DevGenericSycl<TTag>>;
+
+    using EventGpuSyclAmd = EventGenericSycl<TagGpuSyclAmd>;
+    using EventGpuSyclNvidia = EventGenericSycl<TagGpuSyclNvidia>;
+    using EventFpgaSyclIntel = EventGenericSycl<TagFpgaSyclIntel>;
 #endif
+
+    //! 2.2 event name: the CUDA or HIP event selected by the legacy runtime API tag.
+    template<typename TApi>
+    using EventUniformCudaHipRt = EventAlpaka3<DevUniformCudaHipRt<TApi>>;
+
+    //! 2.2 generic-threads event name.
+    template<typename TDev>
+    using EventGenericThreads = EventAlpaka3<TDev>;
 
     namespace trait
     {

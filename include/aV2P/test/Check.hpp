@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "aV2P/core/Sycl.hpp"
-
 #include <cstdio>
 
 #define AV2P_CHECK(success, expression)                                                                             \

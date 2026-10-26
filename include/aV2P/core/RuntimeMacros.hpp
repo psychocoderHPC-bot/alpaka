@@ -5,7 +5,7 @@
 #pragma once
 
 // Implementation details
-#include "aV2P/core/Sycl.hpp"
+#include "aV2P/adapter/Sycl.hpp"
 
 #include <stdexcept>
 

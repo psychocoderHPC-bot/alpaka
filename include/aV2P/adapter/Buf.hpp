@@ -221,4 +221,101 @@ namespace aV2P
         TElem,
         TDim,
         TIdx>;
+
+    //! 2.2 buffer names lost when the per-backend buffer implementations were removed.
+    //!
+    //! The element/dimension/index arity matches 2.2.  Backends with an alpaka 3 executor map to the
+    //! adapter buffer; the oneAPI device kinds without an executor keep a name-only placeholder.
+#ifdef AV2P_ACC_GPU_CUDA_ENABLED
+    template<typename TElem, typename TDim, typename TIdx>
+    using BufCudaRt = BufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu>,
+        TElem,
+        TDim,
+        TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using ConstBufCudaRt = ConstBufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu>,
+        TElem,
+        TDim,
+        TIdx>;
+#endif
+
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+    template<typename TElem, typename TDim, typename TIdx>
+    using BufHipRt = BufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::Hip, alpaka::deviceKind::AmdGpu>,
+        TElem,
+        TDim,
+        TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using ConstBufHipRt = ConstBufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::Hip, alpaka::deviceKind::AmdGpu>,
+        TElem,
+        TDim,
+        TIdx>;
+#endif
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+#    if defined(AV2P_SYCL_TARGET_CPU)
+    template<typename TElem, typename TDim, typename TIdx>
+    using BufCpuSycl = BufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>,
+        TElem,
+        TDim,
+        TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using ConstBufCpuSycl = ConstBufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>,
+        TElem,
+        TDim,
+        TIdx>;
+#    endif
+
+#    if defined(AV2P_SYCL_TARGET_GPU)
+    template<typename TElem, typename TDim, typename TIdx>
+    using BufGpuSyclIntel = BufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>,
+        TElem,
+        TDim,
+        TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using ConstBufGpuSyclIntel = ConstBufAlpaka3<
+        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>,
+        TElem,
+        TDim,
+        TIdx>;
+#    endif
+
+    //! Name-only buffer placeholder for oneAPI device kinds without an alpaka 3 executor.
+    namespace legacy_buf
+    {
+        template<typename TElem, typename TDim, typename TIdx>
+        struct UnimplementedBuf : legacy::UnimplementedBackend<TElem>
+        {
+        };
+    } // namespace legacy_buf
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using BufGpuSyclAmd = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using ConstBufGpuSyclAmd = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using BufGpuSyclNvidia = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using ConstBufGpuSyclNvidia = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using BufFpgaSyclIntel = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
+
+    template<typename TElem, typename TDim, typename TIdx>
+    using ConstBufFpgaSyclIntel = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
+#endif
 } // namespace aV2P

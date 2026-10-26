@@ -2,8 +2,7 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <aV2P/core/ApiCudaRt.hpp>
-#include <aV2P/core/ApiHipRt.hpp>
+#include <aV2P/adapter/Api.hpp>
 #include <aV2P/meta/Concatenate.hpp>
 #include <aV2P/queue/Traits.hpp>
 #include <aV2P/test/queue/Queue.hpp>

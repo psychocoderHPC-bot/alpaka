@@ -5,7 +5,9 @@
 
 #pragma once
 
+#include "aV2P/adapter/Api.hpp"
 #include "aV2P/adapter/DeviceSpec.hpp"
+#include "aV2P/adapter/Mapping.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/dev/Traits.hpp"
 #include "aV2P/platform/Traits.hpp"
@@ -130,6 +132,83 @@ namespace aV2P
     using DevCpuSycl = DevAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>>;
     using DevGpuSyclIntel = DevAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>>;
 #endif
+
+    namespace legacy
+    {
+        template<typename>
+        inline constexpr bool alwaysFalse = false;
+
+        //! Name-only placeholder for a legacy backend that has no alpaka 3 executor.
+        //!
+        //! Naming the type (as a template argument or alias target) is supported; instantiating it fails
+        //! with the same diagnostic policy as `UnimplementedAcc`.
+        template<typename TTag>
+        struct UnimplementedBackend
+        {
+            static_assert(
+                alwaysFalse<TTag>,
+                "aV2P: this legacy backend has no alpaka 3 executor with the same semantics and is not "
+                "implemented.");
+        };
+    } // namespace legacy
+
+    namespace adapter
+    {
+#ifdef AV2P_ACC_SYCL_ENABLED
+        //! Device type behind `DevGenericSycl<TTag>`: a real adapter device for mapped tags, a name-only
+        //! placeholder otherwise (the oneAPI Nvidia/AMD/FPGA device kinds have no alpaka 3 executor here).
+        template<typename TTag, typename = void>
+        struct GenericSyclDevType
+        {
+            using type = legacy::UnimplementedBackend<TTag>;
+        };
+
+        template<typename TTag>
+        struct GenericSyclDevType<TTag, std::void_t<typename LegacyAccMapping<TTag>::Api>>
+        {
+            using type = DevAlpaka3<DeviceSpec<
+                typename LegacyAccMapping<TTag>::Api,
+                typename LegacyAccMapping<TTag>::DeviceKind>>;
+        };
+#endif
+
+        //! Device type behind `DevUniformCudaHipRt<TApi>`: selects the CUDA or HIP adapter device.
+        template<typename TApi, typename = void>
+        struct UniformCudaHipDevType
+        {
+            using type = legacy::UnimplementedBackend<TApi>;
+        };
+
+#ifdef AV2P_ACC_GPU_CUDA_ENABLED
+        template<>
+        struct UniformCudaHipDevType<ApiCudaRt, void>
+        {
+            using type = DevCudaRt;
+        };
+#endif
+
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+        template<>
+        struct UniformCudaHipDevType<ApiHipRt, void>
+        {
+            using type = DevHipRt;
+        };
+#endif
+    } // namespace adapter
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+    //! 2.2 device name: the device of the oneAPI tag `TTag`.
+    template<typename TTag>
+    using DevGenericSycl = typename adapter::GenericSyclDevType<TTag>::type;
+
+    using DevGpuSyclAmd = DevGenericSycl<TagGpuSyclAmd>;
+    using DevGpuSyclNvidia = DevGenericSycl<TagGpuSyclNvidia>;
+    using DevFpgaSyclIntel = DevGenericSycl<TagFpgaSyclIntel>;
+#endif
+
+    //! 2.2 device name: the CUDA or HIP device selected by the legacy runtime API tag.
+    template<typename TApi>
+    using DevUniformCudaHipRt = typename adapter::UniformCudaHipDevType<TApi>::type;
 
     namespace trait
     {

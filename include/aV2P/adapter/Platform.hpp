@@ -63,6 +63,63 @@ namespace aV2P
         = PlatformAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>>;
 #endif
 
+    namespace adapter
+    {
+#ifdef AV2P_ACC_SYCL_ENABLED
+        //! Platform type behind `PlatformGenericSycl<TTag>`.
+        template<typename TTag, typename = void>
+        struct GenericSyclPlatformType
+        {
+            using type = legacy::UnimplementedBackend<TTag>;
+        };
+
+        template<typename TTag>
+        struct GenericSyclPlatformType<TTag, std::void_t<typename LegacyAccMapping<TTag>::Api>>
+        {
+            using type = PlatformAlpaka3<DeviceSpec<
+                typename LegacyAccMapping<TTag>::Api,
+                typename LegacyAccMapping<TTag>::DeviceKind>>;
+        };
+#endif
+
+        //! Platform type behind `PlatformUniformCudaHipRt<TApi>`.
+        template<typename TApi, typename = void>
+        struct UniformCudaHipPlatformType
+        {
+            using type = legacy::UnimplementedBackend<TApi>;
+        };
+
+#ifdef AV2P_ACC_GPU_CUDA_ENABLED
+        template<>
+        struct UniformCudaHipPlatformType<ApiCudaRt, void>
+        {
+            using type = PlatformCudaRt;
+        };
+#endif
+
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+        template<>
+        struct UniformCudaHipPlatformType<ApiHipRt, void>
+        {
+            using type = PlatformHipRt;
+        };
+#endif
+    } // namespace adapter
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+    //! 2.2 platform name: the platform of the oneAPI tag `TTag`.
+    template<typename TTag>
+    using PlatformGenericSycl = typename adapter::GenericSyclPlatformType<TTag>::type;
+
+    using PlatformGpuSyclAmd = PlatformGenericSycl<TagGpuSyclAmd>;
+    using PlatformGpuSyclNvidia = PlatformGenericSycl<TagGpuSyclNvidia>;
+    using PlatformFpgaSyclIntel = PlatformGenericSycl<TagFpgaSyclIntel>;
+#endif
+
+    //! 2.2 platform name: the CUDA or HIP platform selected by the legacy runtime API tag.
+    template<typename TApi>
+    using PlatformUniformCudaHipRt = typename adapter::UniformCudaHipPlatformType<TApi>::type;
+
     namespace trait
     {
         template<typename TDevSpec>

@@ -240,7 +240,50 @@ namespace aV2P::trait
 #        error If AV2P_ACC_GPU_CUDA_ENABLED is set, the compiler has to support CUDA!
 #    endif
 
-#    include "aV2P/core/Cuda.hpp"
+#    include "aV2P/adapter/Api.hpp"
+
+namespace aV2P::cuda::detail
+{
+    //! CUDA driver API error checking with log and exception.
+    //!
+    //! Moved here from the deleted `core/Cuda.hpp`: the manual-trigger test helper is the last user of
+    //! the CUDA driver `cuStreamWaitValue32` path, which the alpaka 3 adapters do not wrap.
+    AV2P_FN_HOST inline auto cudaDrvCheck(CUresult const& error, char const* desc, char const* file, int const& line)
+        -> void
+    {
+        if(error == CUDA_SUCCESS)
+            return;
+
+        char const* cu_err_name = nullptr;
+        char const* cu_err_string = nullptr;
+        CUresult cu_result_name = cuGetErrorName(error, &cu_err_name);
+        CUresult cu_result_string = cuGetErrorString(error, &cu_err_string);
+        std::string sError = std::string(file) + "(" + std::to_string(line) + ") " + std::string(desc) + " : '";
+        if(cu_result_name == CUDA_SUCCESS && cu_result_string == CUDA_SUCCESS)
+        {
+            sError += std::string(cu_err_name) + "': '" + std::string(cu_err_string) + "'!";
+        }
+        else
+        {
+            // cuGetError*() failed, so append corresponding error message
+            if(cu_result_name == CUDA_ERROR_INVALID_VALUE)
+            {
+                sError += " cuGetErrorName: 'Invalid Value'!";
+            }
+            if(cu_result_string == CUDA_ERROR_INVALID_VALUE)
+            {
+                sError += " cuGetErrorString: 'Invalid Value'!";
+            }
+        }
+#    if AV2P_DEBUG >= AV2P_DEBUG_MINIMAL
+        std::cerr << sError << std::endl;
+#    endif
+        AV2P_DEBUG_BREAK;
+        throw std::runtime_error(sError);
+    }
+} // namespace aV2P::cuda::detail
+
+#    define AV2P_CUDA_DRV_CHECK(cmd) ::aV2P::cuda::detail::cudaDrvCheck(cmd, #cmd, __FILE__, __LINE__)
 
 namespace aV2P::test
 {
@@ -483,7 +526,7 @@ namespace aV2P::trait
 #        error If AV2P_ACC_GPU_HIP_ENABLED is set, the compiler has to support HIP!
 #    endif
 
-#    include "aV2P/core/Hip.hpp"
+#    include "aV2P/adapter/Api.hpp"
 
 namespace aV2P::test
 {

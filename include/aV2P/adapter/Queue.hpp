@@ -90,7 +90,36 @@ namespace aV2P
     using QueueCpuSyclNonBlocking = QueueAlpaka3<DevCpuSycl, alpaka::queueKind::NonBlocking>;
     using QueueGpuSyclIntelBlocking = QueueAlpaka3<DevGpuSyclIntel, alpaka::queueKind::Blocking>;
     using QueueGpuSyclIntelNonBlocking = QueueAlpaka3<DevGpuSyclIntel, alpaka::queueKind::NonBlocking>;
+
+    //! 2.2 queue name: the queue of the oneAPI tag `TTag`.
+    template<typename TTag>
+    using QueueGenericSyclBlocking = QueueAlpaka3<DevGenericSycl<TTag>, alpaka::queueKind::Blocking>;
+
+    template<typename TTag>
+    using QueueGenericSyclNonBlocking = QueueAlpaka3<DevGenericSycl<TTag>, alpaka::queueKind::NonBlocking>;
+
+    using QueueGpuSyclAmdBlocking = QueueGenericSyclBlocking<TagGpuSyclAmd>;
+    using QueueGpuSyclAmdNonBlocking = QueueGenericSyclNonBlocking<TagGpuSyclAmd>;
+    using QueueGpuSyclNvidiaBlocking = QueueGenericSyclBlocking<TagGpuSyclNvidia>;
+    using QueueGpuSyclNvidiaNonBlocking = QueueGenericSyclNonBlocking<TagGpuSyclNvidia>;
+    using QueueFpgaSyclIntelBlocking = QueueGenericSyclBlocking<TagFpgaSyclIntel>;
+    using QueueFpgaSyclIntelNonBlocking = QueueGenericSyclNonBlocking<TagFpgaSyclIntel>;
 #endif
+
+    //! 2.2 generic-threads queue names: the queue of an arbitrary legacy device.
+    template<typename TDev>
+    using QueueGenericThreadsBlocking = QueueAlpaka3<TDev, alpaka::queueKind::Blocking>;
+
+    template<typename TDev>
+    using QueueGenericThreadsNonBlocking = QueueAlpaka3<TDev, alpaka::queueKind::NonBlocking>;
+
+    //! 2.2 uniform CUDA/HIP queue names: the queue of the device selected by the runtime API tag.
+    template<typename TApi>
+    using QueueUniformCudaHipRtBlocking = QueueAlpaka3<DevUniformCudaHipRt<TApi>, alpaka::queueKind::Blocking>;
+
+    template<typename TApi>
+    using QueueUniformCudaHipRtNonBlocking
+        = QueueAlpaka3<DevUniformCudaHipRt<TApi>, alpaka::queueKind::NonBlocking>;
 
     namespace trait
     {
