@@ -15,6 +15,7 @@ project("aV2PExamples" LANGUAGES CXX)
 # Add subdirectories.
 ################################################################################
 
+add_subdirectory("aV2PInterop/")
 add_subdirectory("bufferCopy/")
 add_subdirectory("complex/")
 add_subdirectory("convolution1D/")
