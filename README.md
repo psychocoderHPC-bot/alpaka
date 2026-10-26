@@ -58,7 +58,7 @@ Accelerator Back-ends
 | TBB                    | TBB 2.2+                                                | Host CPU (multi core)           | parallel (preemptive multitasking) | sequential (only 1 thread per block) |
 | CUDA                   | CUDA 12.0+                                              | NVIDIA GPUs                     | parallel (undefined)               | parallel (lock-step within warps)    |
 | HIP(clang)             | [HIP 6.0+](https://github.com/ROCm-Developer-Tools/HIP) | AMD GPUs                        | parallel (undefined)               | parallel (lock-step within warps)    |
-| SYCL(oneAPI)           | oneAPI 2024.2+                                          | CPUs, Intel GPUs and FPGAs [^3] | parallel (undefined)               | parallel (lock-step within warps)    |
+| SYCL(oneAPI)           | oneAPI 2024.2+                                          | CPUs and Intel GPUs | parallel (undefined)               | parallel (lock-step within warps)    |
 
 
 Supported Compilers
@@ -83,7 +83,6 @@ Other compilers or combinations marked with :x: in the table above may work but 
 
 [^1]: Clang-CUDA does not generate debug symbols for device code in debug builds with clang older than 20.1.0, due to an [LLVM bug](https://github.com/llvm/llvm-project/issues/58491), or with CUDA older than 12.3, because `ptxas` crashes on the device debug information for `sm_90`.
 [^2]: Currently, the unit tests are compiled but not executed.
-[^3]: FPGAs are supported up to oneAPI 2025.0, later releases do not include the FPGA compiler.
 [^4]: The OpenMP back-ends are not tested with icpx in the CI, because of an [Intel LLVM bug](https://github.com/intel/llvm/issues/10711).
 
 Dependencies

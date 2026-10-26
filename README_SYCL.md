@@ -4,7 +4,7 @@
 
 ## Supported Compilers
 
-At the moment alpaka's SYCL back-end can only be used together with Intel oneAPI (latest stable version) and supports x86 CPUs, Intel GPUs and Intel FPGAs.
+At the moment alpaka's SYCL back-end can only be used together with Intel oneAPI (latest stable version) and supports x86 CPUs and Intel GPUs.
 
 ## CMake mode
 
@@ -21,15 +21,6 @@ The following CMake flags can be set for CPUs:
 
 * `alpaka_SYCL_ONEAPI_CPU`: set to `ON` to enable compilation for CPUs. Relies on the Intel OpenCL CPU runtime and ahead-of-time compiler, which support Intel and AMD CPUs.
 * `alpaka_SYCL_ONEAPI_CPU_ISA`: the Intel ISA to compile for. Look at the possible `--march` options listed in the output of `opencl-aot --help`. Default: `avx2`.
-
-### Building for Intel FPGAs
-
-Note: Intel FPGAs cannot be targeted together with other Intel hardware. This is because of different compiler trajectories as explained in the Intel oneAPI documentation.
-
-* `alpaka_SYCL_ONEAPI_FPGA`: set to `ON` to enable compilation for Intel FPGAs.
-* `alpaka_SYCL_ONEAPI_FPGA_MODE`: the Intel FPGA compilation mode. Valid values are `emulation`, `simulation` and `hardware` which correspond to the Intel high-level synthesis targets with the same name. Default: `emulation`.
-* `alpaka_SYCL_ONEAPI_FPGA_BOARD`: the Intel FPGA board to compile for. Ignored in `emulation` mode but important for `simulation` and `hardware` modes. Valid values are `pac_a10` (Arria 10 GX), `pac_s10` (Stratix 10 SX / D5005) and `pac_s10_usm` (Stratix 10 SX / D5005 with restricted USM). Default: `pac_a10`.
-* `alpaka_SYCL_ONEAPI_FPGA_BSP`: the Intel FPGA board support package (BSP). Valid values are `intel_a10gx_pac` (Arria 10 GX) and `intel_s10sx_pac` (Stratix 10 SX / D5005). It is also possible to supply the full path to the BSP here if `aoc` is unable to look this up by itself. Note that the BSP must be chosen according to the selected board (see previous bullet point).
 
 ### Building for Intel GPUs
 
@@ -55,17 +46,6 @@ Device-side printing is possible with `printf`, it calls `sycl::ext::oneapi::exp
   * `-fsycl-targets=spir64_x86_64` (compiler and linker): to enable CPU compilation. Note: If you are using multiple SYCL hardware targets (like CPU and GPU) separate them by comma here.
   * `-Xsycl-target-backend=spir64_x86_64 "-march=<ISA>"` (linker): to choose the Intel ISA to compile for. Check the output of `opencl-aot --help` and look for the possible values of the `--march` flag.
 
-### Building for Intel FPGAs
-
-1. `#include <alpaka/standalone/FpgaSyclIntel.hpp>` in your C++ code.
-2. Add the following flags:
-  * `-fintelfpga` (compiler and linker): to enable FPGA compilation. Note: This flag is not compatible with the `-fsycl-targets` flag required for the other possible targets; Intel FPGAs thus cannot be used together with other hardware targets.
-  * `-DALPAKA_FPGA_EMULATION` (compiler): to notify alpaka about compiling for the Intel FPGA `emulation` target. Required for `-Xsemulator` and forbidden for `-Xssimulation` and `-Xshardware`.
-  * `-Xsemulator` (compiler and linker): to compile for Intel's `emulation` high-level synthesis target. Mutually exclusive with `-Xssimulation` and `-Xshardware`.
-  * `-Xssimulation` (compiler and linker): to compile for Intel's `simulation` high-level synthesis target. Mutually exclusive with `-Xsemulator` and `-Xshardware`.
-  * `-Xshardware` (compiler and linker): to compile for Intel's `hardware` high-level synthesis target. Mutually exclusive with `-Xsemulator` and `-Xssimulation`.
-  * `-Xsboard=<BSP>:<BOARD>` (compiler and linker): to compile for a specific FPGA board. Required when either `-Xssimulation` or `-Xshardware` have been passed (no effect for `-Xsemulator`). Possible combinations for `<BSP>:<BOARD>` are `intel_a10gx_pac:pac_a10` (Arria 10 GX), `intel_s10sx_pac:pac_s10` (Stratix 10 SX / D5005) and `intel_s10sx_pac:pac_s10_usm` (Stratix 10 SX / D5005 with restricted USM).
-
 ### Building for Intel GPUs
 
 1. `#include <alpaka/standalone/GpuSyclIntel.hpp>` in your C++ code.
@@ -79,14 +59,12 @@ Device-side printing is possible with `printf`, it calls `sycl::ext::oneapi::exp
 In contrast to the other back-ends the SYCL back-end comes with multiple different accelerators which should be chosen according to your requirements:
 
 * `alpaka::AccCpuSycl` for targeting Intel and AMD CPUs. In contrast to the other CPU back-ends this will use Intel's OpenCL implementation for CPUs under the hood.
-* `alpaka::AccFpgaSyclIntel` for targeting Intel FPGAs.
 * `alpaka::AccGpuSyclIntel` for targeting Intel GPUs.
 
 These can be used interchangeably (some restrictions apply - see below) with the non-experimental alpaka accelerators to compile an existing alpaka code for SYCL-capable hardware.
 
 ### Restrictions
 
-* The Intel FPGA back-end cannot be used together with the Intel CPU / GPU back-ends. This is because of the different compilation trajectory required for FPGAs and is unlikely to be fixed anytime soon. See [here](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/programming-interface/fpga-flow/why-is-fpga-compilation-different.html) for an explanation.
 * Similar to the CUDA and HIP back-ends the SYCL back-end only supports up to three kernel dimensions.
 * Some Intel GPUs do not support the `double` type for device code. alpaka will not check this.
   You can enable software emulation for `double` precision types with
@@ -95,7 +73,6 @@ These can be used interchangeably (some restrictions apply - see below) with the
   export OverrideDefaultFP64Settings=1
   ```
   See [Intel's FAQ](https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-double-precision-emulation-fp64) for more information.
-* The FPGA back-end does not support 64-bit atomics. alpaka will not check this.
 * Managed (shared) memory works but on the GPU it is very slow.
 * Managed (shared) memory is incompatible with a user-defined `SIGSEGV` handler. The Intel GPU runtime revokes host
   access to the memory while it is on the device, and installs a `SIGSEGV` handler to migrate the memory back when the
@@ -121,7 +98,6 @@ These can be used interchangeably (some restrictions apply - see below) with the
     `ALPAKA_SYCL_DISABLE_WARP_INLINE_CHECK` is defined, for example if the kernels using them never return early.
   * NVIDIA GPUs: starting from oneAPI 2025.0, also in `Debug` builds.
   * AMD GPUs: not available.
-  * Intel/Altera FPGAs: not available.
 
   Using a warp operation where it is not available fails the compilation with a `static_assert` that explains why.
   `alpaka::warp::getSize` is always available.
