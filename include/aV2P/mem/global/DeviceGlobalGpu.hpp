@@ -12,6 +12,13 @@
 
 #include <alpaka/alpaka.hpp>
 
+#if defined(ALPAKA_LANG_CUDA)
+#    include <alpaka/core/ApiCudaRt.hpp>
+#endif
+#if defined(ALPAKA_LANG_HIP)
+#    include <alpaka/core/ApiHipRt.hpp>
+#endif
+
 #include <cstddef>
 #include <type_traits>
 #include <utility>
