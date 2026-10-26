@@ -7,21 +7,32 @@
 #include "aV2P/acc/Traits.hpp"
 #include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Mapping.hpp"
+#include "aV2P/adapter/WorkDiv.hpp"
 #include "aV2P/core/Common.hpp"
+#include "aV2P/idx/Traits.hpp"
+#include "aV2P/vec/Vec.hpp"
 
 #include <alpaka/alpaka.hpp>
 
 #include <cstdint>
+#include <type_traits>
 
 namespace aV2P
 {
     template<typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
     class TaskKernelAlpaka3;
 
-    //! Legacy accelerator facade wrapping an alpaka 3 executor.
-    //!
-    //! The object itself carries no state.  It is the compile-time identity that maps the legacy
-    //! accelerator type onto `alpaka::api`, `alpaka::deviceKind` and `alpaka::exec`.
+    /** Legacy accelerator facade wrapping an alpaka 3 executor.
+     *
+     * The same concrete type is used in two roles:
+     *  - host side it is the compile-time identity that maps the legacy accelerator type onto
+     *    `alpaka::api`, `alpaka::deviceKind` and `alpaka::exec`;
+     *  - in device code the kernel wrapper constructs it from the raw `alpaka::onAcc::Acc` plus the
+     *    trivially-copyable `WorkDivPayload` and passes it to the legacy kernel as `TAcc const&`.
+     *
+     * The in-kernel instance stores plain values (indices and the work-division payload), never a host
+     * pointer or a `thread_local`, so it is valid in CUDA/HIP/SYCL device code and trivially copyable.
+     */
     template<
         typename TDim,
         typename TIdx,
@@ -35,14 +46,9 @@ namespace aV2P
             sizeof(TIdx) >= sizeof(int),
             "Index type is not supported, consider using int or a larger type.");
 
-        static_assert(
-            aV2P::adapter::isImplementedExecutor<TExecutor>,
-            "aV2P Phase 3a implements only AccCpuSerial "
-            "(alpaka::api::Host / alpaka::deviceKind::Cpu / alpaka::exec::CpuSerial). "
-            "This legacy accelerator is declared in aV2P/adapter/Mapping.hpp, but its executor is "
-            "not implemented yet. See Phase 3b.");
-
     public:
+        using Payload = adapter::WorkDivPayload<TDim, TIdx>;
+
         // Partial specialization with the correct TDim and TIdx is not allowed.
         template<typename TAcc, typename TDim2, typename TIdx2, typename TKernelFnObj, typename... TArgs>
         friend class ::aV2P::TaskKernelAlpaka3;
@@ -52,11 +58,57 @@ namespace aV2P
         using Dim = TDim;
         using Idx = TIdx;
 
-        AccAlpaka3(AccAlpaka3 const&) = delete;
-        AccAlpaka3(AccAlpaka3&&) = delete;
-        auto operator=(AccAlpaka3 const&) -> AccAlpaka3& = delete;
-        auto operator=(AccAlpaka3&&) -> AccAlpaka3& = delete;
+        /** Host-side tag instance: carries no runtime state.
+         *
+         * A host-side instance is never passed to a kernel; it only exists because some host-side user code
+         * value-initialises an accelerator type.
+         */
+        AccAlpaka3() = default;
+
+        /** Construct the in-kernel facade from the raw alpaka 3 accelerator and the work-division payload.
+         *
+         * The raw accelerator is a reference-holding view owned by the backend for the duration of one
+         * kernel invocation.  Only values are read from it here.
+         */
+        template<typename TAlpakaAcc>
+        AV2P_FN_ACC AccAlpaka3(TAlpakaAcc const& alpakaAcc, Payload const& payload)
+            : m_payload{payload}
+            , m_gridBlockIdx{adapter::fromAlpaka(
+                  alpakaAcc.getIdxWithin(alpaka::onAcc::origin::grid, alpaka::onAcc::unit::blocks))}
+            , m_blockThreadIdx{adapter::fromAlpaka(
+                  alpakaAcc.getIdxWithin(alpaka::onAcc::origin::block, alpaka::onAcc::unit::threads))}
+        {
+        }
+
+        [[nodiscard]] AV2P_FN_HOST_ACC auto getWorkDivPayload() const noexcept -> Payload const&
+        {
+            return m_payload;
+        }
+
+        [[nodiscard]] AV2P_FN_HOST_ACC auto getGridBlockIdx() const noexcept -> Vec<TDim, TIdx> const&
+        {
+            return m_gridBlockIdx;
+        }
+
+        [[nodiscard]] AV2P_FN_HOST_ACC auto getBlockThreadIdx() const noexcept -> Vec<TDim, TIdx> const&
+        {
+            return m_blockThreadIdx;
+        }
+
+    private:
+        Payload m_payload{};
+        Vec<TDim, TIdx> m_gridBlockIdx{};
+        Vec<TDim, TIdx> m_blockThreadIdx{};
     };
+
+    template<
+        typename TDim,
+        typename TIdx,
+        alpaka::concepts::Api TApi,
+        alpaka::concepts::DeviceKind TDeviceKind,
+        alpaka::concepts::Executor TExecutor>
+    inline constexpr bool isTriviallyCopyableAccFacade
+        = std::is_trivially_copyable_v<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>>;
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
     template<typename TDim, typename TIdx>
@@ -122,9 +174,10 @@ namespace aV2P
     class UnimplementedAcc
     {
         static_assert(
-            adapter::isImplementedExecutor<alpaka::exec::CpuSerial> && sizeof(TDim) == 0,
-            "aV2P Phase 3a: this legacy accelerator backend is not implemented. "
-            "Only AccCpuSerial is available; see Phase 3b.");
+            sizeof(TDim) == 0,
+            "aV2P: this legacy accelerator has no alpaka 3 executor with the same semantics and is not "
+            "implemented.  CpuOmp2Threads/CpuThreads/CpuTbbBlocks/FpgaSyclIntel are deliberately not mapped "
+            "to an unrelated executor; see aV2P/adapter/Mapping.hpp.");
     };
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED

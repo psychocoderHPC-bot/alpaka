@@ -7,6 +7,7 @@
 #include "aV2P/core/Common.hpp"
 #include "aV2P/dim/Traits.hpp"
 #include "aV2P/idx/Traits.hpp"
+#include "aV2P/vec/Traits.hpp"
 #include "aV2P/vec/Vec.hpp"
 #include "aV2P/workdiv/Traits.hpp"
 
@@ -14,6 +15,52 @@
 #include <alpaka/onHost/ThreadSpec.hpp>
 
 #include <cstdint>
+#include <type_traits>
+
+namespace aV2P
+{
+    namespace trait
+    {
+        /** Opt-in grid-block offset for a legacy work division.
+         *
+         * Legacy alpaka has no offset-aware work division type.  This extension lets a user work-division
+         * type describe a partial range: the offset is added to every in-kernel grid-block index.  The
+         * default is zero, so ordinary `WorkDivMembers` behaviour is unchanged.
+         */
+        template<typename TWorkDiv, typename TSfinae = void>
+        struct GetGridBlockOffset
+        {
+            AV2P_FN_HOST_ACC static auto getGridBlockOffset(TWorkDiv const&) -> Vec<Dim<TWorkDiv>, Idx<TWorkDiv>>
+            {
+                return Vec<Dim<TWorkDiv>, Idx<TWorkDiv>>::zeros();
+            }
+        };
+
+        /** Opt-in block-thread offset for a legacy work division (default zero). */
+        template<typename TWorkDiv, typename TSfinae = void>
+        struct GetBlockThreadOffset
+        {
+            AV2P_FN_HOST_ACC static auto getBlockThreadOffset(TWorkDiv const&) -> Vec<Dim<TWorkDiv>, Idx<TWorkDiv>>
+            {
+                return Vec<Dim<TWorkDiv>, Idx<TWorkDiv>>::zeros();
+            }
+        };
+    } // namespace trait
+
+    AV2P_NO_HOST_ACC_WARNING
+    template<typename TWorkDiv>
+    AV2P_FN_HOST_ACC auto getGridBlockOffset(TWorkDiv const& workDiv) -> Vec<Dim<TWorkDiv>, Idx<TWorkDiv>>
+    {
+        return trait::GetGridBlockOffset<TWorkDiv>::getGridBlockOffset(workDiv);
+    }
+
+    AV2P_NO_HOST_ACC_WARNING
+    template<typename TWorkDiv>
+    AV2P_FN_HOST_ACC auto getBlockThreadOffset(TWorkDiv const& workDiv) -> Vec<Dim<TWorkDiv>, Idx<TWorkDiv>>
+    {
+        return trait::GetBlockThreadOffset<TWorkDiv>::getBlockThreadOffset(workDiv);
+    }
+} // namespace aV2P
 
 namespace aV2P::adapter
 {
@@ -44,52 +91,53 @@ namespace aV2P::adapter
         return result;
     }
 
-    //! Legacy thread-element extent of the kernel invocation currently running on this host thread.
-    //!
-    //! alpaka 3 has no thread-element layer: a `ThreadSpec` only describes blocks and threads per
-    //! block.  The legacy `WorkDivMembers::m_threadElemExtent` is therefore carried out-of-band
-    //! and published for the duration of one kernel invocation.  On the host this is safe because
-    //! one kernel invocation is executed synchronously on a single host thread.  A device-side
-    //! implementation is still required for the GPU backends (Phase 3b).
+    /** Trivially-copyable work-division payload carried as a kernel argument.
+     *
+     * alpaka 3 has no thread-element layer and no work-division offsets.  The complete legacy work division is
+     * therefore carried *into the device pass* as an ordinary kernel argument and turned into the aV2P acc
+     * facade by the kernel wrapper.  The type is intentionally an aggregate of plain `Vec` values: it is
+     * trivially copyable, so it satisfies `alpaka::concepts::KernelArg` for every backend.
+     */
     template<typename TDim, typename TIdx>
-    inline thread_local Vec<TDim, TIdx> g_threadElemExtent = Vec<TDim, TIdx>::ones();
-
-    template<typename TDim, typename TIdx>
-    AV2P_FN_HOST_ACC auto currentThreadElemExtent() -> Vec<TDim, TIdx>
+    struct WorkDivPayload
     {
-        return g_threadElemExtent<TDim, TIdx>;
-    }
+        using Dim = TDim;
+        using Idx = TIdx;
 
-    //! Publish the legacy thread-element extent while a kernel functor is executing.
-    template<typename TDim, typename TIdx>
-    class ScopedThreadElemExtent
-    {
-    public:
-        AV2P_FN_ACC explicit ScopedThreadElemExtent(Vec<TDim, TIdx> const& extent)
-            : m_old{g_threadElemExtent<TDim, TIdx>}
-        {
-            g_threadElemExtent<TDim, TIdx> = extent;
-        }
-
-        ScopedThreadElemExtent(ScopedThreadElemExtent const&) = delete;
-        auto operator=(ScopedThreadElemExtent const&) -> ScopedThreadElemExtent& = delete;
-
-        AV2P_FN_ACC ~ScopedThreadElemExtent()
-        {
-            g_threadElemExtent<TDim, TIdx> = m_old;
-        }
-
-    private:
-        Vec<TDim, TIdx> m_old;
+        Vec<TDim, TIdx> gridBlockExtent;
+        Vec<TDim, TIdx> blockThreadExtent;
+        Vec<TDim, TIdx> threadElemExtent;
+        Vec<TDim, TIdx> gridBlockOffset;
+        Vec<TDim, TIdx> blockThreadOffset;
     };
+
+    template<typename TDim, typename TIdx>
+    inline constexpr bool isTriviallyCopyableWorkDivPayload
+        = std::is_trivially_copyable_v<WorkDivPayload<TDim, TIdx>>;
+
+    /** Build the complete legacy work division for one launch.
+     *
+     * The three extents are read through the legacy `getWorkDiv` interface (so any `TWorkDiv` form works),
+     * the offsets through the opt-in offset traits above (zero for ordinary work divisions).
+     */
+    template<typename TDim, typename TIdx, typename TWorkDiv>
+    AV2P_FN_HOST auto makeWorkDivPayload(TWorkDiv const& workDiv) -> WorkDivPayload<TDim, TIdx>
+    {
+        return WorkDivPayload<TDim, TIdx>{
+            aV2P::getWorkDiv<origin::Grid, unit::Blocks>(workDiv),
+            aV2P::getWorkDiv<origin::Block, unit::Threads>(workDiv),
+            aV2P::getWorkDiv<origin::Thread, unit::Elems>(workDiv),
+            aV2P::castVec<TIdx>(subVecEnd<TDim>(aV2P::getGridBlockOffset(workDiv))),
+            aV2P::castVec<TIdx>(subVecEnd<TDim>(aV2P::getBlockThreadOffset(workDiv)))};
+    }
 
     //! Translate a legacy work division into the alpaka 3 launch shape.
     //!
     //! The legacy grid-block extent maps to `ThreadSpec::getNumBlocks()` and the legacy
     //! block-thread extent maps to `ThreadSpec::getNumThreads()`.  `ThreadSpec` is used instead of
     //! `FrameSpec` because the legacy API exposes exact block/thread indices and extents, which a
-    //! `FrameSpec` does not guarantee.  The legacy thread-element extent is published separately
-    //! through `ScopedThreadElemExtent` (see `adapter/Kernel.hpp`).
+    //! `FrameSpec` does not guarantee.  The legacy thread-element extent and the offsets are carried
+    //! in-kernel through `WorkDivPayload` (see `adapter/Kernel.hpp`).
     template<typename TWorkDiv, typename TExecutor>
     AV2P_FN_HOST auto toThreadSpec(TWorkDiv const& workDiv, TExecutor const& executor)
     {

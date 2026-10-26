@@ -14,23 +14,48 @@
 #include <alpaka/alpaka.hpp>
 
 #include <cstdint>
+#include <type_traits>
 #include <utility>
+
+// The legacy GPU-only kernel-name macros are kept source-compatible.  alpaka 3 derives the kernel name
+// from the functor type, so on every backend they expand to nothing.
+#ifndef AV2P_KERNEL_NAME
+#    define AV2P_KERNEL_NAME(KERNEL, NAME)
+#endif
+#ifndef AV2P_KERNEL_SCOPED_NAME
+#    define AV2P_KERNEL_SCOPED_NAME(KERNEL, NAMESPACE, NAME)
+#endif
 
 namespace aV2P::adapter
 {
-    //! Kernel functor wrapper that carries the legacy per-thread element extent into the kernel.
-    template<typename TKernelFnObj, typename TDim, typename TIdx>
+    /** Kernel functor wrapper that builds the legacy acc facade inside the device pass.
+     *
+     * The legacy work division travels with the launch as the first enqueued kernel argument
+     * (`WorkDivPayload`), so it is visible in CUDA/HIP/SYCL device code and per invocation.  No
+     * `thread_local` and no host global is involved.  The wrapper additionally carries the legacy static
+     * dynamic shared-memory size which alpaka 3 reads from `kernelFn.dynSharedMemBytes`.
+     */
+    template<typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj>
     struct LegacyKernel
     {
+        static_assert(
+            std::is_trivially_copyable_v<TKernelFnObj>,
+            "The legacy kernel functor must be trivially copyable to survive the device pass.");
+        static_assert(
+            isTriviallyCopyableWorkDivPayload<TDim, TIdx>,
+            "WorkDivPayload must be trivially copyable to survive the device pass.");
+
         TKernelFnObj kernel;
-        Vec<TDim, TIdx> threadElemExtent;
         std::uint32_t dynSharedMemBytes = 0u;
 
         template<typename TAlpakaAcc, typename... TArgs>
-        AV2P_FN_ACC void operator()(TAlpakaAcc const& acc, TArgs&&... args) const
+        AV2P_FN_ACC void operator()(
+            TAlpakaAcc const& alpakaAcc,
+            WorkDivPayload<TDim, TIdx> const& payload,
+            TArgs const&... args) const
         {
-            ScopedThreadElemExtent<TDim, TIdx> guard{threadElemExtent};
-            kernel(acc, std::forward<TArgs>(args)...);
+            TAcc const legacyAcc{alpakaAcc, payload};
+            kernel(legacyAcc, args...);
         }
     };
 } // namespace aV2P::adapter
@@ -43,15 +68,17 @@ namespace aV2P
     {
     public:
         using Executor = typename TAcc::Executor;
-        using KernelBundle = alpaka::KernelBundle<TKernelFnObj, TArgs...>;
+        using Payload = adapter::WorkDivPayload<TDim, TIdx>;
+        using KernelBundle = alpaka::KernelBundle<TKernelFnObj, Payload, TArgs...>;
 
         template<typename TWorkDiv>
         AV2P_FN_HOST TaskKernelAlpaka3(
             TWorkDiv const& workDiv,
             TKernelFnObj const& kernelFnObj,
+            Payload const& payload,
             TArgs&&... args)
             : WorkDivMembers<TDim, TIdx>(workDiv)
-            , m_kernelBundle{kernelFnObj, std::forward<TArgs>(args)...}
+            , m_kernelBundle{kernelFnObj, payload, std::forward<TArgs>(args)...}
         {
         }
 

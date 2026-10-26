@@ -70,6 +70,15 @@ namespace aV2P
     using EventCudaRt = EventAlpaka3<DevCudaRt>;
 #endif
 
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+    using EventHipRt = EventAlpaka3<DevHipRt>;
+#endif
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+    using EventCpuSycl = EventAlpaka3<DevCpuSycl>;
+    using EventGpuSyclIntel = EventAlpaka3<DevGpuSyclIntel>;
+#endif
+
     namespace trait
     {
         template<typename TDev>

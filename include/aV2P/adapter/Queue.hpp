@@ -73,6 +73,18 @@ namespace aV2P
     using QueueCudaRtNonBlocking = QueueAlpaka3<DevCudaRt, alpaka::queueKind::NonBlocking>;
 #endif
 
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+    using QueueHipRtBlocking = QueueAlpaka3<DevHipRt, alpaka::queueKind::Blocking>;
+    using QueueHipRtNonBlocking = QueueAlpaka3<DevHipRt, alpaka::queueKind::NonBlocking>;
+#endif
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+    using QueueCpuSyclBlocking = QueueAlpaka3<DevCpuSycl, alpaka::queueKind::Blocking>;
+    using QueueCpuSyclNonBlocking = QueueAlpaka3<DevCpuSycl, alpaka::queueKind::NonBlocking>;
+    using QueueGpuSyclIntelBlocking = QueueAlpaka3<DevGpuSyclIntel, alpaka::queueKind::Blocking>;
+    using QueueGpuSyclIntelNonBlocking = QueueAlpaka3<DevGpuSyclIntel, alpaka::queueKind::NonBlocking>;
+#endif
+
     namespace trait
     {
         template<typename TDev, alpaka::concepts::QueueKind TQueueKind>

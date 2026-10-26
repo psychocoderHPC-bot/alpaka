@@ -21,6 +21,7 @@
 #include <alpaka/alpaka.hpp>
 
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -67,6 +68,46 @@ namespace aV2P
         struct AccToTag<aV2P::AccGpuCudaRt<TDim, TIdx>>
         {
             using type = aV2P::TagGpuCudaRt;
+        };
+#endif
+
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+        template<typename TDim, typename TIdx>
+        struct TagToAcc<aV2P::TagGpuHipRt, TDim, TIdx>
+        {
+            using type = aV2P::AccGpuHipRt<TDim, TIdx>;
+        };
+
+        template<typename TDim, typename TIdx>
+        struct AccToTag<aV2P::AccGpuHipRt<TDim, TIdx>>
+        {
+            using type = aV2P::TagGpuHipRt;
+        };
+#endif
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+        template<typename TDim, typename TIdx>
+        struct TagToAcc<aV2P::TagCpuSycl, TDim, TIdx>
+        {
+            using type = aV2P::AccCpuSycl<TDim, TIdx>;
+        };
+
+        template<typename TDim, typename TIdx>
+        struct AccToTag<aV2P::AccCpuSycl<TDim, TIdx>>
+        {
+            using type = aV2P::TagCpuSycl;
+        };
+
+        template<typename TDim, typename TIdx>
+        struct TagToAcc<aV2P::TagGpuSyclIntel, TDim, TIdx>
+        {
+            using type = aV2P::AccGpuSyclIntel<TDim, TIdx>;
+        };
+
+        template<typename TDim, typename TIdx>
+        struct AccToTag<aV2P::AccGpuSyclIntel<TDim, TIdx>>
+        {
+            using type = aV2P::TagGpuSyclIntel;
         };
 #endif
 
@@ -253,105 +294,122 @@ namespace aV2P
             {
                 using Acc = AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>;
 
-                auto const threadElemExtent = aV2P::getWorkDiv<origin::Thread, unit::Elems>(workDiv);
-                auto const blockThreadExtent = aV2P::getWorkDiv<origin::Block, unit::Threads>(workDiv);
+                auto const payload = adapter::makeWorkDivPayload<TDim, TIdx>(workDiv);
+
+                // Both host executors run one thread per block (CpuOmpBlocks parallelises blocks, not
+                // threads).  Keep the legacy 2.2 diagnostic instead of letting the backend throw later.
+                if constexpr(alpaka::exec::isSeqExecutor_v<TExecutor>)
+                {
+                    if(payload.blockThreadExtent.prod() != static_cast<TIdx>(1u))
+                    {
+                        throw std::runtime_error(
+                            "The given work division is not valid for this accelerator: threads per block "
+                            "must be 1. Use a different accelerator or a work division with one thread per "
+                            "block.");
+                    }
+                }
+
                 auto const dynSharedMemBytes = static_cast<std::uint32_t>(
                     trait::BlockSharedMemDynSizeBytes<TKernelFnObj, Acc>::getBlockSharedMemDynSizeBytes(
                         kernelFnObj,
-                        blockThreadExtent,
-                        threadElemExtent,
+                        payload.blockThreadExtent,
+                        payload.threadElemExtent,
                         args...));
 
-                adapter::LegacyKernel<TKernelFnObj, TDim, TIdx> wrapper{
-                    kernelFnObj,
-                    threadElemExtent,
-                    dynSharedMemBytes};
+                adapter::LegacyKernel<Acc, TDim, TIdx, TKernelFnObj> wrapper{kernelFnObj, dynSharedMemBytes};
 
                 return TaskKernelAlpaka3<Acc, TDim, TIdx, decltype(wrapper), TArgs...>(
                     workDiv,
                     wrapper,
+                    payload,
                     std::forward<TArgs>(args)...);
             }
         };
 
         // -----------------------------------------------------------------------------------------
-        // Kernel-side bridge: legacy traits on the alpaka 3 accelerator object.
+        // Kernel-side bridge: legacy traits on the aV2P acc facade.
         // -----------------------------------------------------------------------------------------
+        //
+        // The facade is the concrete legacy accelerator type (e.g. `AccCpuSerial<Dim, Idx>`), so kernels
+        // with a non-templated accelerator parameter keep compiling.  It stores the current grid-block and
+        // block-thread index plus the full `WorkDivPayload`, i.e. only values that survive the device pass.
 
-        template<typename TDict>
-        struct DimType<alpaka::onAcc::Acc<TDict>>
+        template<
+            typename TDim,
+            typename TIdx,
+            alpaka::concepts::Api TApi,
+            alpaka::concepts::DeviceKind TDeviceKind,
+            alpaka::concepts::Executor TExecutor>
+        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Grid, unit::Blocks>
         {
-            using type = aV2P::DimInt<
-                ALPAKA_TYPEOF(std::declval<alpaka::onAcc::Acc<TDict>>()[alpaka::layer::thread].idx())::dim()>;
-        };
-
-        template<typename TDict>
-        struct IdxType<alpaka::onAcc::Acc<TDict>>
-        {
-            using type = typename ALPAKA_TYPEOF(
-                std::declval<alpaka::onAcc::Acc<TDict>>()[alpaka::layer::thread].idx())::value_type;
-        };
-
-        template<typename TDict>
-        struct GetWorkDiv<alpaka::onAcc::Acc<TDict>, origin::Grid, unit::Blocks>
-        {
-            static auto getWorkDiv(alpaka::onAcc::Acc<TDict> const& acc)
+            AV2P_FN_HOST_ACC static auto getWorkDiv(
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc) -> Vec<TDim, TIdx>
             {
-                using Dim = typename DimType<ALPAKA_TYPEOF(acc)>::type;
-                using Idx = typename IdxType<ALPAKA_TYPEOF(acc)>::type;
-                return aV2P::castVec<Idx>(adapter::fromAlpaka(
-                    acc.getExtentsOf(alpaka::onAcc::origin::grid, alpaka::onAcc::unit::blocks)))
-                    ;
+                return acc.getWorkDivPayload().gridBlockExtent;
             }
         };
 
-        template<typename TDict>
-        struct GetWorkDiv<alpaka::onAcc::Acc<TDict>, origin::Block, unit::Threads>
+        template<
+            typename TDim,
+            typename TIdx,
+            alpaka::concepts::Api TApi,
+            alpaka::concepts::DeviceKind TDeviceKind,
+            alpaka::concepts::Executor TExecutor>
+        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Block, unit::Threads>
         {
-            static auto getWorkDiv(alpaka::onAcc::Acc<TDict> const& acc)
+            AV2P_FN_HOST_ACC static auto getWorkDiv(
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc) -> Vec<TDim, TIdx>
             {
-                using Idx = typename IdxType<ALPAKA_TYPEOF(acc)>::type;
-                return aV2P::castVec<Idx>(adapter::fromAlpaka(
-                    acc.getExtentsOf(alpaka::onAcc::origin::block, alpaka::onAcc::unit::threads)))
-                    ;
+                return acc.getWorkDivPayload().blockThreadExtent;
             }
         };
 
-        //! The legacy thread-element extent is carried out-of-band, see adapter/WorkDiv.hpp.
-        template<typename TDict>
-        struct GetWorkDiv<alpaka::onAcc::Acc<TDict>, origin::Thread, unit::Elems>
+        template<
+            typename TDim,
+            typename TIdx,
+            alpaka::concepts::Api TApi,
+            alpaka::concepts::DeviceKind TDeviceKind,
+            alpaka::concepts::Executor TExecutor>
+        struct GetWorkDiv<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Thread, unit::Elems>
         {
-            static auto getWorkDiv(alpaka::onAcc::Acc<TDict> const& /* acc */)
+            AV2P_FN_HOST_ACC static auto getWorkDiv(
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc) -> Vec<TDim, TIdx>
             {
-                using Dim = typename DimType<alpaka::onAcc::Acc<TDict>>::type;
-                using Idx = typename IdxType<alpaka::onAcc::Acc<TDict>>::type;
-                return adapter::currentThreadElemExtent<Dim, Idx>();
+                return acc.getWorkDivPayload().threadElemExtent;
             }
         };
 
-        template<typename TDict>
-        struct GetIdx<alpaka::onAcc::Acc<TDict>, origin::Block, unit::Threads>
+        template<
+            typename TDim,
+            typename TIdx,
+            alpaka::concepts::Api TApi,
+            alpaka::concepts::DeviceKind TDeviceKind,
+            alpaka::concepts::Executor TExecutor>
+        struct GetIdx<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Grid, unit::Blocks>
         {
             template<typename TWorkDiv>
-            static auto getIdx(alpaka::onAcc::Acc<TDict> const& acc, TWorkDiv const&)
+            AV2P_FN_HOST_ACC static auto getIdx(
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc,
+                TWorkDiv const&) -> Vec<TDim, TIdx>
             {
-                using Idx = typename IdxType<ALPAKA_TYPEOF(acc)>::type;
-                return aV2P::castVec<Idx>(adapter::fromAlpaka(
-                    acc.getIdxWithin(alpaka::onAcc::origin::block, alpaka::onAcc::unit::threads)))
-                    ;
+                return acc.getGridBlockIdx() + acc.getWorkDivPayload().gridBlockOffset;
             }
         };
 
-        template<typename TDict>
-        struct GetIdx<alpaka::onAcc::Acc<TDict>, origin::Grid, unit::Blocks>
+        template<
+            typename TDim,
+            typename TIdx,
+            alpaka::concepts::Api TApi,
+            alpaka::concepts::DeviceKind TDeviceKind,
+            alpaka::concepts::Executor TExecutor>
+        struct GetIdx<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor>, origin::Block, unit::Threads>
         {
             template<typename TWorkDiv>
-            static auto getIdx(alpaka::onAcc::Acc<TDict> const& acc, TWorkDiv const&)
+            AV2P_FN_HOST_ACC static auto getIdx(
+                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor> const& acc,
+                TWorkDiv const&) -> Vec<TDim, TIdx>
             {
-                using Idx = typename IdxType<ALPAKA_TYPEOF(acc)>::type;
-                return aV2P::castVec<Idx>(adapter::fromAlpaka(
-                    acc.getIdxWithin(alpaka::onAcc::origin::grid, alpaka::onAcc::unit::blocks)))
-                    ;
+                return acc.getBlockThreadIdx() + acc.getWorkDivPayload().blockThreadOffset;
             }
         };
     } // namespace trait

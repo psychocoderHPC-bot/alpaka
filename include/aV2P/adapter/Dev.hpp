@@ -108,6 +108,15 @@ namespace aV2P
     using DevCudaRt = DevAlpaka3<adapter::DeviceSpec<alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu>>;
 #endif
 
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+    using DevHipRt = DevAlpaka3<adapter::DeviceSpec<alpaka::api::Hip, alpaka::deviceKind::AmdGpu>>;
+#endif
+
+#ifdef AV2P_ACC_SYCL_ENABLED
+    using DevCpuSycl = DevAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>>;
+    using DevGpuSyclIntel = DevAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>>;
+#endif
+
     namespace trait
     {
         template<typename TDevSpec>

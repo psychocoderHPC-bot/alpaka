@@ -20,11 +20,11 @@ namespace aV2P::adapter
      * | legacy tag              | api               | device kind          | executor              | implemented |
      * |-------------------------|-------------------|----------------------|-----------------------|-------------|
      * | TagCpuSerial            | api::Host         | deviceKind::Cpu      | exec::CpuSerial       | yes         |
-     * | TagCpuOmp2Blocks        | api::Host         | deviceKind::Cpu      | exec::CpuOmpBlocks    | no          |
-     * | TagGpuCudaRt            | api::Cuda         | deviceKind::NvidiaGpu| exec::GpuCuda         | no          |
-     * | TagGpuHipRt             | api::Hip          | deviceKind::AmdGpu   | exec::GpuHip          | no          |
-     * | TagCpuSycl              | api::OneApi       | deviceKind::Cpu      | exec::OneApi          | no          |
-     * | TagGpuSyclIntel         | api::OneApi       | deviceKind::IntelGpu | exec::OneApi          | no          |
+     * | TagCpuOmp2Blocks        | api::Host         | deviceKind::Cpu      | exec::CpuOmpBlocks    | yes         |
+     * | TagGpuCudaRt            | api::Cuda         | deviceKind::NvidiaGpu| exec::GpuCuda         | yes         |
+     * | TagGpuHipRt             | api::Hip          | deviceKind::AmdGpu   | exec::GpuHip          | yes         |
+     * | TagCpuSycl              | api::OneApi       | deviceKind::Cpu      | exec::OneApi          | yes         |
+     * | TagGpuSyclIntel         | api::OneApi       | deviceKind::IntelGpu | exec::OneApi          | yes         |
      *
      * `TagCpuOmp2Threads` and `TagCpuThreads` deliberately have no mapping: mapping them to
      * `CpuSerial` or `CpuOmpBlocks` would silently change their semantics.
@@ -48,7 +48,7 @@ namespace aV2P::adapter
         using Api = alpaka::api::Host;
         using DeviceKind = alpaka::deviceKind::Cpu;
         using Executor = alpaka::exec::CpuOmpBlocks;
-        static constexpr bool implemented = false;
+        static constexpr bool implemented = true;
     };
 #endif
 
@@ -59,7 +59,7 @@ namespace aV2P::adapter
         using Api = alpaka::api::Cuda;
         using DeviceKind = alpaka::deviceKind::NvidiaGpu;
         using Executor = alpaka::exec::GpuCuda;
-        static constexpr bool implemented = false;
+        static constexpr bool implemented = true;
     };
 #endif
 
@@ -70,7 +70,7 @@ namespace aV2P::adapter
         using Api = alpaka::api::Hip;
         using DeviceKind = alpaka::deviceKind::AmdGpu;
         using Executor = alpaka::exec::GpuHip;
-        static constexpr bool implemented = false;
+        static constexpr bool implemented = true;
     };
 #endif
 
@@ -81,7 +81,7 @@ namespace aV2P::adapter
         using Api = alpaka::api::OneApi;
         using DeviceKind = alpaka::deviceKind::Cpu;
         using Executor = alpaka::exec::OneApi;
-        static constexpr bool implemented = false;
+        static constexpr bool implemented = true;
     };
 
     template<>
@@ -90,14 +90,22 @@ namespace aV2P::adapter
         using Api = alpaka::api::OneApi;
         using DeviceKind = alpaka::deviceKind::IntelGpu;
         using Executor = alpaka::exec::OneApi;
-        static constexpr bool implemented = false;
+        static constexpr bool implemented = true;
     };
 #endif
 
-    //! Only the serial host executor is implemented in the Phase 3a vertical slice.
+    //! Executors reached by an explicitly mapped legacy accelerator.
+    //!
+    //! Omp2Threads/Threads/TbbBlocks/FpgaSyclIntel are deliberately absent: there is no alpaka 3 executor
+    //! with their semantics, so they keep the `UnimplementedAcc` diagnostic instead of silently running on
+    //! an unrelated executor.
     template<typename TExecutor>
     inline constexpr bool isImplementedExecutor
-        = std::is_same_v<TExecutor, alpaka::exec::CpuSerial>;
+        = std::is_same_v<TExecutor, alpaka::exec::CpuSerial>
+          || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>
+          || std::is_same_v<TExecutor, alpaka::exec::GpuCuda>
+          || std::is_same_v<TExecutor, alpaka::exec::GpuHip>
+          || std::is_same_v<TExecutor, alpaka::exec::OneApi>;
 
     template<typename TExecutor>
     inline constexpr bool isHostExecutor = std::is_same_v<TExecutor, alpaka::exec::CpuSerial>
