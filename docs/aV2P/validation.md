@@ -121,12 +121,12 @@ Build counts are targets compiled; ctest and examples are pass/total.
 | Config (machine) | Build | ctest | Examples | Installing and packaging | Devices |
 |---|---|---|---|---|---|
 | CPU serial + OMP (fwk394) | 281/281 | 52/52 | 18/18 | PASS | EPYC, g++ 13.3 |
-| CPU + TBB, oneTBB 2023.2 (fwk394) | 143/143 | 52/52 | UNVERIFIED | UNVERIFIED | 28 threads |
+| CPU + TBB, oneTBB 2023.2 (fwk394) | 143/143 | 52/52 | 18/18 | PASS | 28 threads |
 | CUDA 12.5 sm_70 (fwk394) | 278/278 | 51/51 | 18/18 | PASS | GV100 |
 | CUDA 12.5 sm_75 (fwk394) | 278/278 | 51/51 | 18/18 | PASS | RTX 2080 Ti |
 | HIP ROCm 7.2 gfx1100 (hal) | 278/278 | 51/51 | 18/18 | PASS, interop PASS | RX 7900 XTX |
 | oneAPI 2026.2 GPU (hal) | 281/281 | 46/51 | 15/17 | PASS, interop PASS | Arc A770 |
-| oneAPI 2026.2 CPU (hal) | 281/281 | 50/51 | 17/17 | PASS, interop PASS | EPYC 7452 |
+| oneAPI 2026.2 CPU (hal) | 281/281 | 51/51 | 18/18 | PASS, interop PASS | EPYC 7452 |
 
 TBB detail runs, all green: accTest 682/296, devTest 192/192, kernelTest
 1682/1157, blockShared 144/144, blockSync 144/96, workDiv 223/55.
@@ -144,8 +144,7 @@ as PASS above rather than per device.
 ## 4. Failure classification
 
 - Adapter defect: none open. Every failing item in section 3 resolves to an
-  environment cause, an intentionally unsupported feature, or the one pending
-  oneAPI item below.
+  environment cause or an intentionally unsupported feature.
 - Environment: oneAPI GPU on Arc A770 (Intel Xe has a limited FP64 unit).
   ctest 46/51 with failures in heatEquation, heatEquation2D, atomicTest,
   mathTest double/complex-double and randTest. With FP64 emulation enabled,
@@ -156,11 +155,12 @@ as PASS above rather than per device.
   restoration conditions): zero-dimensional memory (section 3 of
   `limitations.md`); GPU grid-wide synchronization via cooperative launch
   (section 7); oneAPI device globals; oneAPI async-deferred buffer teardown;
-  the collective queue; the CPU `Threads` and `Omp2Threads` accelerators; FPGA
-  SYCL (removed from scope).
-- Pending, tracked separately: one ctest failure in the oneAPI CPU run is a
-  warp-layout expectation mismatch in the test itself, being resolved on its
-  own. It is not classified as an adapter defect.
+  the collective queue; the CPU `Threads` and `Omp2Threads` accelerators; the
+  SYCL CPU per-kernel warp-size expectation; FPGA SYCL (removed from scope).
+- SYCL CPU per-kernel warp size: alpaka 3 has no per-kernel warp-size
+  mechanism, so the launch-time rejection of an invalid SYCL CPU layout cannot
+  be reproduced. The affected expectation is guarded; the valid layout check
+  stays active.
 
 ## 5. Exclusions
 
@@ -175,14 +175,14 @@ removed scope.
 
 ## 6. Status, stated plainly
 
-- Green: CPU serial + OMP, CPU + TBB, CUDA sm_70, CUDA sm_75, HIP gfx1100,
-  including builds, ctest, examples, install, packaging, interop and the
-  cross-cutting consumer/coexistence/diagnostic checks.
+- Green: CPU serial + OMP, CPU + TBB, CUDA sm_70, CUDA sm_75, HIP gfx1100 and
+  oneAPI CPU, including builds, ctest, examples, install, packaging, interop
+  and the cross-cutting consumer/coexistence/diagnostic checks.
 - Green modulo environment: oneAPI GPU on Arc A770. Everything passes except
   the FP64 tests, which the device emulates; with emulation on, all but the
   21 mathTest accuracy failures pass.
-- Not green: one ctest item in the oneAPI CPU run (warp-layout test
-  expectation, pending resolution). No other open item exists in this matrix.
+- Not green: no open item. The oneAPI CPU warp-layout expectation is resolved
+  as a documented alpaka 3 gap with a narrow guard.
 
 ## 7. Timings
 
