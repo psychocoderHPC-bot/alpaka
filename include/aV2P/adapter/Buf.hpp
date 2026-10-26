@@ -14,7 +14,6 @@
 
 #include <alpaka/alpaka.hpp>
 
-#include <cstddef>
 #include <type_traits>
 #include <utility>
 
@@ -121,12 +120,6 @@ namespace aV2P
         [[nodiscard]] AV2P_FN_HOST auto data()
         {
             return m_memImpl.data();
-        }
-
-        //! Linear element access with the legacy 2.2 contract (`buf[i]`), required by the examples.
-        AV2P_FN_HOST auto operator[](TIdx const& index) -> TElem&
-        {
-            return *(data() + static_cast<std::size_t>(index));
         }
 
     public:
