@@ -86,18 +86,11 @@ include(${_aV2P_ADD_LIBRARY_FILE})
 set(_aV2P_INCLUDE_DIRECTORY "${_aV2P_ROOT_DIR}/include")
 set(_aV2P_SUFFIXED_INCLUDE_DIR "${_aV2P_INCLUDE_DIRECTORY}/aV2P")
 
-# the sequential accelerator is required for the tests and examples
-if(aV2P_BUILD_EXAMPLES OR aV2P_BUILD_BENCHMARKS OR BUILD_TESTING)
-  if (NOT (aV2P_ACC_GPU_CUDA_ONLY_MODE OR aV2P_ACC_GPU_HIP_ONLY_MODE))
-    if (NOT DEFINED aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE)
-      option(aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE "enable alpaka serial accelerator" ON)
-    elseif(NOT aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE)
-      set(aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE ON CACHE BOOL "enable alpaka serial accelerator" FORCE)
-    endif()
-  else() #CUDA or HIP-only mode
-    message(WARNING "CUDA/HIP-only mode enabled: not enabling alpaka serial accelerator (required for examples and tests)")
-  endif()
-endif()
+# Legacy alpaka 2.2 forced the sequential accelerator on for tests and examples because its
+# host buffers required a host accelerator type.  On native alpaka 3 host buffers attach to the
+# host device, not to an accelerator, so tests and examples build and run without the serial
+# accelerator too; this is what a GPU-only CUDA or HIP build needs.  It is enabled explicitly,
+# as for every other accelerator.
 # Native alpaka 3 owns all backend/dependency configuration. Translate the aV2P
 # options first and acquire the pinned native dependency exactly once.
 set(aV2P_USE_NATIVE_ALPAKA3 ON)

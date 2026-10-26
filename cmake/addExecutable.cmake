@@ -30,6 +30,16 @@ macro(aV2P_add_executable In_Name)
             )
                 set_source_files_properties(${_file} PROPERTIES LANGUAGE CUDA)
             endif()
+            # Native alpaka's finalize mechanism copies the target's sources into
+            # alpaka_build_files before the GPU translation unit is compiled, so
+            # quoted includes of headers living next to the original source file
+            # (2.2-style same-directory headers) no longer resolve from the
+            # including file's directory.  Add the original source directory to
+            # the include path so those headers keep resolving.
+            get_filename_component(_src_dir ${_file} DIRECTORY)
+            if(_src_dir)
+                target_include_directories(${In_Name} PRIVATE ${_src_dir})
+            endif()
         endforeach()
 
         # We have to set this here since CUDA_SEPARABLE_COMPILATION is not propagated by the aV2P::aV2P target.
@@ -49,6 +59,13 @@ macro(aV2P_add_executable In_Name)
                (${_file} MATCHES "\\.hip$")
             )
                 set_source_files_properties(${_file} PROPERTIES LANGUAGE HIP)
+            endif()
+            # See the CUDA branch: the finalize mechanism copies sources into
+            # alpaka_build_files, so same-directory headers need the original
+            # source directory on the include path.
+            get_filename_component(_src_dir ${_file} DIRECTORY)
+            if(_src_dir)
+                target_include_directories(${In_Name} PRIVATE ${_src_dir})
             endif()
         endforeach()
 
