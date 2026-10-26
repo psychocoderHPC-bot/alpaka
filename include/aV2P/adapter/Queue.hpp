@@ -36,7 +36,7 @@ namespace aV2P
             = alpaka::onHost::Queue<typename TDev::DevType, alpaka::onHost::QueuePolicyList<TQueueKind>>;
 
         explicit QueueAlpaka3(TDev const& dev)
-            : m_queueImpl{const_cast<typename TDev::DevType&>(dev.getAlpaka3()).makeQueue(TQueueKind{})}
+            : m_queueImpl{createQueue(dev)}
         {
         }
 
@@ -62,6 +62,13 @@ namespace aV2P
         }
 
     private:
+        //! `alpaka::onHost::Device::makeQueue` is not const, so take the legacy device handle by value.
+        //! The device copy shares the underlying handle and keeps the created queue's device alive.
+        static auto createQueue(TDev dev) -> QueueType
+        {
+            return dev.getAlpaka3().makeQueue(TQueueKind{});
+        }
+
         QueueType m_queueImpl;
     };
 

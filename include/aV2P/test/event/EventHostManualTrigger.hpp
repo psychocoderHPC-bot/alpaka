@@ -156,11 +156,10 @@ namespace aV2P::trait
     };
 
     template<typename TDev>
-    struct Enqueue<QueueGenericThreadsNonBlocking<TDev>, test::EventHostManualTriggerCpu<TDev>>
+    struct Enqueue<QueueAlpaka3<TDev, alpaka::queueKind::NonBlocking>, test::EventHostManualTriggerCpu<TDev>>
     {
-        //
         AV2P_FN_HOST static auto enqueue(
-            QueueGenericThreadsNonBlocking<TDev>& queue,
+            QueueAlpaka3<TDev, alpaka::queueKind::NonBlocking>& queue,
             test::EventHostManualTriggerCpu<TDev>& event) -> void
         {
             AV2P_DEBUG_MINIMAL_LOG_SCOPE;
@@ -183,9 +182,9 @@ namespace aV2P::trait
 
             auto const enqueueCount = spEventImpl->m_enqueueCount;
 
-            // Enqueue a task that only resets the events flag if it is completed.
-            queue.m_spQueueImpl->m_workerThread.submit(
-                [spEventImpl, enqueueCount]() mutable
+            // Enqueue a host task that only releases the queue once the event is triggered.
+            queue.getAlpaka3().enqueueHostFn(
+                [spEventImpl, enqueueCount]()
                 {
                     std::unique_lock<std::mutex> lk2(spEventImpl->m_mutex);
                     spEventImpl->m_conditionVariable.wait(
@@ -197,11 +196,10 @@ namespace aV2P::trait
     };
 
     template<typename TDev>
-    struct Enqueue<QueueGenericThreadsBlocking<TDev>, test::EventHostManualTriggerCpu<TDev>>
+    struct Enqueue<QueueAlpaka3<TDev, alpaka::queueKind::Blocking>, test::EventHostManualTriggerCpu<TDev>>
     {
-        //
         AV2P_FN_HOST static auto enqueue(
-            QueueGenericThreadsBlocking<TDev>&,
+            QueueAlpaka3<TDev, alpaka::queueKind::Blocking>&,
             test::EventHostManualTriggerCpu<TDev>& event) -> void
         {
             AV2P_DEBUG_MINIMAL_LOG_SCOPE;

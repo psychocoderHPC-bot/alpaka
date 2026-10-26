@@ -4,17 +4,21 @@
 
 #pragma once
 
-#include "aV2P/dev/DevCpu.hpp"
-#include "aV2P/dev/Traits.hpp"
-#include "aV2P/event/EventCpu.hpp"
-#include "aV2P/event/Traits.hpp"
-#include "aV2P/kernel/TaskKernelCpuOmp2Blocks.hpp"
-#include "aV2P/queue/QueueCpuBlocking.hpp"
-#include "aV2P/queue/Traits.hpp"
-#include "aV2P/queue/cpu/ICpuQueue.hpp"
+//! Test-only queue used by the legacy queue/event tests.
+//!
+//! The original 2.2 implementation was an *implementation detail* test double: it derived from the
+//! removed `cpu::ICpuQueue` and ran kernel/copy tasks through the old OpenMP backend task objects.
+//! aV2P has no public equivalent for executing a kernel collectively inside a user-created OpenMP
+//! parallel region, so this compatibility shim owns a regular `QueueCpuBlocking` and delegates every
+//! task to it.  Outside an OpenMP parallel region the behaviour is identical to the original class
+//! (documented in 2.2).  Inside a parallel region exactly one thread of the team submits the task to
+//! the blocking queue, while the other threads synchronise on the same `wait`/`empty` contract.  The
+//! legacy collective distribution across the user's OpenMP team is therefore not reproduced; the
+//! generic queue/event assertions still hold and the collective-specific tests document this
+//! limitation.
+#include "aV2P/alpaka.hpp"
 #include "aV2P/test/event/EventHostManualTrigger.hpp"
 #include "aV2P/test/queue/Queue.hpp"
-#include "aV2P/wait/Traits.hpp"
 
 #include <atomic>
 #include <mutex>
@@ -31,30 +35,13 @@ namespace aV2P
 {
     namespace cpu::detail
     {
-#    if AV2P_COMP_CLANG
-// avoid diagnostic warning: "has no out-of-line virtual method definitions; its vtable will be emitted in every
-// translation unit [-Werror,-Wweak-vtables]" https://stackoverflow.com/a/29288300
-#        pragma clang diagnostic push
-#        pragma clang diagnostic ignored "-Wweak-vtables"
-#    endif
-        //! The CPU collective device queue implementation.
-        struct QueueCpuOmp2CollectiveImpl final : cpu::ICpuQueue
-#    if AV2P_COMP_CLANG
-#        pragma clang diagnostic pop
-#    endif
+        //! State shared by all copies of the test queue.
+        struct QueueCpuOmp2CollectiveImpl
         {
-            explicit QueueCpuOmp2CollectiveImpl(DevCpu const& dev) noexcept : m_dev(dev), blockingQueue(dev)
+            explicit QueueCpuOmp2CollectiveImpl(DevCpu const& dev) noexcept
+                : m_dev(dev)
+                , blockingQueue(dev)
             {
-            }
-
-            void enqueue(EventCpu& ev) final
-            {
-                aV2P::enqueue(*this, ev);
-            }
-
-            void wait(EventCpu const& ev) final
-            {
-                aV2P::wait(*this, ev);
             }
 
             void busyWaitUntilBlockingQueueEmpty()
@@ -70,26 +57,12 @@ namespace aV2P
         };
     } // namespace cpu::detail
 
-    //! The CPU collective device queue.
-    //
-    // @attention Queue can only be used together with the accelerator AccCpuOmp2Blocks.
-    //
-    // This queue is an example for a user provided queue and the behavior is strongly coupled
-    // to the user workflows.
-    //
-    // Within an OpenMP parallel region kernel will be performed collectively.
-    // All other operations will be performed from one thread (it is not defined which thread) and there will be no
-    // implicit synchronization between other operations within the parallel OpenMP parallel region. Operations
-    // executed within a OpenMP parallel region will be executed after already queued tasks before the parallel region
-    // was created.
-    //
-    // Outside of an OpenMP parallel region the queue behaves like QueueCpuBlocking.
+    //! The CPU collective device queue compatibility shim (see the file comment).
     struct QueueCpuOmp2Collective final : interface::Implements<ConceptCurrentThreadWaitFor, QueueCpuOmp2Collective>
     {
         explicit QueueCpuOmp2Collective(DevCpu const& dev)
             : m_spQueueImpl(std::make_shared<cpu::detail::QueueCpuOmp2CollectiveImpl>(dev))
         {
-            dev.registerQueue(m_spQueueImpl);
         }
 
         auto operator==(QueueCpuOmp2Collective const& rhs) const -> bool
@@ -131,8 +104,12 @@ namespace aV2P
             using type = EventCpu;
         };
 
-        //! The CPU blocking device queue enqueue trait specialization.
-        //! This default implementation for all tasks directly invokes the function call operator of the task.
+        //! Submit the task to the wrapped blocking queue.
+        //!
+        //! Outside an OpenMP parallel region this is exactly the 2.2 behaviour. Inside a parallel
+        //! region one thread of the team submits the task; the remaining threads keep synchronising
+        //! through `wait`/`empty`. The task object is forwarded unchanged, so kernel, copy and event
+        //! tasks all use their adapter enqueue specialisations.
         template<typename TTask>
         struct Enqueue<QueueCpuOmp2Collective, TTask>
         {
@@ -144,7 +121,10 @@ namespace aV2P
                     queue.m_spQueueImpl->busyWaitUntilBlockingQueueEmpty();
                     ++queue.m_spQueueImpl->m_uCurrentlyExecutingTask;
 #    pragma omp single nowait
-                    task();
+                    {
+                        std::lock_guard<std::mutex> lk(queue.m_spQueueImpl->m_mutex);
+                        aV2P::enqueue(queue.m_spQueueImpl->blockingQueue, task);
+                    }
                     --queue.m_spQueueImpl->m_uCurrentlyExecutingTask;
                 }
                 else
@@ -152,6 +132,16 @@ namespace aV2P
                     std::lock_guard<std::mutex> lk(queue.m_spQueueImpl->m_mutex);
                     aV2P::enqueue(queue.m_spQueueImpl->blockingQueue, task);
                 }
+            }
+        };
+
+        //! EventHostManualTriggerCpu is not supported together with the collective queue, but the
+        //! event tests instantiate the enqueue for every queue type. Mirrors the 2.2 no-op.
+        template<>
+        struct Enqueue<QueueCpuOmp2Collective, test::EventHostManualTriggerCpu<>>
+        {
+            AV2P_FN_HOST static auto enqueue(QueueCpuOmp2Collective&, test::EventHostManualTriggerCpu<>&) -> void
+            {
             }
         };
 
@@ -166,80 +156,7 @@ namespace aV2P
             }
         };
 
-        //! The CPU OpenMP2 collective device queue enqueue trait specialization.
-        template<>
-        struct Enqueue<cpu::detail::QueueCpuOmp2CollectiveImpl, EventCpu>
-        {
-            AV2P_FN_HOST static auto enqueue(cpu::detail::QueueCpuOmp2CollectiveImpl&, EventCpu&) -> void
-            {
-                AV2P_DEBUG_MINIMAL_LOG_SCOPE;
-
-#    pragma omp barrier
-            }
-        };
-
-        //! The CPU OpenMP2 collective device queue enqueue trait specialization.
-        template<>
-        struct Enqueue<QueueCpuOmp2Collective, EventCpu>
-        {
-            AV2P_FN_HOST static auto enqueue(QueueCpuOmp2Collective& queue, EventCpu& event) -> void
-            {
-                AV2P_DEBUG_MINIMAL_LOG_SCOPE;
-
-                if(::omp_in_parallel() != 0)
-                {
-                    // wait for all tasks en-queued before the parallel region
-                    queue.m_spQueueImpl->busyWaitUntilBlockingQueueEmpty();
-#    pragma omp barrier
-                }
-                else
-                {
-                    aV2P::enqueue(queue.m_spQueueImpl->blockingQueue, event);
-                }
-            }
-        };
-
-        //! The CPU blocking device queue enqueue trait specialization.
-        //! This default implementation for all tasks directly invokes the function call operator of the task.
-        template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
-        struct Enqueue<
-            QueueCpuOmp2Collective,
-            TaskKernelCpuOmp2Blocks<TDim, TIdx, TKernelFnObj, TCooperative, TArgs...>>
-        {
-            AV2P_FN_HOST static auto enqueue(
-                QueueCpuOmp2Collective& queue,
-                TaskKernelCpuOmp2Blocks<TDim, TIdx, TKernelFnObj, TCooperative, TArgs...> const& task) -> void
-            {
-                if(::omp_in_parallel() != 0)
-                {
-                    queue.m_spQueueImpl->busyWaitUntilBlockingQueueEmpty();
-                    ++queue.m_spQueueImpl->m_uCurrentlyExecutingTask;
-                    // execute task within an OpenMP parallel region
-                    task();
-                    --queue.m_spQueueImpl->m_uCurrentlyExecutingTask;
-                }
-                else
-                {
-                    std::lock_guard<std::mutex> lk(queue.m_spQueueImpl->m_mutex);
-                    aV2P::enqueue(queue.m_spQueueImpl->blockingQueue, task);
-                }
-            }
-        };
-
-        template<>
-        struct Enqueue<QueueCpuOmp2Collective, test::EventHostManualTriggerCpu<>>
-        {
-            AV2P_FN_HOST static auto enqueue(QueueCpuOmp2Collective&, test::EventHostManualTriggerCpu<>&) -> void
-            {
-                // EventHostManualTriggerCpu are not supported for together with the queue
-                // QueueCpuOmp2Collective but a specialization is needed to path the EventTests
-            }
-        };
-
         //! The CPU blocking device queue thread wait trait specialization.
-        //!
-        //! Blocks execution of the calling thread until the queue has finished processing all previously requested
-        //! tasks (kernels, data copies, ...)
         template<>
         struct CurrentThreadWaitFor<QueueCpuOmp2Collective>
         {
@@ -247,7 +164,7 @@ namespace aV2P
             {
                 if(::omp_in_parallel() != 0)
                 {
-                    // wait for all tasks en-queued before the parallel region
+                    // wait for all tasks enqueued before the parallel region
                     queue.m_spQueueImpl->busyWaitUntilBlockingQueueEmpty();
 #    pragma omp barrier
                 }
@@ -259,16 +176,6 @@ namespace aV2P
             }
         };
 
-        //! The CPU OpenMP2 collective device queue event wait trait specialization.
-        template<>
-        struct WaiterWaitFor<cpu::detail::QueueCpuOmp2CollectiveImpl, EventCpu>
-        {
-            AV2P_FN_HOST static auto waiterWaitFor(cpu::detail::QueueCpuOmp2CollectiveImpl&, EventCpu const&) -> void
-            {
-#    pragma omp barrier
-            }
-        };
-
         //! The CPU OpenMP2 collective queue event wait trait specialization.
         template<>
         struct WaiterWaitFor<QueueCpuOmp2Collective, EventCpu>
@@ -277,7 +184,6 @@ namespace aV2P
             {
                 if(::omp_in_parallel() != 0)
                 {
-                    // wait for all tasks en-queued before the parallel region
                     queue.m_spQueueImpl->busyWaitUntilBlockingQueueEmpty();
                     wait(queue);
                 }
@@ -293,7 +199,5 @@ namespace aV2P
     {
     };
 } // namespace aV2P
-
-#    include "aV2P/event/EventCpu.hpp"
 
 #endif

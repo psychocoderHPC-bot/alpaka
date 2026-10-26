@@ -30,7 +30,7 @@ namespace aV2P
         //! \param bBusyWaiting Unused; alpaka 3 owns the event synchronisation strategy.
         explicit EventAlpaka3(TDev const& dev, [[maybe_unused]] bool bBusyWaiting = true)
             : m_dev{dev}
-            , m_eventImpl{const_cast<typename TDev::DevType&>(m_dev.getAlpaka3()).makeEvent()}
+            , m_eventImpl{m_dev.getAlpaka3().makeEvent()}
         {
         }
 
