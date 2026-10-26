@@ -442,25 +442,13 @@ TEMPLATE_LIST_TEST_CASE("atomicOperationsWorking", "[atomic]", TestAccs)
     TestAtomicOperations<Acc, unsigned int>::testAtomicOperations();
     TestAtomicOperations<Acc, int>::testAtomicOperations();
 
-    // Intel FPGA SYCL backend does not support 64-bit atomics
-    if constexpr(sizeof(long) == 4 or not std::is_same_v<aV2P::AccToTag<Acc>, aV2P::TagFpgaSyclIntel>)
-    {
-        TestAtomicOperations<Acc, unsigned long>::testAtomicOperations();
-        TestAtomicOperations<Acc, long>::testAtomicOperations();
-    }
+    TestAtomicOperations<Acc, unsigned long>::testAtomicOperations();
+    TestAtomicOperations<Acc, long>::testAtomicOperations();
 
-    // Intel FPGA SYCL backend does not support 64-bit atomics
-    if constexpr(not std::is_same_v<aV2P::AccToTag<Acc>, aV2P::TagFpgaSyclIntel>)
-    {
-        TestAtomicOperations<Acc, unsigned long long>::testAtomicOperations();
-        TestAtomicOperations<Acc, long long>::testAtomicOperations();
-    }
+    TestAtomicOperations<Acc, unsigned long long>::testAtomicOperations();
+    TestAtomicOperations<Acc, long long>::testAtomicOperations();
 
     TestAtomicOperations<Acc, float>::testAtomicOperations();
 
-    // Intel FPGA SYCL backend does not support 64-bit atomics
-    if constexpr(not std::is_same_v<aV2P::AccToTag<Acc>, aV2P::TagFpgaSyclIntel>)
-    {
-        TestAtomicOperations<Acc, double>::testAtomicOperations();
-    }
+    TestAtomicOperations<Acc, double>::testAtomicOperations();
 }

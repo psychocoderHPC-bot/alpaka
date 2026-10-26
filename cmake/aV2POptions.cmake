@@ -87,18 +87,25 @@ set_property(CACHE aV2P_USE_MDSPAN PROPERTY STRINGS "SYSTEM;FETCH;OFF")
 # SYCL target selection (2.2 declared these only when SYCL was enabled; aV2P
 # keeps them unconditionally so the 2.2 option surface stays complete).
 option(aV2P_SYCL_ONEAPI_CPU "Enable oneAPI CPU targets for the SYCL back-end" OFF)
-option(aV2P_SYCL_ONEAPI_FPGA "Enable oneAPI FPGA targets for the SYCL back-end" OFF)
 option(aV2P_SYCL_ONEAPI_GPU "Enable oneAPI Intel GPU targets for the SYCL back-end" OFF)
 option(aV2P_SYCL_ONEAPI_GPU_NVIDIA "Enable NVIDIA GPU targets for the SYCL back-end" OFF)
 option(aV2P_SYCL_ONEAPI_GPU_AMD "Enable AMD GPU targets for the SYCL back-end" OFF)
-set(aV2P_SYCL_ONEAPI_FPGA_MODE "emulation" CACHE STRING "Synthesis type for oneAPI FPGA targets")
-set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_MODE PROPERTY STRINGS "emulation;simulation;hardware")
 set(aV2P_SYCL_ONEAPI_CPU_ISA "avx2" CACHE STRING "oneAPI CPU ISA")
 set_property(CACHE aV2P_SYCL_ONEAPI_CPU_ISA PROPERTY STRINGS "sse4.2;avx;avx2;avx512")
-set(aV2P_SYCL_ONEAPI_FPGA_BOARD "pac_a10" CACHE STRING "oneAPI FPGA board")
-set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_BOARD PROPERTY STRINGS "pac_a10;pac_s10;pac_s10_usm")
-set(aV2P_SYCL_ONEAPI_FPGA_BSP "intel_a10gx_pac" CACHE STRING "oneAPI FPGA BSP")
-set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_BSP PROPERTY STRINGS "intel_a10gx_pac;intel_s10sx_pac")
+
+# The FPGA SYCL backend was removed from aV2P. Reject an explicit request instead of
+# silently ignoring the option.
+foreach(_aV2P_removed_fpga_option IN ITEMS
+    aV2P_SYCL_ONEAPI_FPGA
+    aV2P_SYCL_ONEAPI_FPGA_MODE
+    aV2P_SYCL_ONEAPI_FPGA_BOARD
+    aV2P_SYCL_ONEAPI_FPGA_BSP)
+    if(DEFINED ${_aV2P_removed_fpga_option})
+        message(FATAL_ERROR "${_aV2P_removed_fpga_option}: FPGA SYCL support was removed from aV2P.")
+    endif()
+endforeach()
+unset(_aV2P_removed_fpga_option)
+
 if(NOT DEFINED aV2P_SYCL_ONEAPI_GPU_DEVICES)
     if(aV2P_SYCL_ONEAPI_GPU_NVIDIA)
         set(_aV2P_SYCL_GPU_DEVICES_DEFAULT "nvidia_gpu_sm_89")

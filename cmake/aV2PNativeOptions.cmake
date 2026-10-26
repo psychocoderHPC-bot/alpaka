@@ -168,13 +168,12 @@ endif()
 # the build with no usable aV2P SYCL accelerator. Fail with a clear selection error instead.
 if(aV2P_ACC_SYCL_ENABLE
    AND NOT (aV2P_SYCL_ONEAPI_CPU
-            OR aV2P_SYCL_ONEAPI_FPGA
             OR aV2P_SYCL_ONEAPI_GPU
             OR aV2P_SYCL_ONEAPI_GPU_NVIDIA
             OR aV2P_SYCL_ONEAPI_GPU_AMD))
     message(FATAL_ERROR
         "aV2P_ACC_SYCL_ENABLE=ON but no oneAPI target is selected. Set at least one of "
-        "aV2P_SYCL_ONEAPI_CPU, aV2P_SYCL_ONEAPI_FPGA, aV2P_SYCL_ONEAPI_GPU, "
+        "aV2P_SYCL_ONEAPI_CPU, aV2P_SYCL_ONEAPI_GPU, "
         "aV2P_SYCL_ONEAPI_GPU_NVIDIA, aV2P_SYCL_ONEAPI_GPU_AMD to ON.")
 endif()
 

@@ -96,7 +96,7 @@ namespace aV2P::adapter
 
     //! Executors reached by an explicitly mapped legacy accelerator.
     //!
-    //! Omp2Threads/Threads/TbbBlocks/FpgaSyclIntel are deliberately absent: there is no alpaka 3 executor
+    //! Omp2Threads/Threads/TbbBlocks are deliberately absent: there is no alpaka 3 executor
     //! with their semantics, so they keep the `UnimplementedAcc` diagnostic instead of silently running on
     //! an unrelated executor.
     template<typename TExecutor>

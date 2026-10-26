@@ -301,7 +301,7 @@ namespace aV2P
         static_assert(
             sizeof(TDim) == 0,
             "aV2P: this legacy accelerator has no alpaka 3 executor with the same semantics and is not "
-            "implemented.  CpuOmp2Threads/CpuThreads/CpuTbbBlocks/FpgaSyclIntel are deliberately not mapped "
+            "implemented.  CpuOmp2Threads/CpuThreads/CpuTbbBlocks are deliberately not mapped "
             "to an unrelated executor; see aV2P/adapter/Mapping.hpp.");
     };
 
@@ -328,7 +328,6 @@ namespace aV2P
 #endif
 
 #ifdef AV2P_ACC_SYCL_ENABLED
-    AV2P_DEFINE_UNIMPLEMENTED_ACC(AccFpgaSyclIntel, TagFpgaSyclIntel);
     AV2P_DEFINE_UNIMPLEMENTED_ACC(AccGenericSycl, TagGenericSycl);
     AV2P_DEFINE_UNIMPLEMENTED_ACC(AccGpuSyclNvidia, TagGpuSyclNvidia);
     AV2P_DEFINE_UNIMPLEMENTED_ACC(AccGpuSyclAmd, TagGpuSyclAmd);
@@ -430,16 +429,6 @@ namespace aV2P
     using TaskKernelGpuSyclAmd = TaskKernelGenericSycl<
         TagGpuSyclAmd,
         AccGpuSyclAmd<TDim, TIdx>,
-        TDim,
-        TIdx,
-        TKernelFnObj,
-        TCooperative,
-        TArgs...>;
-
-    template<typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
-    using TaskKernelFpgaSyclIntel = TaskKernelGenericSycl<
-        TagFpgaSyclIntel,
-        AccFpgaSyclIntel<TDim, TIdx>,
         TDim,
         TIdx,
         TKernelFnObj,

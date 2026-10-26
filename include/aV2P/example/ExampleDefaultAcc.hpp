@@ -29,8 +29,6 @@ namespace aV2P
 // ones on the self-contained backward-compatible path; both name the same selection.
 #    if defined(AV2P_SYCL_ONEAPI_CPU) || defined(AV2P_SYCL_TARGET_CPU)
     using ExampleDefaultAcc = aV2P::AccCpuSycl<TDim, TIdx>;
-#    elif defined(AV2P_SYCL_ONEAPI_FPGA)
-    using ExampleDefaultAcc = aV2P::AccFpgaSyclIntel<TDim, TIdx>;
 #    elif defined(AV2P_SYCL_ONEAPI_GPU) || defined(AV2P_SYCL_TARGET_GPU)
     using ExampleDefaultAcc = aV2P::AccGpuSyclIntel<TDim, TIdx>;
 #    elif defined(AV2P_SYCL_ONEAPI_GPU_NVIDIA) || defined(AV2P_SYCL_TARGET_GPU_NVIDIA)

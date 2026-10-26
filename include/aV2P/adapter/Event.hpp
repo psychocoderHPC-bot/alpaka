@@ -84,7 +84,6 @@ namespace aV2P
 
     using EventGpuSyclAmd = EventGenericSycl<TagGpuSyclAmd>;
     using EventGpuSyclNvidia = EventGenericSycl<TagGpuSyclNvidia>;
-    using EventFpgaSyclIntel = EventGenericSycl<TagFpgaSyclIntel>;
 #endif
 
     //! 2.2 event name: the CUDA or HIP event selected by the legacy runtime API tag.

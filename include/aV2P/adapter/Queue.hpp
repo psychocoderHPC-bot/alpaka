@@ -284,8 +284,6 @@ namespace aV2P
     using QueueGpuSyclAmdNonBlocking = QueueGenericSyclNonBlocking<TagGpuSyclAmd>;
     using QueueGpuSyclNvidiaBlocking = QueueGenericSyclBlocking<TagGpuSyclNvidia>;
     using QueueGpuSyclNvidiaNonBlocking = QueueGenericSyclNonBlocking<TagGpuSyclNvidia>;
-    using QueueFpgaSyclIntelBlocking = QueueGenericSyclBlocking<TagFpgaSyclIntel>;
-    using QueueFpgaSyclIntelNonBlocking = QueueGenericSyclNonBlocking<TagFpgaSyclIntel>;
 #endif
 
     //! 2.2 generic-threads queue names: the queue of an arbitrary legacy device.

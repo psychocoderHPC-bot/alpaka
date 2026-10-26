@@ -34,7 +34,6 @@ namespace aV2P
     CREATE_ACC_TAG(TagCpuSycl);
     CREATE_ACC_TAG(TagCpuTbbBlocks);
     CREATE_ACC_TAG(TagCpuThreads);
-    CREATE_ACC_TAG(TagFpgaSyclIntel);
     CREATE_ACC_TAG(TagGenericSycl);
     CREATE_ACC_TAG(TagGpuCudaRt);
     CREATE_ACC_TAG(TagGpuHipRt);
@@ -88,7 +87,6 @@ namespace aV2P
         aV2P::TagGpuCudaRt,
         aV2P::TagGpuHipRt,
         aV2P::TagCpuSycl,
-        aV2P::TagFpgaSyclIntel,
         aV2P::TagGpuSyclIntel,
         aV2P::TagGpuSyclNvidia,
         aV2P::TagGpuSyclAmd>;

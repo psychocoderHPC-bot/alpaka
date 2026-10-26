@@ -132,6 +132,6 @@ auto main() -> int
     // valid tags:
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
-    //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
+    //   TagGenericSycl, TagGpuSyclIntel
     return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

@@ -12,7 +12,6 @@
 #include "aV2P/acc/AccCpuSycl.hpp"
 #include "aV2P/acc/AccCpuTbbBlocks.hpp"
 #include "aV2P/acc/AccCpuThreads.hpp"
-#include "aV2P/acc/AccFpgaSyclIntel.hpp"
 #include "aV2P/acc/AccGpuCudaRt.hpp"
 #include "aV2P/acc/AccGpuHipRt.hpp"
 #include "aV2P/acc/AccGpuUniformCudaHipRt.hpp"

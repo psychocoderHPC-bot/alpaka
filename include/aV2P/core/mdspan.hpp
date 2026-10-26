@@ -40,17 +40,6 @@ namespace aV2P::experimental
 #            endif
 #        endif // AV2P_ACC_SYCL_ENABLED
 
-#        if defined(AV2P_ACC_SYCL_ENABLED) && (defined(AV2P_SYCL_ONEAPI_FPGA) || defined(AV2P_SYCL_TARGET_FPGA))
-//           the fpga compiler does not handle well the [[no_unique_address]] attribute, resulting in:
-//               GEP has !intel-tbaa annotation but its "shape" is unexpected!
-//               /opt/intel/oneapi/compiler/2025.0/bin/compiler/llvm-link: error: linked module is broken!
-//               icpx: error: sycl-link command failed with exit code 1 (use -v to see invocation)
-#            include <experimental/__p0009_bits/config.hpp>
-#            undef MDSPAN_IMPL_USE_ATTRIBUTE_NO_UNIQUE_ADDRESS
-#            undef MDSPAN_IMPL_NO_UNIQUE_ADDRESS
-#            define MDSPAN_IMPL_NO_UNIQUE_ADDRESS
-#        endif
-
 //       mdspan from the Kokkos reference implementation
 #        define MDSPAN_IMPL_STANDARD_NAMESPACE aV2P::experimental
 #        include <experimental/mdspan>

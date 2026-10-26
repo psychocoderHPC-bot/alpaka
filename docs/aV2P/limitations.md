@@ -18,7 +18,12 @@ the features where that layer cannot preserve 2.2 behavior.
 | `AccCpuThreads` | none | no faithful alpaka 3 executor |
 | `AccCpuOmp2Threads` | none | no faithful alpaka 3 executor |
 | `AccCpuTbbBlocks` | none native | PENDING VALIDATION, adapter in progress |
-| `AccFpgaSyclIntel`, `AccGpuSyclAmd`, `AccGpuSyclNvidia` | none | no native FPGA or vendor-GPU SYCL target |
+| `AccGpuSyclAmd`, `AccGpuSyclNvidia` | none | no native vendor-GPU SYCL target |
+
+FPGA SYCL support is intentionally removed from aV2P: this is a deliberate
+aV2P scope decision, not an alpaka 3 capability gap. The FPGA accelerator,
+device, platform, event, queue and buffer types, their headers and their CMake
+options no longer exist.
 
 Only the serial CPU path has passing test evidence in the current
 inventory: host serial builds of the ported examples and the kernel,
@@ -112,7 +117,7 @@ named kernel functor, and aV2P inherits that convention.
 
 ## 5. Public option mapping (2.2 legacy to native alpaka 3)
 
-Source of truth is `develop/cmake/aV2POptionMapping.csv` (47 rows).
+Source of truth is `develop/cmake/aV2POptionMapping.csv` (44 rows).
 Mode `on` turns the native option ON when the legacy is ON. Mode
 `forward` copies the value unless the consumer set the native option
 explicitly. `unsupported`, `cuda_unsupported` and `sycl_unsupported` are
@@ -155,17 +160,13 @@ SYCL is enabled. `local` has no native equivalent.
 | `aV2P_CUDA_SHOW_CODELINES` | `alpaka_CUDA_SHOW_CODELINES` | BOOL | forward | OFF | forwarded value |
 | `aV2P_USE_MDSPAN` | (none) | STRING | local | OFF | aV2P mdspan feature only |
 | `aV2P_SYCL_ONEAPI_CPU` | `alpaka_ONEAPI_Cpu` | BOOL | on | OFF | native oneAPI CPU target |
-| `aV2P_SYCL_ONEAPI_FPGA` | (none) | BOOL | sycl_unsupported | OFF | alpaka 3 has no FPGA target selection |
 | `aV2P_SYCL_ONEAPI_GPU` | `alpaka_ONEAPI_IntelGpu` | BOOL | on | OFF | native oneAPI Intel GPU target |
 | `aV2P_SYCL_ONEAPI_GPU_NVIDIA` | `alpaka_ONEAPI_NvidiaGpu` | BOOL | on | OFF | native oneAPI NVIDIA GPU target |
 | `aV2P_SYCL_ONEAPI_GPU_AMD` | `alpaka_ONEAPI_AmdGpu` | BOOL | on | OFF | native oneAPI AMD GPU target |
-| `aV2P_SYCL_ONEAPI_FPGA_MODE` | (none) | STRING | sycl_unsupported | emulation | alpaka 3 has no FPGA mode |
 | `aV2P_SYCL_ONEAPI_CPU_ISA` | (see `alpaka_ONEAPI_Cpu_ARCH`) | STRING | sycl_warn | avx2 | native uses `alpaka_ONEAPI_Cpu_ARCH` |
-| `aV2P_SYCL_ONEAPI_FPGA_BOARD` | (none) | STRING | sycl_unsupported | pac_a10 | alpaka 3 has no FPGA board selection |
-| `aV2P_SYCL_ONEAPI_FPGA_BSP` | (none) | STRING | sycl_unsupported | intel_a10gx_pac | alpaka 3 has no FPGA BSP selection |
 | `aV2P_SYCL_ONEAPI_GPU_DEVICES` | (vendor arch variables) | STRING | sycl_warn | intel_gpu_pvc | native uses vendor specific arch variables |
 
-Row count: 47 legacy options, matching the source table.
+Row count: 44 legacy options, matching the source table.
 
 ## 6. Compatibility matrix
 
@@ -194,7 +195,7 @@ feature in pinned alpaka 3.0.0 that aV2P cannot bridge), `blocked`
 | TBB blocks backend | unvalidated | native dependency present, no TBB build verified |
 | std::thread backend | limitation | no faithful alpaka 3 executor exists |
 | OpenMP block-thread backend | limitation | no faithful alpaka 3 executor exists |
-| SYCL FPGA backend | limitation | alpaka 3 has no FPGA target selection |
+| FPGA SYCL backend | removed | intentionally removed from aV2P, not an alpaka 3 capability gap |
 | Zero-dimensional buffer and View | gap | alpaka 3.0.0 lacks 0D allocation; compile probe fails in the host-alloc path |
 | Warp mask width, 2.2 per-backend type | limitation | 2.2 `TWarp::mask_type` vs alpaka 3 conditional width; no wrapper type |
 | Warp `all`/`any` return type | limitation | `std::int32_t` in 2.2 vs `bool` in alpaka 3 |

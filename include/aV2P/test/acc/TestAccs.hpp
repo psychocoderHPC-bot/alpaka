@@ -85,13 +85,6 @@ namespace aV2P::test
         template<typename TDim, typename TIdx>
         using AccCpuSyclIfAvailableElseInt = int;
 #endif
-#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_FPGA)
-        template<typename TDim, typename TIdx>
-        using AccFpgaSyclIntelIfAvailableElseInt = AccFpgaSyclIntel<TDim, TIdx>;
-#else
-        template<typename TDim, typename TIdx>
-        using AccFpgaSyclIntelIfAvailableElseInt = int;
-#endif
 #if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_TARGET_GPU)
         template<typename TDim, typename TIdx>
         using AccGpuSyclIntelIfAvailableElseInt = AccGpuSyclIntel<TDim, TIdx>;
@@ -125,7 +118,6 @@ namespace aV2P::test
             AccGpuCudaRtIfAvailableElseInt<TDim, TIdx>,
             AccGpuHipRtIfAvailableElseInt<TDim, TIdx>,
             AccCpuSyclIfAvailableElseInt<TDim, TIdx>,
-            AccFpgaSyclIntelIfAvailableElseInt<TDim, TIdx>,
             AccGpuSyclIntelIfAvailableElseInt<TDim, TIdx>,
             AccGpuSyclNvidiaIfAvailableElseInt<TDim, TIdx>,
             AccGpuSyclAmdIfAvailableElseInt<TDim, TIdx>>;

@@ -153,3 +153,9 @@ lives in Section 5 of [limitations.md](limitations.md). Only
 `aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE` (serial CPU) has passing test evidence
 for end-to-end execution so far; the other backends are tracked in the
 compatibility matrix in [limitations.md](limitations.md).
+
+FPGA SYCL support is intentionally removed from aV2P. This is a deliberate
+scope decision, not an alpaka 3 capability gap: `aV2P_SYCL_ONEAPI_FPGA` and its
+`_MODE`, `_BOARD` and `_BSP` companions, the FPGA types and the FPGA headers
+no longer exist, and configuring with a removed option fails with a fatal
+error.

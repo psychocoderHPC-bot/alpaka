@@ -75,13 +75,6 @@ namespace buftest
         return aV2P::allocBuf<TElem, TIdx>(dev, extent);
     }
 #endif
-#if defined(AV2P_ACC_SYCL_ENABLED) && defined(AV2P_SYCL_ONEAPI_FPGA)
-    template<typename TDim, typename TElem, typename TIdx, typename TExtent>
-    auto allocBuf(aV2P::DevFpgaSyclIntel dev, TExtent extent) -> aV2P::BufFpgaSyclIntel<TElem, TDim, TIdx>
-    {
-        return aV2P::allocBuf<TElem, TIdx>(dev, extent);
-    }
-#endif
 
 } // namespace buftest
 

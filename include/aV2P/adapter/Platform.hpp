@@ -113,7 +113,6 @@ namespace aV2P
 
     using PlatformGpuSyclAmd = PlatformGenericSycl<TagGpuSyclAmd>;
     using PlatformGpuSyclNvidia = PlatformGenericSycl<TagGpuSyclNvidia>;
-    using PlatformFpgaSyclIntel = PlatformGenericSycl<TagFpgaSyclIntel>;
 #endif
 
     //! 2.2 platform name: the CUDA or HIP platform selected by the legacy runtime API tag.

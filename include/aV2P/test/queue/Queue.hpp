@@ -132,11 +132,6 @@ namespace aV2P::test
         std::tuple<aV2P::DevCpuSycl, aV2P::QueueCpuSyclBlocking>,
         std::tuple<aV2P::DevCpuSycl, aV2P::QueueCpuSyclNonBlocking>
 #    endif
-#    ifdef AV2P_SYCL_ONEAPI_FPGA
-        ,
-        std::tuple<aV2P::DevFpgaSyclIntel, aV2P::QueueFpgaSyclIntelBlocking>,
-        std::tuple<aV2P::DevFpgaSyclIntel, aV2P::QueueFpgaSyclIntelNonBlocking>
-#    endif
 #    ifdef AV2P_SYCL_ONEAPI_GPU
         ,
         std::tuple<aV2P::DevGpuSyclIntel, aV2P::QueueGpuSyclIntelBlocking>,

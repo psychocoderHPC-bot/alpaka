@@ -27,7 +27,6 @@ using TagList = std::tuple<
     aV2P::TagGpuCudaRt,
     aV2P::TagGpuHipRt,
     aV2P::TagCpuSycl,
-    aV2P::TagFpgaSyclIntel,
     aV2P::TagGpuSyclIntel,
     aV2P::TagGpuSyclNvidia,
     aV2P::TagGpuSyclAmd>;
@@ -41,7 +40,6 @@ using AccToTagMap = std::tuple<
     std::pair<aV2P::test::detail::AccGpuCudaRtIfAvailableElseInt<Dim, Idx>, aV2P::TagGpuCudaRt>,
     std::pair<aV2P::test::detail::AccGpuHipRtIfAvailableElseInt<Dim, Idx>, aV2P::TagGpuHipRt>,
     std::pair<aV2P::test::detail::AccCpuSyclIfAvailableElseInt<Dim, Idx>, aV2P::TagCpuSycl>,
-    std::pair<aV2P::test::detail::AccFpgaSyclIntelIfAvailableElseInt<Dim, Idx>, aV2P::TagFpgaSyclIntel>,
     std::pair<aV2P::test::detail::AccGpuSyclIntelIfAvailableElseInt<Dim, Idx>, aV2P::TagGpuSyclIntel>,
     std::pair<aV2P::test::detail::AccGpuSyclNvidiaIfAvailableElseInt<Dim, Idx>, aV2P::TagGpuSyclNvidia>,
     std::pair<aV2P::test::detail::AccGpuSyclAmdIfAvailableElseInt<Dim, Idx>, aV2P::TagGpuSyclAmd>>;

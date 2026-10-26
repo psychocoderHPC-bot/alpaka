@@ -682,15 +682,9 @@ if(aV2P_ACC_SYCL_ENABLE)
     if(${CMAKE_CXX_COMPILER_ID} STREQUAL "IntelLLVM")
         # Possible oneAPI targets
         cmake_dependent_option(aV2P_SYCL_ONEAPI_CPU "Enable oneAPI CPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
-        cmake_dependent_option(aV2P_SYCL_ONEAPI_FPGA "Enable oneAPI FPGA targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
         cmake_dependent_option(aV2P_SYCL_ONEAPI_GPU "Enable oneAPI GPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
         cmake_dependent_option(aV2P_SYCL_ONEAPI_GPU_NVIDIA "Enable NVIDIA GPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
         cmake_dependent_option(aV2P_SYCL_ONEAPI_GPU_AMD "Enable AMD GPU targets for the SYCL back-end" OFF "aV2P_ACC_SYCL_ENABLE" OFF)
-        # Intel FPGA emulation / simulation
-        if(aV2P_SYCL_ONEAPI_FPGA)
-            set(aV2P_SYCL_ONEAPI_FPGA_MODE "emulation" CACHE STRING "Synthesis type for oneAPI FPGA targets")
-            set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_MODE PROPERTY STRINGS "emulation;simulation;hardware")
-        endif()
 
         aV2P_set_compiler_options(HOST_DEVICE target aV2P "-fsycl")
         target_link_options(aV2P INTERFACE "-fsycl")
@@ -699,15 +693,10 @@ if(aV2P_ACC_SYCL_ENABLE)
         #-----------------------------------------------------------------------------------------------------------------
         # Determine SYCL targets
         set(aV2P_SYCL_ONEAPI_CPU_TARGET "spir64_x86_64")
-        set(aV2P_SYCL_ONEAPI_FPGA_TARGET "spir64_fpga")
         set(aV2P_SYCL_ONEAPI_GPU_TARGET ${aV2P_SYCL_ONEAPI_GPU_DEVICES})
 
         if(aV2P_SYCL_ONEAPI_CPU)
             list(APPEND aV2P_SYCL_TARGETS ${aV2P_SYCL_ONEAPI_CPU_TARGET})
-        endif()
-
-        if(aV2P_SYCL_ONEAPI_FPGA)
-            list(APPEND aV2P_SYCL_TARGETS ${aV2P_SYCL_ONEAPI_FPGA_TARGET})
         endif()
 
         if(aV2P_SYCL_ONEAPI_GPU OR aV2P_SYCL_ONEAPI_GPU_NVIDIA OR aV2P_SYCL_ONEAPI_GPU_AMD)
@@ -730,31 +719,6 @@ if(aV2P_ACC_SYCL_ENABLE)
 
             target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_CPU")
             target_link_options(aV2P INTERFACE "SHELL:-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_CPU_TARGET} \"-march=${aV2P_SYCL_ONEAPI_CPU_ISA}\"")
-        endif()
-
-        if(aV2P_SYCL_ONEAPI_FPGA)
-            target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_ONEAPI_FPGA")
-
-            if(aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "emulation")
-                target_compile_definitions(aV2P INTERFACE "AV2P_FPGA_EMULATION")
-                aV2P_set_compiler_options(DEVICE target aV2P "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-emulator")
-                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-emulator")
-            elseif(aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "simulation")
-                aV2P_set_compiler_options(DEVICE target aV2P "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-simulation")
-                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-simulation")
-            elseif(aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "hardware")
-                aV2P_set_compiler_options(DEVICE target aV2P "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-hardware")
-                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-hardware")
-            endif()
-
-            if(NOT aV2P_SYCL_ONEAPI_FPGA_MODE STREQUAL "emulation")
-                set(aV2P_SYCL_ONEAPI_FPGA_BOARD "pac_a10" CACHE STRING "Intel FPGA board to compile for")
-                set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_BOARD PROPERTY STRINGS "pac_a10;pac_s10;pac_s10_usm")
-
-                set(aV2P_SYCL_ONEAPI_FPGA_BSP "intel_a10gx_pac" CACHE STRING "Path to or name of the Intel FPGA board support package")
-                set_property(CACHE aV2P_SYCL_ONEAPI_FPGA_BSP PROPERTY STRINGS "intel_a10gx_pac;intel_s10sx_pac")
-                target_link_options(aV2P INTERFACE "-Xsycl-target-backend=${aV2P_SYCL_ONEAPI_FPGA_TARGET}" "-board=${aV2P_SYCL_ONEAPI_FPGA_BSP}:${aV2P_SYCL_ONEAPI_FPGA_BOARD}")
-            endif()
         endif()
 
         if(aV2P_SYCL_ONEAPI_GPU)
@@ -873,9 +837,6 @@ if(aV2P_ACC_SYCL_ENABLE)
 
     if(aV2P_SYCL_ONEAPI_CPU)
         target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_CPU")
-    endif()
-    if(aV2P_SYCL_ONEAPI_FPGA)
-        target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_FPGA")
     endif()
     if(aV2P_SYCL_ONEAPI_GPU)
         target_compile_definitions(aV2P INTERFACE "AV2P_SYCL_TARGET_GPU")

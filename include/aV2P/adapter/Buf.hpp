@@ -311,11 +311,5 @@ namespace aV2P
 
     template<typename TElem, typename TDim, typename TIdx>
     using ConstBufGpuSyclNvidia = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
-
-    template<typename TElem, typename TDim, typename TIdx>
-    using BufFpgaSyclIntel = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
-
-    template<typename TElem, typename TDim, typename TIdx>
-    using ConstBufFpgaSyclIntel = legacy_buf::UnimplementedBuf<TElem, TDim, TIdx>;
 #endif
 } // namespace aV2P

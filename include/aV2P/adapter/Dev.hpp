@@ -156,7 +156,7 @@ namespace aV2P
     {
 #ifdef AV2P_ACC_SYCL_ENABLED
         //! Device type behind `DevGenericSycl<TTag>`: a real adapter device for mapped tags, a name-only
-        //! placeholder otherwise (the oneAPI Nvidia/AMD/FPGA device kinds have no alpaka 3 executor here).
+        //! placeholder otherwise (the oneAPI Nvidia/AMD device kinds have no alpaka 3 executor here).
         template<typename TTag, typename = void>
         struct GenericSyclDevType
         {
@@ -203,7 +203,6 @@ namespace aV2P
 
     using DevGpuSyclAmd = DevGenericSycl<TagGpuSyclAmd>;
     using DevGpuSyclNvidia = DevGenericSycl<TagGpuSyclNvidia>;
-    using DevFpgaSyclIntel = DevGenericSycl<TagFpgaSyclIntel>;
 #endif
 
     //! 2.2 device name: the CUDA or HIP device selected by the legacy runtime API tag.

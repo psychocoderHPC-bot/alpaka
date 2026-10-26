@@ -22,7 +22,6 @@ namespace aV2P::test
                          aV2P::TagGpuSyclIntel,
                          aV2P::TagGpuSyclNvidia,
                          aV2P::TagGpuSyclAmd,
-                         aV2P::TagFpgaSyclIntel,
                          aV2P::TagGenericSycl>)
         {
             return aV2P::warp::detail::syclWarpUnsupportedReason<aV2P::AccToTag<TAcc>>();
