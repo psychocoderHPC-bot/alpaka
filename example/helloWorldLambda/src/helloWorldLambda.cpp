@@ -39,6 +39,32 @@ void AV2P_FN_ACC hiWorldFunction(TAcc const& acc, size_t const nExclamationMarks
     printf("\n");
 }
 
+//! Kernel writing the Hello World message.
+struct HelloWorldKernel
+{
+    template<typename TAcc>
+    AV2P_FN_ACC void operator()(TAcc const& acc, size_t const nExclamationMarksAsArg) const
+    {
+        auto globalThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
+        auto globalThreadExtent = aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc);
+        auto linearizedGlobalThreadIdx = aV2P::mapIdx<1u>(globalThreadIdx, globalThreadExtent);
+
+        printf(
+            "[z:%u, y:%u, x:%u][linear:%u] Hello world from a lambda",
+            static_cast<unsigned>(globalThreadIdx[0]),
+            static_cast<unsigned>(globalThreadIdx[1]),
+            static_cast<unsigned>(globalThreadIdx[2]),
+            static_cast<unsigned>(linearizedGlobalThreadIdx[0]));
+
+        for(size_t i = 0; i < nExclamationMarksAsArg; ++i)
+        {
+            printf("!");
+        }
+
+        printf("\n");
+    }
+};
+
 // In standard projects, you typically do not execute the code with any available accelerator.
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
@@ -81,49 +107,22 @@ auto example(TAccTag const&) -> int
 
     size_t const nExclamationMarks = 10;
 
-    // Run "Hello World" kernel with a lambda function
+    // Run the "Hello World" kernel.
     //
-    // alpaka is able to execute lambda functions (anonymous functions).
-    // alpaka forces the lambda function to accept
-    // the utilized accelerator as first argument.
-    // All following arguments can be provided after
-    // the lambda function declaration or be captured.
+    // The kernel accepts the utilized accelerator as first argument.
+    // Additional arguments can be provided after the kernel functor
+    // declaration or stored as members of the functor.
     //
-    // This example passes the number exclamation marks, that should
-    // be written after we greet the world, to the
-    // lambda function.
-    //
-    // To define a fully generic kernel lambda, the type of acc must be
-    // auto. The Nvidia nvcc does not support generic lambdas, so the
-    // type is set to Acc.
-
-    auto kernelLambda = [] AV2P_FN_ACC(Acc const& acc, size_t const nExclamationMarksAsArg) -> void
-    {
-        auto globalThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
-        auto globalThreadExtent = aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc);
-        auto linearizedGlobalThreadIdx = aV2P::mapIdx<1u>(globalThreadIdx, globalThreadExtent);
-
-        printf(
-            "[z:%u, y:%u, x:%u][linear:%u] Hello world from a lambda",
-            static_cast<unsigned>(globalThreadIdx[0]),
-            static_cast<unsigned>(globalThreadIdx[1]),
-            static_cast<unsigned>(globalThreadIdx[2]),
-            static_cast<unsigned>(linearizedGlobalThreadIdx[0]));
-
-        for(size_t i = 0; i < nExclamationMarksAsArg; ++i)
-        {
-            printf("!");
-        }
-
-        printf("\n");
-    };
+    // This example passes the number of exclamation marks that should
+    // be written after we greet the world as a kernel argument.
+    HelloWorldKernel kernel;
 
     aV2P::KernelCfg<Acc> const kernelCfg = {elementsPerGrid, elementsPerThread};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, kernelLambda, nExclamationMarks);
+    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, kernel, nExclamationMarks);
 
-    aV2P::exec<Tag>(queue, workDiv, kernelLambda, nExclamationMarks);
+    aV2P::exec<Tag>(queue, workDiv, kernel, nExclamationMarks);
     aV2P::wait(queue);
 
     return EXIT_SUCCESS;

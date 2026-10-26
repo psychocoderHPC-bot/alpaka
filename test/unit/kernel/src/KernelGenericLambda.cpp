@@ -12,6 +12,27 @@
 // CUDA C Programming guide says: "__host__ __device__ extended lambdas cannot be generic lambdas"
 #if !defined(AV2P_ACC_GPU_CUDA_ENABLED)
 
+struct GenericLambdaKernel
+{
+    template<typename TAcc>
+    AV2P_FN_ACC void operator()(TAcc const& acc, bool* success) const
+    {
+        AV2P_CHECK(
+            *success,
+            static_cast<aV2P::Idx<TAcc>>(1) == (aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)).prod());
+    }
+};
+
+template<typename TAcc>
+struct VariadicGenericLambdaKernel
+{
+    template<typename... TArgs>
+    AV2P_FN_ACC void operator()(TAcc const& /* acc */, bool* success, TArgs... args) const
+    {
+        AV2P_CHECK(*success, aV2P::meta::foldr([](auto a, auto b) { return a + b; }, args...) == (42u + 43u));
+    }
+};
+
 TEMPLATE_LIST_TEST_CASE("genericLambdaKernelIsWorking", "[kernel]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
@@ -20,12 +41,7 @@ TEMPLATE_LIST_TEST_CASE("genericLambdaKernelIsWorking", "[kernel]", aV2P::test::
 
     aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
-    auto kernel = [] AV2P_FN_ACC(auto const& acc, bool* success) -> void
-    {
-        AV2P_CHECK(
-            *success,
-            static_cast<aV2P::Idx<Acc>>(1) == (aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)).prod());
-    };
+    GenericLambdaKernel kernel;
 
     REQUIRE(fixture(kernel));
 }
@@ -40,8 +56,7 @@ TEMPLATE_LIST_TEST_CASE("variadicGenericLambdaKernelIsWorking", "[kernel]", aV2P
 
     std::uint32_t const arg1 = 42u;
     std::uint32_t const arg2 = 43u;
-    auto kernel = [] AV2P_FN_ACC(Acc const& /* acc */, bool* success, auto... args) -> void
-    { AV2P_CHECK(*success, aV2P::meta::foldr([](auto a, auto b) { return a + b; }, args...) == (42u + 43u)); };
+    VariadicGenericLambdaKernel<Acc> kernel;
 
     REQUIRE(fixture(kernel, arg1, arg2));
 }

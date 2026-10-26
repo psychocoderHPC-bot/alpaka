@@ -30,6 +30,16 @@ using QueueProperty = aV2P::Blocking;
 using QueueAcc = aV2P::Queue<Acc, QueueProperty>;
 using MaxBlockSize = Accelerator::MaxBlockSize;
 
+//! Binary addition functor used as the device reduction operator.
+struct AddFunctor
+{
+    template<typename T>
+    AV2P_FN_ACC auto operator()(T a, T b) const -> T
+    {
+        return a + b;
+    }
+};
+
 //! Reduces the numbers 1 to n.
 //!
 //! \tparam T The data type.
@@ -138,7 +148,7 @@ auto main() -> int
         nativeHostMemory[i] = static_cast<T>(i + 1);
 
     // define the reduction function
-    auto addFn = [] AV2P_FN_ACC(T a, T b) -> T { return a + b; };
+    AddFunctor addFn;
 
     // reduce
     T result = reduce<T>(devHost, devAcc, queue, n, hostMemory, addFn);

@@ -24,7 +24,17 @@
 
 using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::size_t>;
 
-//! Caller of test template with additional lambda wrapping the functor
+//! Device wrapper forwarding to a mathtest functor.
+template<typename TFunctor, typename TAcc, typename TArgsItem>
+struct WrappedMathFunctor
+{
+    AV2P_FN_ACC auto operator()(TArgsItem const& arguments, TAcc const& acc) const
+    {
+        return TFunctor{}(arguments, acc);
+    }
+};
+
+//! Caller of test template with an additional functor wrapper
 //! @tparam TAcc Accelerator.
 //! @tparam TData Input data type..
 template<typename TAcc, typename TData>
@@ -41,8 +51,7 @@ struct LambdaMathTestTemplate
         constexpr uint32_t index = (sizeof(TAcc) + sizeof(TData) + sizeof(TFunctors)) % std::tuple_size_v<TFunctors>;
         using Functor = std::tuple_element_t<index, TFunctors>;
         using ArgsItem = mathtest::ArgsItem<TData, Functor::arity>;
-        auto wrappedFunctor
-            = [] AV2P_FN_ACC(ArgsItem const& arguments, TAcc const& acc) { return Functor{}(arguments, acc); };
+        WrappedMathFunctor<Functor, TAcc, ArgsItem> wrappedFunctor;
         auto testTemplate = mathtest::TestTemplate<TAcc, Functor>{};
         testTemplate.template operator()<TData>(wrappedFunctor);
     }
