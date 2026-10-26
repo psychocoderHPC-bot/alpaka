@@ -151,5 +151,56 @@ namespace aV2P
                 alpaka::onHost::memset(queue.getAlpaka3(), task.m_dest, task.m_value, task.m_extents);
             }
         };
+
+        /*! Legacy native queue handle on the device backends that exposed one in 2.2.
+         *
+         * 2.2 implemented `trait::NativeHandle` only for the CUDA/HIP stream queue and the SYCL
+         * queue (`alpaka/queue/cuda-hip/QueueUniformCudaHipRt.hpp:258`,
+         * `alpaka/queue/sycl/QueueGenericSyclBase.hpp:284`); the host queue had no native handle.
+         * Keep exactly that set: the CUDA caching-allocator test and other legacy consumers pass
+         * the handle to native APIs.  Host queues still fall through to the primary template's
+         * "This type does not have a native handle!" diagnostic instead of a fabricated value.
+         */
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+        template<alpaka::concepts::QueueKind TQueueKind>
+        struct NativeHandle<QueueAlpaka3<DevCudaRt, TQueueKind>>
+        {
+            [[nodiscard]] static auto getNativeHandle(QueueAlpaka3<DevCudaRt, TQueueKind> const& queue)
+            {
+                return queue.getAlpaka3().getNativeHandle();
+            }
+        };
+#endif
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
+        template<alpaka::concepts::QueueKind TQueueKind>
+        struct NativeHandle<QueueAlpaka3<DevHipRt, TQueueKind>>
+        {
+            [[nodiscard]] static auto getNativeHandle(QueueAlpaka3<DevHipRt, TQueueKind> const& queue)
+            {
+                return queue.getAlpaka3().getNativeHandle();
+            }
+        };
+#endif
+#if defined(AV2P_ACC_SYCL_ENABLED)
+        template<alpaka::concepts::QueueKind TQueueKind>
+        struct NativeHandle<QueueAlpaka3<DevCpuSycl, TQueueKind>>
+        {
+            [[nodiscard]] static auto getNativeHandle(QueueAlpaka3<DevCpuSycl, TQueueKind> const& queue)
+            {
+                return queue.getAlpaka3().getNativeHandle();
+            }
+        };
+
+        template<alpaka::concepts::QueueKind TQueueKind>
+        struct NativeHandle<QueueAlpaka3<DevGpuSyclIntel, TQueueKind>>
+        {
+            [[nodiscard]] static auto getNativeHandle(QueueAlpaka3<DevGpuSyclIntel, TQueueKind> const& queue)
+            {
+                return queue.getAlpaka3().getNativeHandle();
+            }
+        };
+#endif
+    } // namespace trait
+} // namespace aV2P
     } // namespace trait
 } // namespace aV2P

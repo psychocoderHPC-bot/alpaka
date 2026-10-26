@@ -5,6 +5,7 @@
 #pragma once
 
 #include "aV2P/adapter/MemOps.hpp"
+#include "aV2P/mem/global/DeviceGlobalGpu.hpp"
 #include "aV2P/mem/global/Traits.hpp"
 #include "aV2P/mem/view/ViewPlainPtr.hpp"
 
