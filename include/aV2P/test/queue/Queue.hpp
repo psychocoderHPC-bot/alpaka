@@ -7,6 +7,8 @@
 
 #include "aV2P/alpaka.hpp"
 
+#include <type_traits>
+
 namespace aV2P::test
 {
     namespace trait
@@ -26,29 +28,52 @@ namespace aV2P::test
 #endif
         };
 
-#if defined(AV2P_ACC_GPU_CUDA_ENABLED) || defined(AV2P_ACC_GPU_HIP_ENABLED)
-
-        //! The default queue type trait specialization for the CUDA/HIP device.
-        template<typename TApi>
-        struct DefaultQueueType<DevUniformCudaHipRt<TApi>>
+#ifdef AV2P_ACC_GPU_CUDA_ENABLED
+        //! The default queue type trait specialization for the CUDA device.
+        template<>
+        struct DefaultQueueType<DevCudaRt>
         {
 #    if(AV2P_DEBUG >= AV2P_DEBUG_FULL)
-            using type = QueueUniformCudaHipRtBlocking<TApi>;
+            using type = QueueCudaRtBlocking;
 #    else
-            using type = QueueUniformCudaHipRtNonBlocking<TApi>;
+            using type = QueueCudaRtNonBlocking;
+#    endif
+        };
+#endif
+
+#ifdef AV2P_ACC_GPU_HIP_ENABLED
+        //! The default queue type trait specialization for the HIP device.
+        template<>
+        struct DefaultQueueType<DevHipRt>
+        {
+#    if(AV2P_DEBUG >= AV2P_DEBUG_FULL)
+            using type = QueueHipRtBlocking;
+#    else
+            using type = QueueHipRtNonBlocking;
 #    endif
         };
 #endif
 
 #ifdef AV2P_ACC_SYCL_ENABLED
-        //! The default queue type trait specialization for the SYCL device.
-        template<concepts::Tag TTag>
-        struct DefaultQueueType<DevGenericSycl<TTag>>
+        //! The default queue type trait specialization for the SYCL CPU device.
+        template<>
+        struct DefaultQueueType<DevCpuSycl>
         {
 #    if(AV2P_DEBUG >= AV2P_DEBUG_FULL)
-            using type = QueueGenericSyclBlocking<TTag>;
+            using type = QueueCpuSyclBlocking;
 #    else
-            using type = QueueGenericSyclNonBlocking<TTag>;
+            using type = QueueCpuSyclNonBlocking;
+#    endif
+        };
+
+        //! The default queue type trait specialization for the SYCL Intel GPU device.
+        template<>
+        struct DefaultQueueType<DevGpuSyclIntel>
+        {
+#    if(AV2P_DEBUG >= AV2P_DEBUG_FULL)
+            using type = QueueGpuSyclIntelBlocking;
+#    else
+            using type = QueueGpuSyclIntelNonBlocking;
 #    endif
         };
 #endif
@@ -71,36 +96,12 @@ namespace aV2P::test
             static constexpr bool value = false;
         };
 
-#if defined(AV2P_ACC_GPU_CUDA_ENABLED) || defined(AV2P_ACC_GPU_HIP_ENABLED)
-
-        //! The blocking queue trait specialization for a blocking CUDA/HIP RT queue.
-        template<typename TApi>
-        struct IsBlockingQueue<QueueUniformCudaHipRtBlocking<TApi>>
+        //! The blocking queue trait specialization for the aV2P queue adapter.
+        template<typename TDev, alpaka::concepts::QueueKind TQueueKind>
+        struct IsBlockingQueue<QueueAlpaka3<TDev, TQueueKind>>
         {
-            static constexpr bool value = true;
+            static constexpr bool value = std::is_same_v<TQueueKind, alpaka::queueKind::Blocking>;
         };
-
-        //! The blocking queue trait specialization for a non-blocking CUDA/HIP RT queue.
-        template<typename TApi>
-        struct IsBlockingQueue<QueueUniformCudaHipRtNonBlocking<TApi>>
-        {
-            static constexpr bool value = false;
-        };
-#endif
-
-#ifdef AV2P_ACC_SYCL_ENABLED
-        template<concepts::Tag TTag>
-        struct IsBlockingQueue<QueueGenericSyclBlocking<TTag>>
-        {
-            static constexpr auto value = true;
-        };
-
-        template<concepts::Tag TTag>
-        struct IsBlockingQueue<QueueGenericSyclNonBlocking<TTag>>
-        {
-            static constexpr auto value = false;
-        };
-#endif
     } // namespace trait
 
     //! The queue type that should be used for the given device.

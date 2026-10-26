@@ -5,7 +5,7 @@
 #pragma once
 
 #include "aV2P/acc/Tag.hpp"
-#include "aV2P/dev/DevGenericSycl.hpp"
+#include "aV2P/adapter/Dev.hpp"
 #include "aV2P/extent/Traits.hpp"
 #include "aV2P/mem/view/Traits.hpp"
 
@@ -261,7 +261,7 @@ namespace aV2P::internal
 
 #ifdef AV2P_ACC_SYCL_ENABLED
     template<>
-    struct ViewAccessor<aV2P::DevGenericSycl<aV2P::TagCpuSycl>>
+    struct ViewAccessor<aV2P::DevCpuSycl>
     {
         template<concepts::View TView>
         using AccessorType = HostViewAccessor<TView>;

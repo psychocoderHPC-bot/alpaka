@@ -713,11 +713,11 @@ namespace aV2P
 {
     namespace test
     {
-        template<concepts::Tag TTag>
         class EventHostManualTriggerSycl
         {
         public:
-            EventHostManualTriggerSycl(DevGenericSycl<TTag> const&)
+            template<typename TDev>
+            EventHostManualTriggerSycl(TDev const&)
             {
             }
 
@@ -728,16 +728,31 @@ namespace aV2P
 
         namespace trait
         {
-            template<concepts::Tag TTag>
-            struct EventHostManualTriggerType<DevGenericSycl<TTag>>
+            template<>
+            struct EventHostManualTriggerType<DevCpuSycl>
             {
-                using type = aV2P::test::EventHostManualTriggerSycl<TTag>;
+                using type = aV2P::test::EventHostManualTriggerSycl;
             };
 
-            template<concepts::Tag TTag>
-            struct IsEventHostManualTriggerSupported<DevGenericSycl<TTag>>
+            template<>
+            struct EventHostManualTriggerType<DevGpuSyclIntel>
             {
-                AV2P_FN_HOST static auto isSupported(DevGenericSycl<TTag> const&) -> bool
+                using type = aV2P::test::EventHostManualTriggerSycl;
+            };
+
+            template<>
+            struct IsEventHostManualTriggerSupported<DevCpuSycl>
+            {
+                AV2P_FN_HOST static auto isSupported(DevCpuSycl const&) -> bool
+                {
+                    return false;
+                }
+            };
+
+            template<>
+            struct IsEventHostManualTriggerSupported<DevGpuSyclIntel>
+            {
+                AV2P_FN_HOST static auto isSupported(DevGpuSyclIntel const&) -> bool
                 {
                     return false;
                 }
@@ -747,30 +762,20 @@ namespace aV2P
 
     namespace trait
     {
-        template<concepts::Tag TTag>
-        struct Enqueue<QueueGenericSyclBlocking<TTag>, test::EventHostManualTriggerSycl<TTag>>
+        template<typename TDev, alpaka::concepts::QueueKind TQueueKind>
+        struct Enqueue<QueueAlpaka3<TDev, TQueueKind>, test::EventHostManualTriggerSycl>
         {
             AV2P_FN_HOST static auto enqueue(
-                QueueGenericSyclBlocking<TTag>& /* queue */,
-                test::EventHostManualTriggerSycl<TTag>& /* event */) -> void
+                QueueAlpaka3<TDev, TQueueKind>& /* queue */,
+                test::EventHostManualTriggerSycl& /* event */) -> void
             {
             }
         };
 
-        template<concepts::Tag TTag>
-        struct Enqueue<QueueGenericSyclNonBlocking<TTag>, test::EventHostManualTriggerSycl<TTag>>
+        template<>
+        struct IsComplete<test::EventHostManualTriggerSycl>
         {
-            AV2P_FN_HOST static auto enqueue(
-                QueueGenericSyclNonBlocking<TTag>& /* queue */,
-                test::EventHostManualTriggerSycl<TTag>& /* event */) -> void
-            {
-            }
-        };
-
-        template<concepts::Tag TTag>
-        struct IsComplete<test::EventHostManualTriggerSycl<TTag>>
-        {
-            AV2P_FN_HOST static auto isComplete(test::EventHostManualTriggerSycl<TTag> const& /* event */) -> bool
+            AV2P_FN_HOST static auto isComplete(test::EventHostManualTriggerSycl const& /* event */) -> bool
             {
                 return true;
             }

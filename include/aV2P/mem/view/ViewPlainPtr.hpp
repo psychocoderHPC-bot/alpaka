@@ -5,9 +5,7 @@
 
 #pragma once
 
-#include "aV2P/dev/DevCpu.hpp"
-#include "aV2P/dev/DevGenericSycl.hpp"
-#include "aV2P/dev/DevUniformCudaHipRt.hpp"
+#include "aV2P/adapter/Dev.hpp"
 #include "aV2P/mem/view/Traits.hpp"
 #include "aV2P/mem/view/ViewAccessOps.hpp"
 #include "aV2P/meta/DependentFalseType.hpp"
@@ -115,63 +113,26 @@ namespace aV2P
             }
         };
 
-        //! The CPU device CreateViewPlainPtr trait specialization.
-        template<>
-        struct CreateViewPlainPtr<DevCpu>
-        {
-            template<typename TElem, typename TExtent, typename TPitch>
-            static auto createViewPlainPtr(DevCpu const& dev, TElem* pMem, TExtent const& extent, TPitch pitch)
-            {
-                return aV2P::ViewPlainPtr<DevCpu, TElem, aV2P::Dim<TExtent>, aV2P::Idx<TExtent>>(
-                    pMem,
-                    dev,
-                    extent,
-                    pitch);
-            }
-        };
-
-#if defined(AV2P_ACC_GPU_CUDA_ENABLED) || defined(AV2P_ACC_GPU_HIP_ENABLED)
-        //! The CUDA/HIP RT device CreateViewPlainPtr trait specialization.
-        template<typename TApi>
-        struct CreateViewPlainPtr<DevUniformCudaHipRt<TApi>>
+        //! The device CreateViewPlainPtr trait specialization.
+        template<typename TDevSpec>
+        struct CreateViewPlainPtr<DevAlpaka3<TDevSpec>>
         {
             template<typename TElem, typename TExtent, typename TPitch>
             static auto createViewPlainPtr(
-                DevUniformCudaHipRt<TApi> const& dev,
+                DevAlpaka3<TDevSpec> const& dev,
                 TElem* pMem,
                 TExtent const& extent,
                 TPitch pitch)
             {
                 return aV2P::
-                    ViewPlainPtr<DevUniformCudaHipRt<TApi>, TElem, aV2P::Dim<TExtent>, aV2P::Idx<TExtent>>(
+                    ViewPlainPtr<DevAlpaka3<TDevSpec>, TElem, aV2P::Dim<TExtent>, aV2P::Idx<TExtent>>(
                         pMem,
                         dev,
                         extent,
                         pitch);
             }
         };
-#endif
 
-#if defined(AV2P_ACC_SYCL_ENABLED)
-        //! The SYCL device CreateViewPlainPtr trait specialization.
-        template<concepts::Tag TTag>
-        struct CreateViewPlainPtr<DevGenericSycl<TTag>>
-        {
-            template<typename TElem, typename TExtent, typename TPitch>
-            static auto createViewPlainPtr(
-                DevGenericSycl<TTag> const& dev,
-                TElem* pMem,
-                TExtent const& extent,
-                TPitch pitch)
-            {
-                return aV2P::ViewPlainPtr<DevGenericSycl<TTag>, TElem, aV2P::Dim<TExtent>, aV2P::Idx<TExtent>>(
-                    pMem,
-                    dev,
-                    extent,
-                    pitch);
-            }
-        };
-#endif
         //! The ViewPlainPtr offset get trait specialization.
         template<typename TDev, typename TElem, typename TDim, typename TIdx>
         struct GetOffsets<ViewPlainPtr<TDev, TElem, TDim, TIdx>>
