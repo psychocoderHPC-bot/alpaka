@@ -131,35 +131,11 @@ auto nativeCooperativeLaunchConfig(aV2P::Dev<TAcc> const& dev)
     }
 #endif
 
-#if defined(AV2P_ACC_SYCL_ENABLED)
-    if constexpr(aV2P::concepts::Tag<Tag> && std::is_same_v<aV2P::Dev<TAcc>, aV2P::DevGenericSycl<Tag>>)
-    {
-        auto const [device, context] = dev.getNativeHandle();
-        sycl::queue queue{context, device};
-        auto const bundle = sycl::get_kernel_bundle<sycl::bundle_state::executable>(context, {device});
-        auto const kernel
-            = bundle.template get_kernel<aV2P::detail::SyclKernel<GridSyncTestKernel, Dim, Idx, bool*, Idx*>>();
-        // the maximum work-group size for the kernel on this device
-        auto const blockSize = kernel.template get_info<sycl::info::kernel_device_specific::work_group_size>(device);
-        // the kernel uses at least 1 byte of dynamic local memory, and the static shared memory, see
-        // TaskKernelGenericSycl::operator()
-        [[maybe_unused]] auto const localMemBytes = std::size_t{1} + aV2P::detail::syclStaticSharedMemBytes;
-        auto blockExtent = aV2P::Vec<Dim, Idx>::all(1);
-        blockExtent[Dim::value - 1] = static_cast<Idx>(blockSize);
-        [[maybe_unused]] auto const workGroupSize = aV2P::detail::syclWorkGroupSize(blockExtent);
-#    if AV2P_COMP_ICPX >= AV2P_VERSION_NUMBER(2025, 1, 0)
-        auto const maxBlocks = kernel.template ext_oneapi_get_info<
-            sycl::ext::oneapi::experimental::info::kernel_queue_specific::max_num_work_groups>(
-            queue,
-            workGroupSize,
-            localMemBytes);
-#    else
-        auto const maxBlocks = kernel.template ext_oneapi_get_info<
-            sycl::ext::oneapi::experimental::info::kernel_queue_specific::max_num_work_group_sync>(queue);
-#    endif
-        return Config{blockExtent, static_cast<int>(maxBlocks)};
-    }
-#endif
+    // The oneAPI native occupancy query was written against the removed `detail::SyclKernel` name and
+    // the old SYCL launcher helpers. It cannot run anyway: aV2P reports `m_cooperativeLaunch == false`
+    // for every oneAPI executor, and `syncGridThreads` on oneAPI is the documented dependent
+    // `static_assert` diagnostic (docs/aV2P/limitations.md, Section 7). The test therefore never
+    // instantiates the grid-synchronization kernel for oneAPI and keeps the generic fallback below.
 
     // On the other back-ends, use a small block, and the largest number of blocks that can be active at the same time.
     auto const threadsPerBlock = aV2P::elementwise_min(
@@ -186,19 +162,24 @@ TEMPLATE_LIST_TEST_CASE("synchronize", "[gridSync]", aV2P::test::TestAccs)
     auto const platformAcc = aV2P::Platform<Acc>{};
     auto const devAcc = getDevByIdx(platformAcc, 0u);
 
-    // The host back-ends must advertise grid synchronization.  Without this check a wrong device
-    // property would silently turn the test into a no-op instead of failing.
     auto const accDevProps = aV2P::trait::GetAccDevProps<Acc>::getAccDevProps(devAcc);
-    if constexpr(
-        std::is_same_v<typename Acc::Executor, alpaka::exec::CpuSerial>
-        || std::is_same_v<typename Acc::Executor, alpaka::exec::CpuOmpBlocks>)
-    {
-        REQUIRE(accDevProps.m_cooperativeLaunch);
-    }
 
-    // Check if accelerator supports cooperative launch, don't do anything if it doesn't
-    if(accDevProps.m_cooperativeLaunch)
+    // Only the host executors whose grid-wide barrier is real (the serial no-op and the OpenMP
+    // team barrier) can run this test.  CUDA, HIP and oneAPI have no cooperative launch in alpaka
+    // 3.0.0; `syncGridThreads` there is the documented dependent `static_assert` diagnostic
+    // (docs/aV2P/limitations.md, Section 7), so the kernel must not be instantiated for them.
+    constexpr bool isCooperativeCapable =
+        std::is_same_v<typename Acc::Executor, alpaka::exec::CpuSerial>
+#if defined(_OPENMP)
+        || std::is_same_v<typename Acc::Executor, alpaka::exec::CpuOmpBlocks>
+#endif
+        ;
+
+    if constexpr(isCooperativeCapable)
     {
+        // The host back-ends must advertise grid synchronization.  Without this check a wrong device
+        // property would silently turn the test into a no-op instead of failing.
+        REQUIRE(accDevProps.m_cooperativeLaunch);
         // Use the largest block size, and the largest number of blocks that can be active at the same time.
         auto const config = nativeCooperativeLaunchConfig<Acc>(devAcc);
         auto const threadsPerBlock = config.threadsPerBlock;
@@ -248,5 +229,11 @@ TEMPLATE_LIST_TEST_CASE("synchronize", "[gridSync]", aV2P::test::TestAccs)
 
             CHECK(fixture(kernel, aV2P::getPtrNative(deviceMemory)));
         }
+    }
+    else
+    {
+        // Keep the backend visible instead of hiding it: a grid-synchronizing kernel needs a
+        // cooperative launch, so these executors must keep reporting that they have none.
+        REQUIRE_FALSE(accDevProps.m_cooperativeLaunch);
     }
 }

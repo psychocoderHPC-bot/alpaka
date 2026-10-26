@@ -90,6 +90,22 @@ namespace aV2P
          * predicate is non-zero; all three start from the legacy `InitialValue`.  The result therefore
          * equals a sequential fold of `TOp` over the block's predicates, independent of thread order.
          */
+        /** Keep the predicate reduction out of line in Intel oneAPI builds.
+         *
+         * icpx 2026.2 miscompiles this work-group reduction when the function is inlined into a kernel
+         * that uses the same shared cell for several reduction rounds: work-items other than the first
+         * load a stale value and the block returns the initial value.  A standalone reproducer with
+         * `sycl::local_accessor`, `sycl::atomic_ref<..., local_space>` and `nd_item::barrier()` shows the
+         * same wrong results (2 0 0 0 / 2 0 0 0 / 2 2 2 2 for three rounds with four work-items);
+         * marking the reduction helper `noinline` makes the same program return 2 2 2 2 in every round.
+         * The body stays unchanged on other compilers and the attribute costs one call per predicate.
+         */
+#if defined(AV2P_ACC_SYCL_ENABLED) && defined(__INTEL_LLVM_COMPILER)
+#    define AV2P_PREDICATE_NOINLINE __attribute__((noinline))
+#else
+#    define AV2P_PREDICATE_NOINLINE
+#endif
+
         template<
             typename TOp,
             typename TDim,
@@ -102,7 +118,7 @@ namespace aV2P
             TOp,
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
-            AV2P_FN_ACC static auto syncBlockThreadsPredicate(
+            AV2P_PREDICATE_NOINLINE AV2P_FN_ACC static auto syncBlockThreadsPredicate(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc,
                 int predicate) -> int
             {

@@ -30,13 +30,10 @@ namespace aV2P
         using Idx = aV2P::Idx<TAcc>;
         using Vec = aV2P::Vec<Dim, Idx>;
 
-        // Workaround for a weird bug in oneAPI 2024.x targetting the CPU backend and FPGA emulator.
-        if constexpr(accMatchesTags<TAcc, TagCpuSycl, TagFpgaSyclIntel>)
-        {
-            // SYCL accelerator specific code
-            return acc.m_item_workdiv.get_global_linear_id() == 0;
-        }
-
+        // 2.2 used the SYCL `nd_item` work division
+        // (`acc.m_item_workdiv.get_global_linear_id()`) as a workaround for a oneAPI 2024.x CPU and
+        // FPGA-emulator bug.  The aV2P oneAPI accelerator facade stores no `nd_item`; the alpaka 3
+        // grid/thread index is the same global linear id and is what every other backend uses.
         return getIdx<Grid, Threads>(acc) == Vec::zeros();
     }
 
