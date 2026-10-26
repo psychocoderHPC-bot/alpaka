@@ -1,0 +1,61 @@
+# aV2P 2.2 -> native alpaka 3.0.0 CMake option mapping
+# Machine readable source for the Phase 4 migration guide. Fields:
+#   legacy,native,type,mode,default,note
+# mode:
+#   local       - aV2P-local option with no native alpaka equivalent
+#   on          - when the legacy option is ON set the native option ON
+#   forward     - forward the legacy value to the native option when it differs
+#                 from the legacy default; never override an explicit native value
+#   unsupported - FATAL_ERROR when the value differs from the legacy default
+#   cuda_unsupported - FATAL_ERROR when the value differs from default and CUDA is enabled
+#   sycl_unsupported - FATAL_ERROR when the value differs from default and SYCL is enabled
+#   sycl_warn   - WARNING when the value differs from default and SYCL is enabled
+# Notes must not contain commas.
+aV2P_BUILD_EXAMPLES,,BOOL,local,OFF,aV2P build tree only
+aV2P_BUILD_BENCHMARKS,,BOOL,local,OFF,aV2P build tree only
+aV2P_ENABLE_WERROR,,BOOL,local,OFF,aV2P build tree only
+BUILD_TESTING,,BOOL,local,OFF,CTest option unchanged
+aV2P_INSTALL_TEST_HEADER,,BOOL,local,OFF,aV2P header install only
+aV2P_CHECK_HEADERS,,BOOL,local,OFF,aV2P test tree only
+aV2P_USE_INTERNAL_CATCH2,,BOOL,local,ON,aV2P test tree only
+aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE,alpaka_EXEC_CpuSerial,BOOL,on,OFF,native host serial executor
+aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE,alpaka_HOST_Cpu,BOOL,on,OFF,native host CPU API
+aV2P_ACC_GPU_CUDA_ENABLE,alpaka_DEP_CUDA,BOOL,on,OFF,native CUDA dependency
+aV2P_ACC_GPU_CUDA_ENABLE,alpaka_EXEC_GpuCuda,BOOL,on,OFF,native CUDA executor
+aV2P_ACC_GPU_CUDA_ONLY_MODE,,BOOL,local,OFF,compatibility validation only
+aV2P_ACC_GPU_HIP_ENABLE,alpaka_DEP_HIP,BOOL,on,OFF,native HIP dependency
+aV2P_ACC_GPU_HIP_ENABLE,alpaka_EXEC_GpuHip,BOOL,on,OFF,native HIP executor
+aV2P_ACC_GPU_HIP_ONLY_MODE,,BOOL,local,OFF,compatibility validation only
+aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE,,BOOL,unsupported,OFF,alpaka 3 has no std::thread executor
+aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE,alpaka_DEP_TBB,BOOL,on,OFF,native oneTBB dependency
+aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE,alpaka_EXEC_TbbBlocks,BOOL,on,OFF,native oneTBB executor
+aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE,alpaka_DEP_OMP,BOOL,on,OFF,native OpenMP dependency
+aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE,alpaka_EXEC_CpuOmpBlocks,BOOL,on,OFF,native OpenMP blocks executor
+aV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLE,,BOOL,unsupported,OFF,alpaka 3 has no OpenMP block-thread executor
+aV2P_ACC_CPU_DISABLE_ATOMIC_REF,,BOOL,local,OFF,aV2P atomic-ref selection only
+aV2P_ACC_SYCL_ENABLE,alpaka_DEP_ONEAPI,BOOL,on,OFF,native oneAPI dependency
+aV2P_ACC_SYCL_ENABLE,alpaka_EXEC_OneApi,BOOL,on,OFF,native oneAPI executor
+aV2P_FAST_MATH,alpaka_FAST_MATH,STRING,forward,DEFAULT,forwarded value
+aV2P_FTZ,alpaka_FTZ,STRING,forward,DEFAULT,forwarded value
+aV2P_RELOCATABLE_DEVICE_CODE,alpaka_RELOCATABLE_DEVICE_CODE,STRING,forward,DEFAULT,forwarded value
+aV2P_CUDA_SHOW_REGISTER,alpaka_CUDA_SHOW_REGISTER,STRING,forward,DEFAULT,forwarded value
+aV2P_CUDA_KEEP_FILES,alpaka_CUDA_KEEP_FILES,STRING,forward,DEFAULT,forwarded value
+aV2P_CUDA_EXPT_EXTENDED_LAMBDA,,STRING,cuda_unsupported,ON,alpaka 3 always enables extended lambdas
+aV2P_HIP_KEEP_FILES,alpaka_HIP_KEEP_FILES,STRING,forward,OFF,forwarded value
+aV2P_DEBUG,,STRING,local,0,aV2P AV2P_DEBUG definition only
+aV2P_CXX_STANDARD,alpaka_CXX_STANDARD,STRING,forward,20,forwarded value
+aV2P_BLOCK_SHARED_DYN_MEMBER_ALLOC_KIB,,STRING,local,47,aV2P AV2P_BLOCK_SHARED_DYN_MEMBER_ALLOC_KIB only
+aV2P_DISABLE_VENDOR_RNG,,BOOL,local,OFF,aV2P definition only
+aV2P_ASSERT_ACC_ENABLE,,BOOL,local,ON,aV2P definition only
+aV2P_CUDA_SHOW_CODELINES,alpaka_CUDA_SHOW_CODELINES,BOOL,forward,OFF,forwarded value
+aV2P_USE_MDSPAN,,STRING,local,OFF,aV2P mdspan feature only
+aV2P_SYCL_ONEAPI_CPU,alpaka_ONEAPI_Cpu,BOOL,on,OFF,native oneAPI CPU target
+aV2P_SYCL_ONEAPI_FPGA,,BOOL,sycl_unsupported,OFF,alpaka 3 has no FPGA target selection
+aV2P_SYCL_ONEAPI_GPU,alpaka_ONEAPI_IntelGpu,BOOL,on,OFF,native oneAPI Intel GPU target
+aV2P_SYCL_ONEAPI_GPU_NVIDIA,alpaka_ONEAPI_NvidiaGpu,BOOL,on,OFF,native oneAPI NVIDIA GPU target
+aV2P_SYCL_ONEAPI_GPU_AMD,alpaka_ONEAPI_AmdGpu,BOOL,on,OFF,native oneAPI AMD GPU target
+aV2P_SYCL_ONEAPI_FPGA_MODE,,STRING,sycl_unsupported,emulation,alpaka 3 has no FPGA mode
+aV2P_SYCL_ONEAPI_CPU_ISA,,STRING,sycl_warn,avx2,native uses alpaka_ONEAPI_Cpu_ARCH
+aV2P_SYCL_ONEAPI_FPGA_BOARD,,STRING,sycl_unsupported,pac_a10,alpaka 3 has no FPGA board selection
+aV2P_SYCL_ONEAPI_FPGA_BSP,,STRING,sycl_unsupported,intel_a10gx_pac,alpaka 3 has no FPGA BSP selection
+aV2P_SYCL_ONEAPI_GPU_DEVICES,,STRING,sycl_warn,intel_gpu_pvc,native uses vendor specific arch variables

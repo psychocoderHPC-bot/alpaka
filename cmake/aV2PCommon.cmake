@@ -8,6 +8,11 @@ include(CheckLanguage) # check for CUDA/HIP language support
 include(CMakePrintHelpers) # for easier printing of variables and properties
 include(CMakeDependentOption) # Make options depend on other options
 
+# aV2P 2.2 compatibility architecture: native alpaka 3 owns the backend setup.
+if(NOT DEFINED aV2P_USE_NATIVE_ALPAKA3)
+    set(aV2P_USE_NATIVE_ALPAKA3 OFF)
+endif()
+
 #-------------------------------------------------------------------------------
 # Options.
 
@@ -290,6 +295,11 @@ if(NOT aV2P_HAS_STD_MATH_CONSTANTS)
     # Enable non-standard constants for MSVC.
     target_compile_definitions(aV2P INTERFACE "$<$<OR:$<CXX_COMPILER_ID:MSVC>,$<AND:$<COMPILE_LANGUAGE:CUDA>,$<PLATFORM_ID:Windows>>>:_USE_MATH_DEFINES>")
 endif()
+
+# Native alpaka 3 owns backend/dependency configuration. When it is used we only
+# declare the legacy aV2P options and their aV2P compile definitions; CUDA/HIP/
+# SYCL/OpenMP/TBB discovery and flags are provided by the linked alpaka target.
+if(NOT aV2P_USE_NATIVE_ALPAKA3)
 
 #-------------------------------------------------------------------------------
 # Find TBB.
@@ -787,6 +797,8 @@ if(aV2P_ACC_SYCL_ENABLE)
     endif()
 endif()
 
+endif() # NOT aV2P_USE_NATIVE_ALPAKA3
+
 #-------------------------------------------------------------------------------
 # alpaka.
 if(aV2P_ACC_GPU_CUDA_ONLY_MODE)
@@ -889,12 +901,12 @@ if(TARGET aV2P)
         target_include_directories(aV2P
           INTERFACE
             $<BUILD_INTERFACE:${_aV2P_INCLUDE_DIRECTORY}>
-            $<INSTALL_INTERFACE:include>)
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
     else()
         target_include_directories(aV2P
           SYSTEM INTERFACE
             $<BUILD_INTERFACE:${_aV2P_INCLUDE_DIRECTORY}>
-            $<INSTALL_INTERFACE:include>)
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
     endif()
 
     if(${aV2P_DEBUG} GREATER 1)
