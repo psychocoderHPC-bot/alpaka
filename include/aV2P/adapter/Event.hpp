@@ -8,6 +8,7 @@
 #include "aV2P/core/Common.hpp"
 #include "aV2P/dev/Traits.hpp"
 #include "aV2P/event/Traits.hpp"
+#include "aV2P/traits/Traits.hpp"
 #include "aV2P/wait/Traits.hpp"
 
 #include <alpaka/alpaka.hpp>
@@ -59,6 +60,13 @@ namespace aV2P
             return m_dev;
         }
 
+        //! Native event handle of the wrapped alpaka 3 event (the CUDA/HIP event, the host event id,
+        //! ...).  Provided for the 2.2 diagnostics that identify an event by its implementation handle.
+        [[nodiscard]] auto getNativeHandle() const noexcept
+        {
+            return m_eventImpl.getNativeHandle();
+        }
+
     private:
         TDev m_dev;
         EventType m_eventImpl;
@@ -108,6 +116,15 @@ namespace aV2P
             AV2P_FN_HOST static auto getDev(EventAlpaka3<TDev> const& event) -> TDev
             {
                 return event.getDev();
+            }
+        };
+
+        template<typename TDev>
+        struct NativeHandle<EventAlpaka3<TDev>>
+        {
+            [[nodiscard]] static auto getNativeHandle(EventAlpaka3<TDev> const& event)
+            {
+                return event.getNativeHandle();
             }
         };
 

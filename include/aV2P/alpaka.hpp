@@ -7,6 +7,11 @@
 
 // Include the whole library.
 
+// Make the CUDA/HIP runtime backends available to host-only (`AV2P_HOST_ONLY`) translation units.
+// This must happen before the first alpaka 3 header is parsed, because alpaka 3 enables its
+// CUDA/HIP backend through `ALPAKA_LANG_CUDA` / `ALPAKA_LANG_HIP`.
+#include "aV2P/core/HostRuntimeApi.hpp"
+
 // alpaka 3 implementation
 #include <alpaka/alpaka.hpp>
 

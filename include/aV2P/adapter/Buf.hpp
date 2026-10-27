@@ -10,10 +10,12 @@
 #include "aV2P/core/Common.hpp"
 #include "aV2P/dev/Traits.hpp"
 #include "aV2P/mem/buf/Traits.hpp"
+#include "aV2P/mem/view/Traits.hpp"
 #include "aV2P/mem/view/ViewAccessOps.hpp"
 
 #include <alpaka/alpaka.hpp>
 
+#include <concepts>
 #include <type_traits>
 #include <utility>
 
@@ -56,6 +58,78 @@ namespace aV2P::detail
     {
         using type = typename NativeBufferWithMatchingAlignment<TBuffer, TIsOneDimensional>::type;
     };
+
+    //! The memory-alignment type alpaka 3 chose for an allocation of this buffer type.
+    template<typename TBuffer>
+    struct BufferMemAlignment;
+
+    template<
+        alpaka::concepts::Api TApi,
+        typename TType,
+        alpaka::concepts::Vector TExtents,
+        alpaka::concepts::Alignment TAlignment>
+    struct BufferMemAlignment<alpaka::onHost::SharedBuffer<TApi, TType, TExtents, TAlignment>>
+    {
+        using type = TAlignment;
+    };
+
+    /*! Adapt an alpaka 2.2 buffer deleter (`void(TElem*)`) to the alpaka 3 deleter (`void()`).
+     *
+     * alpaka 2.2 passed the buffer pointer to the deleter; alpaka 3 `SharedBuffer` stores a
+     * zero-argument `std::function<void()>`.  A callable that already takes no argument is passed
+     * through unchanged.
+     */
+    template<typename TDeleter, typename TElem>
+    AV2P_FN_HOST auto adaptDeleter(TDeleter&& deleter, TElem* const pMem)
+    {
+        if constexpr(std::invocable<TDeleter&, TElem*> || std::invocable<TDeleter const&, TElem*>)
+            return [deleter = std::forward<TDeleter>(deleter), pMem]() mutable { deleter(pMem); };
+        else
+            return std::forward<TDeleter>(deleter);
+    }
+
+    /*! Convert an aV2P or alpaka 2.2 extent/pitch argument to the alpaka 3 vector type.
+     *
+     * The aV2P extent type (`aV2P::Vec`) is index-compatible with `alpaka::Vec` but does not model
+     * `alpaka::concepts::Vector`, which the native `SharedBuffer` constructor requires.  An arithmetic
+     * argument is broadcast, which keeps the 2.2 single-value spelling working.
+     */
+    template<typename TIdx, typename TDim, typename TVec>
+    AV2P_FN_HOST auto normaliseVec(TVec const& value)
+        -> alpaka::Vec<TIdx, static_cast<std::uint32_t>(TDim::value)>
+    {
+        constexpr auto dim = static_cast<std::uint32_t>(TDim::value);
+        using Vec = alpaka::Vec<TIdx, dim>;
+        if constexpr(dim == 0u)
+            return Vec{};
+        else if constexpr(std::is_arithmetic_v<TVec>)
+            return Vec::fill(static_cast<TIdx>(value));
+        else
+            return Vec([&](std::uint32_t const i) constexpr { return static_cast<TIdx>(value[i]); });
+    }
+
+    /*! Normalise a 2.2 pitch argument to the alpaka 3 (byte) pitch vector.
+     *
+     * alpaka 2.2 accepted the padding pitch of an externally allocated buffer as a single byte
+     * count for the innermost padding dimension; `calculatePitchesFromExtentsAndPitch` implements
+     * exactly that rule (innermost pitch is the element size, outer pitches follow from the
+     * extents, the row pitch is rounded up to the given value).  A pitch vector is converted
+     * element-wise.
+     */
+    template<typename TElem, typename TIdx, typename TDim, typename TExtent, typename TPitch>
+    AV2P_FN_HOST auto normalisePitches(TExtent const& extents, TPitch const& pitches)
+        -> alpaka::Vec<TIdx, static_cast<std::uint32_t>(TDim::value)>
+    {
+        if constexpr(std::is_arithmetic_v<TPitch>)
+        {
+            Vec<TDim, TIdx> const extentVec(
+                [&](auto const i) constexpr { return static_cast<TIdx>(extents[i.value]); });
+            return calculatePitchesFromExtentsAndPitch<TElem>(extentVec, static_cast<std::size_t>(pitches))
+                .getAlpaka3();
+        }
+        else
+            return normaliseVec<TIdx, TDim>(pitches);
+    }
 } // namespace aV2P::detail
 
 namespace aV2P
@@ -100,8 +174,25 @@ namespace aV2P
             Deleter deleter,
             TExtent const& extents,
             TPitch const& pitches)
-            : m_memImpl{AlpakaBufferType(alpaka::getApi(dev.getAlpaka3()), pMem, extents, pitches, std::move(deleter))}
+            : m_memImpl{AlpakaBufferType(
+                  alpaka::getApi(dev.getAlpaka3()),
+                  pMem,
+                  detail::normaliseVec<TIdx, TDim>(extents),
+                  detail::normalisePitches<TElem, TIdx, TDim>(extents, pitches),
+                  detail::adaptDeleter(std::move(deleter), pMem),
+                  typename detail::BufferMemAlignment<AlpakaBufferType>::type{})}
             , m_dev{dev}
+        {
+        }
+
+        //! 2.2 four-argument form: the pitches follow from the (contiguous) extents.
+        template<typename TExtent, typename Deleter>
+        AV2P_FN_HOST BufAlpaka3(
+            DevAlpaka3<TDevSpec> const& dev,
+            TElem* const pMem,
+            Deleter deleter,
+            TExtent const& extents)
+            : BufAlpaka3(dev, pMem, std::move(deleter), extents, std::size_t{0})
         {
         }
 
@@ -178,8 +269,25 @@ namespace aV2P
             Deleter deleter,
             TExtent const& extents,
             TPitch const& pitches)
-            : m_memImpl{AlpakaBufferType(alpaka::getApi(dev.getAlpaka3()), pMem, extents, pitches, std::move(deleter))}
+            : m_memImpl{AlpakaBufferType(
+                  alpaka::getApi(dev.getAlpaka3()),
+                  pMem,
+                  detail::normaliseVec<TIdx, TDim>(extents),
+                  detail::normalisePitches<TElem, TIdx, TDim>(extents, pitches),
+                  detail::adaptDeleter(std::move(deleter), pMem),
+                  typename detail::BufferMemAlignment<AlpakaBufferType>::type{})}
             , m_dev{dev}
+        {
+        }
+
+        //! 2.2 four-argument form: the pitches follow from the (contiguous) extents.
+        template<typename TExtent, typename Deleter>
+        AV2P_FN_HOST ConstBufAlpaka3(
+            DevAlpaka3<TDevSpec> const& dev,
+            TElem* const pMem,
+            Deleter deleter,
+            TExtent const& extents)
+            : ConstBufAlpaka3(dev, pMem, std::move(deleter), extents, std::size_t{0})
         {
         }
 

@@ -6,6 +6,8 @@
 #pragma once
 
 #include "aV2P/core/PP.hpp"
+// Enables the CUDA/HIP runtime backends for host-only (`AV2P_HOST_ONLY`) translation units.
+#include "aV2P/core/HostRuntimeApi.hpp"
 
 #ifdef __INTEL_COMPILER
 #    warning                                                                                                          \
