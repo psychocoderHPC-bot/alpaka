@@ -129,6 +129,44 @@ Just include alpaka like
 ```
 and enable the desired backend on the compiler's command line using the corresponding macro, e.g. via `-DALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED`.
 
+### Migrating from alpaka 2.x
+
+`script/av2p-migrate-2x.sh` applies the mechanical alpaka 2.x to aV2P
+renames to a source tree. Run it from the repository root:
+
+```bash
+script/av2p-migrate-2x.sh --dry-run .
+script/av2p-migrate-2x.sh .
+```
+
+The dry run prints a unified diff and exits with status 2 when it would change
+anything, so it can gate a pre-migration review. A real run writes the files
+in place. The migration is idempotent: a second run reports no changes, so it
+is safe to re-run after pulling upstream code.
+
+Options:
+
+- `--dry-run` prints the diff and writes nothing.
+- `--exclude GLOB` skips paths relative to `ROOT`; repeatable.
+- `--quiet`, `-q` suppress progress and the summary.
+- `--no-backup` is accepted; no backups are created by default.
+- `--self-test` runs the built-in fixture test.
+- `-h`, `--help` shows the full usage.
+
+The script does not convert device lambdas. It reports their locations as
+`manual` lines; convert each one to a named functor as described in
+[docs/aV2P/migration.md](docs/aV2P/migration.md). That guide also contains the
+complete substitution table this script implements.
+
+```diff
+-#include <alpaka/alpaka.hpp>
+-ALPAKA_FN_ACC void kernel() {}
+-alpaka::Vec v;
++#include <aV2P/alpaka.hpp>
++AV2P_FN_ACC void kernel() {}
++aV2P::Vec v;
+```
+
 Introduction
 ------------
 
