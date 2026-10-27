@@ -761,6 +761,13 @@ namespace aV2P::math
             }
         };
 
+        //! Scalar forwarding to the alpaka 3 math API.
+        //!
+        //! Restrict the adapter to arithmetic arguments like the 2.2 CUDA/HIP and standard-library
+        //! `Max` specializations do.  Claiming every non-complex type would make this partial
+        //! specialization compete with client specializations that supply their own vector or
+        //! aggregate `Max` (for example the `pmacc::math::Vector` one), yielding an ambiguous
+        //! partial-specialization set for `Max<AccAlpaka3<...>, T, T, void>`.
         template<
             typename Tx,
             typename Ty,
@@ -774,7 +781,7 @@ namespace aV2P::math
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             Tx,
             Ty,
-            std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value>>
+            std::enable_if_t<std::is_arithmetic_v<Tx> && std::is_arithmetic_v<Ty>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
