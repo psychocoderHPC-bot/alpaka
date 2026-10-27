@@ -175,9 +175,27 @@ namespace aV2P
                 QueueAlpaka3<TDev, TQueueKind>& queue,
                 TaskKernelAlpaka3<TAcc, TDim, TIdx, TKernelFnObj, TArgs...> const& task) -> void
             {
-                auto const threadSpec
-                    = adapter::toThreadSpec(task.m_gridBlockExtent, task.m_blockThreadExtent, task.getExecutor());
-                queue.getAlpaka3().enqueue(threadSpec, task.m_kernelBundle);
+                // A host-only translation unit maps every legacy accelerator to the host api, so a
+                // GPU kernel launch would be routed to the host queue and fail with an unrelated
+                // overload error.  Report the real reason with a single diagnostic instead.
+                using Executor = typename TAcc::Executor;
+                constexpr bool isGpuExecutor = std::is_same_v<Executor, alpaka::exec::GpuHip>
+                                               || std::is_same_v<Executor, alpaka::exec::GpuCuda>;
+                if constexpr(adapter::hostOnlyTranslationUnit && isGpuExecutor)
+                {
+                    static_assert(
+                        adapter::detail::dependentFalse<TAcc>,
+                        "aV2P: enqueuing a CUDA/HIP kernel requires a CUDA/HIP compiler. Move this code into "
+                        "a .dev.cc / .cu translation unit.");
+                }
+                else
+                {
+                    auto const threadSpec = adapter::toThreadSpec(
+                        task.m_gridBlockExtent,
+                        task.m_blockThreadExtent,
+                        task.getExecutor());
+                    queue.getAlpaka3().enqueue(threadSpec, task.m_kernelBundle);
+                }
             }
         };
     } // namespace trait
