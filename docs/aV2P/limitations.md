@@ -132,16 +132,24 @@ alpaka 3 provides 0D support, i.e. `Vec<T, 0>` gains `dim()` and `UniVec`
 and the host-allocation path accepts `dim() == 0`. Until then disable the
 cases with `#if 0` or a CMake guard.
 
-## 4. Device lambdas
+## 4. Capturing device lambdas
 
-alpaka 3 does not require the 2.2 extended-lambda mechanism, and the aV2P
-translation layer does not forward device lambda closures. Port device
-lambdas with the named-functor rewrite in
-[migration.md](migration.md) Section 3. There is no mechanical substitution
-for the lambda syntax. `AV2P_FN_ACC` still marks the device functor.
+A captureless device lambda (an empty, non-polymorphic, trivially
+destructible closure) is accepted as a legacy kernel functor on CPU, CUDA
+and HIP: the closure carries no state, so it travels to the device like a
+plain value even where the standard does not classify the closure type as
+trivially copyable. A lambda that captures state is rejected by the kernel
+diagnostic, which names the named-functor workaround. alpaka 3 does not
+require the 2.2 extended-lambda mechanism, and the aV2P translation layer
+does not forward capturing closures. Port capturing device lambdas with the
+named-functor rewrite in [migration.md](migration.md) Section 3. `AV2P_FN_ACC`
+still marks the device functor. The captureless path is not validated on
+SYCL; treat it as CPU, CUDA and HIP only until a SYCL run records it.
 
-Restoration condition: none. alpaka 3 exposes captured state through the
-named kernel functor, and aV2P inherits that convention.
+Restoration condition: none for the capturing case. alpaka 3 exposes
+captured state through the named kernel functor, and aV2P inherits that
+convention. Captureless lambdas need no restoration because they already
+work.
 
 ## 5. Public option mapping (2.2 legacy to native alpaka 3)
 
@@ -230,7 +238,7 @@ feature in pinned alpaka 3.0.0 that aV2P cannot bridge), `blocked`
 | Warp mask width, 2.2 per-backend type | limitation | 2.2 `TWarp::mask_type` vs alpaka 3 conditional width; no wrapper type |
 | Warp `all`/`any` return type | limitation | `std::int32_t` in 2.2 vs `bool` in alpaka 3 |
 | SYCL CPU per-kernel warp size | gap | alpaka 3.0.0 has no per-kernel warp-size trait; the sub-group size comes from the device properties |
-| Device lambdas as kernel objects | limitation | aV2P does not forward device lambda closures; use a named functor |
+| Capturing device lambdas as kernel objects | limitation | captureless (empty) lambdas are accepted on CPU, CUDA and HIP; a capturing closure is rejected with a named-functor diagnostic |
 | RISC-V or cross-compiled backends | blocked | no RISC-V toolchain in the current environment |
 | Grid synchronization on `AccCpuSerial` | supported | `test/unit/grid` passes with `m_cooperativeLaunch == true` |
 | Grid synchronization on `AccCpuOmp2Blocks` | supported | `test/unit/grid` passes with one block per OpenMP team thread |
