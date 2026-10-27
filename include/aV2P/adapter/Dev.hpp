@@ -255,6 +255,21 @@ namespace aV2P
             }
         };
 
+        //! The 2.2 device wait: block until the device has completed all preceding work.
+        //!
+        //! alpaka 3's `onHost::Device::wait()` waits for the work of every queue created from that
+        //! device, which is the 2.2 `wait(device)` contract.  Forwarding through the native
+        //! `onHost::wait()` keeps the backend-specific implementation (device synchronize on
+        //! CUDA/HIP, the registered queue waits on the host backend) in one place.
+        template<typename TDevSpec>
+        struct CurrentThreadWaitFor<DevAlpaka3<TDevSpec>>
+        {
+            AV2P_FN_HOST static auto currentThreadWaitFor(DevAlpaka3<TDevSpec> const& dev) -> void
+            {
+                alpaka::onHost::wait(dev.getAlpaka3());
+            }
+        };
+
         //! alpaka 3 has no device-reset operation.  Keep the legacy diagnostic instead of silently
         //! doing something different.
         template<typename TDevSpec>
