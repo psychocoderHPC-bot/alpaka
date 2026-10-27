@@ -2,19 +2,18 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/rand/RandPhilox.hpp>
-#include <alpaka/rand/RandPhiloxStateless.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-
+#include <aV2P/rand/RandPhilox.hpp>
+#include <aV2P/rand/RandPhiloxStateless.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 class PhiloxTest
 {
 protected:
-    alpaka::rand::Philox4x32x10 statefulSingleEngine;
-    alpaka::rand::Philox4x32x10Vector statefulVectorEngine;
+    aV2P::rand::Philox4x32x10 statefulSingleEngine;
+    aV2P::rand::Philox4x32x10Vector statefulVectorEngine;
 };
 
 TEST_CASE_METHOD(PhiloxTest, "HostStatefulVectorEngineTest")
@@ -36,7 +35,7 @@ TEST_CASE_METHOD(PhiloxTest, "HostStatefulSingleEngineTest")
 
 TEST_CASE("HostStatelessEngineTest")
 {
-    using Gen = alpaka::rand::PhiloxStateless4x32x10Vector;
+    using Gen = aV2P::rand::PhiloxStateless4x32x10Vector;
     using Key = typename Gen::Key;
     using Counter = typename Gen::Counter;
     Key key = {42, 12345};
@@ -51,26 +50,26 @@ TEST_CASE("HostStatelessEngineTest")
 template<typename T>
 class PhiloxTestKernelSingle
 {
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename T_Generator>
-    ALPAKA_FN_ACC void genNumbers(TAcc const& acc, bool* success, T_Generator& gen) const
+    AV2P_FN_ACC void genNumbers(TAcc const& acc, bool* success, T_Generator& gen) const
     {
         {
             static_cast<void>(acc);
-            alpaka::rand::UniformReal<T> dist;
+            aV2P::rand::UniformReal<T> dist;
             auto const result = dist(gen);
-            ALPAKA_CHECK(*success, static_cast<T>(0.0) <= result);
-            ALPAKA_CHECK(*success, static_cast<T>(1.0) > result);
+            AV2P_CHECK(*success, static_cast<T>(0.0) <= result);
+            AV2P_CHECK(*success, static_cast<T>(1.0) > result);
         }
     }
 
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
     {
         // Philox generator for accelerator
-        auto generator = alpaka::rand::Philox4x32x10(42, 12345, 6789);
+        auto generator = aV2P::rand::Philox4x32x10(42, 12345, 6789);
         genNumbers<TAcc, decltype(generator)>(acc, success, generator);
     }
 };
@@ -78,44 +77,44 @@ public:
 template<typename T>
 class PhiloxTestKernelVector
 {
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename T_Generator>
-    ALPAKA_FN_ACC void genNumbers(TAcc const& acc, bool* success, T_Generator& gen) const
+    AV2P_FN_ACC void genNumbers(TAcc const& acc, bool* success, T_Generator& gen) const
     {
         {
             static_cast<void>(acc);
             using DistributionResult = typename T_Generator::template ResultContainer<T>;
-            alpaka::rand::UniformReal<DistributionResult> dist;
+            aV2P::rand::UniformReal<DistributionResult> dist;
             auto const result = dist(gen);
             for(auto& element : result)
             {
-                ALPAKA_CHECK(*success, static_cast<T>(0.0) <= element);
-                ALPAKA_CHECK(*success, static_cast<T>(1.0) > element);
+                AV2P_CHECK(*success, static_cast<T>(0.0) <= element);
+                AV2P_CHECK(*success, static_cast<T>(1.0) > element);
             }
         }
     }
 
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
     {
         // Philox generator for accelerator
-        auto generator = alpaka::rand::Philox4x32x10Vector(42, 12345, 6789);
+        auto generator = aV2P::rand::Philox4x32x10Vector(42, 12345, 6789);
         genNumbers<TAcc, decltype(generator)>(acc, success, generator);
     }
 };
 
 class PhiloxTestKernelStateless
 {
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC void genNumbers(TAcc const& acc, bool* success) const
+    AV2P_FN_ACC void genNumbers(TAcc const& acc, bool* success) const
     {
         {
             static_cast<void>(acc);
 
-            using Gen = alpaka::rand::PhiloxStateless4x32x10Vector;
+            using Gen = aV2P::rand::PhiloxStateless4x32x10Vector;
             using Key = typename Gen::Key;
             using Counter = typename Gen::Counter;
 
@@ -129,26 +128,26 @@ class PhiloxTestKernelStateless
                 check += element;
             }
             // Make sure the sequence is not in fact supposed to generate {0,0,0,0}.
-            ALPAKA_CHECK(*success, check != 0);
+            AV2P_CHECK(*success, check != 0);
         }
     }
 
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
     {
         genNumbers<TAcc>(acc, success);
     }
 };
 
-TEMPLATE_LIST_TEST_CASE("PhiloxRandomGeneratorStatelessIsWorking", "[rand]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("PhiloxRandomGeneratorStatelessIsWorking", "[rand]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Idx = alpaka::Idx<Acc>;
-    using Dim = alpaka::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     PhiloxTestKernelStateless kernel;
 
@@ -156,16 +155,16 @@ TEMPLATE_LIST_TEST_CASE("PhiloxRandomGeneratorStatelessIsWorking", "[rand]", alp
 }
 
 using TestScalars = std::tuple<float, double>;
-using TestTypes = alpaka::meta::CartesianProduct<std::tuple, alpaka::test::TestAccs, TestScalars>;
+using TestTypes = aV2P::meta::CartesianProduct<std::tuple, aV2P::test::TestAccs, TestScalars>;
 
 TEMPLATE_LIST_TEST_CASE("PhiloxRandomGeneratorSingleIsWorking", "[rand]", TestTypes)
 {
     using Acc = std::tuple_element_t<0, TestType>;
     using DataType = std::tuple_element_t<1, TestType>;
-    using Idx = alpaka::Idx<Acc>;
-    using Dim = alpaka::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     PhiloxTestKernelSingle<DataType> kernel;
 
@@ -176,10 +175,10 @@ TEMPLATE_LIST_TEST_CASE("PhiloxRandomGeneratorVectorIsWorking", "[rand]", TestTy
 {
     using Acc = std::tuple_element_t<0, TestType>;
     using DataType = std::tuple_element_t<1, TestType>;
-    using Idx = alpaka::Idx<Acc>;
-    using Dim = alpaka::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     PhiloxTestKernelVector<DataType> kernel;
 

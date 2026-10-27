@@ -1,0 +1,186 @@
+/* Copyright 2025 René Widera
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+#pragma once
+
+#include "aV2P/core/PP.hpp"
+
+// We can not use AV2P_LANG_HIP because this file is required by core/config.hpp where AV2P_LANG_HIP is defined.
+#if defined(__HIP__)
+
+#    include <hip/hip_version.h>
+
+// version numbers are only defined on the device side
+#    if !defined(AV2P_AMDGPU_ARCH) && defined(__HIP__) && defined(__HIP_DEVICE_COMPILE__)                           \
+        && __HIP_DEVICE_COMPILE__ == 1
+
+/* Map AMDGPU arch macro -> AV2P_VRRPP_TO_VERSION(wrapped code)
+ *  Rules:
+ *   - gfx9xy (numeric): 9xy -> 90x0y  (e.g., 908->90008, 906->90006, 942->90402)
+ *   - gfx10xy / gfx11xy: stxy -> st0x0y (e.g., 1036->100306, 1103->110003)
+ *   - Suffix: a == 10 (90a->90010), b == 11, c == 12
+ *
+ * An overview of AMD GPU architectures can be found here:
+ * https://llvm.org/docs/AMDGPUUsage.html#processors
+ */
+
+#        if defined(__gfx1310__)
+/* RDNA 5 dGPU (TBA) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(130100)
+#        elif defined(__gfx13_generic__)
+/* RDNA 5 generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(130000)
+
+#        elif defined(__gfx1251__)
+/* RDNA 4 APU (TBA) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(120501)
+#        elif defined(__gfx1250__)
+/* RDNA 4 APU (TBA) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(120500)
+#        elif defined(__gfx12_5_generic__)
+/* RDNA 4.5 generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(120500)
+
+#        elif defined(__gfx1201__)
+/* RDNA 4 dGPU (RX 9070 / 9070 XT / 9070 GRE) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(120001)
+#        elif defined(__gfx1200__)
+/* RDNA 4 dGPU (RX 9060 / 9060 XT) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(120000)
+#        elif defined(__gfx12_generic__)
+/* RDNA 4 generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(120000)
+
+#        elif defined(__gfx1172__)
+/* RDNA 4m APU (TBA) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110702)
+#        elif defined(__gfx1171__)
+/* RDNA 4m APU (TBA) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110701)
+#        elif defined(__gfx1170__)
+/* RDNA 4m APU (TBA) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110700)
+#        elif defined(__gfx11_7_generic__)
+/* RDNA 4m generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110700)
+
+#        elif defined(__gfx1154__)
+/* RDNA 3.5 iGPU (TBA) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110504)
+#        elif defined(__gfx1153__)
+/* RDNA 3.5 iGPU (Medusa Point / Strix Halo successor) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110503)
+#        elif defined(__gfx1152__)
+/* RDNA 3.5 iGPU (Krackan Point) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110502)
+#        elif defined(__gfx1151__)
+/* RDNA 3.5 iGPU (Strix Halo) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110501)
+#        elif defined(__gfx1150__)
+/* RDNA 3.5 iGPU (Radeon 890M on Strix Point) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110500)
+
+#        elif defined(__gfx1103__)
+/* RDNA 3 APU (Radeon 780M, 760M, ROG Ally Extreme) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110003)
+#        elif defined(__gfx1102__)
+/* RDNA 3 Desktop (RX 7600 / 7600 XT) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110002)
+#        elif defined(__gfx1101__)
+/* RDNA 3 Desktop (RX 7700 / 7700 XT, Pro W7700 / V710) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110001)
+#        elif defined(__gfx1100__)
+/* RDNA 3 Desktop (RX 7900 XT, XTX, Pro W7900) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110000)
+#        elif defined(__gfx11_generic__)
+/* RDNA 3.x generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(110000)
+
+#        elif defined(__gfx1036__)
+/* RDNA 2 APU (Radeon Graphics 128-SP iGPU) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100306)
+#        elif defined(__gfx1035__)
+/* RDNA 2 APU (Radeon 660M, 680M) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100305)
+#        elif defined(__gfx1034__)
+/* RDNA 2 Mobile (Pro W6300/W6400, RX 6400-6500) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100304)
+#        elif defined(__gfx1033__)
+/* RDNA 2 APU (Steam Deck) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100303)
+#        elif defined(__gfx1032__)
+/* RDNA 2 Desktop (RX 6600 XT, 6650 XT/S, 6700S) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100302)
+#        elif defined(__gfx1031__)
+/* RDNA 2 Desktop (RX 6700 series, 6750/6850M XT) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100301)
+#        elif defined(__gfx1030__)
+/* RDNA 2 Desktop (RX 6800 / 6900 XT, Pro W6800) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100300)
+#        elif defined(__gfx10_3_generic__)
+/* RDNA 2.x generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100300)
+
+#        elif defined(__gfx1013__)
+/* RDNA 1 Mobile (RX 5300M / 5500M) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100103)
+#        elif defined(__gfx1012__)
+/* RDNA 1 Desktop (RX 5500 / 5500 XT) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100102)
+#        elif defined(__gfx1011__)
+/* RDNA 1 Desktop (Pro V520) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100101)
+#        elif defined(__gfx1010__)
+/* RDNA 1 Desktop (RX 5700 / 5700 XT, Pro 5600 XT/M) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100100)
+#        elif defined(__gfx10_1_generic__)
+/* RDNA 1.x generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(100100)
+
+#        elif defined(__gfx950__)
+/* CDNA 4 (Instinct MI350 series: MI350P/MI350X/MI355X) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90500)
+#        elif defined(__gfx942__)
+/* CDNA 3 (Instinct MI300 series: MI300/MI300A/MI300X) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90402)
+#        elif defined(__gfx941__)
+/* CDNA 2/3 (Instinct MI210) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90401)
+#        elif defined(__gfx940__)
+/* CDNA 2 (Instinct MI200) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90400)
+#        elif defined(__gfx9_4_generic__)
+/* CDNA 3.x generic target */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90400)
+
+#        elif defined(__gfx90c__)
+/* CDNA 1 (Renoir APUs), c -> 12 */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90012)
+#        elif defined(__gfx90b__)
+/* (If present) b -> 11 */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90011)
+#        elif defined(__gfx90a__)
+/* CDNA 2 (Instinct MI250 / MI250X), a -> 10 */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90010)
+#        elif defined(__gfx908__)
+/* CDNA 1 (Instinct MI100) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90008)
+#        elif defined(__gfx906__)
+/* Vega 20 (Radeon VII, Instinct MI50/60) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90006)
+#        elif defined(__gfx900__)
+/* Vega 10 (Radeon Pro Vega, Instinct MI25) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90000)
+#        elif defined(__gfx9_generic__)
+/* GCN 5 generic target (Vega 10, Vega 20, ...) */
+#            define AV2P_AMDGPU_ARCH AV2P_VRRPP_TO_VERSION(90000)
+
+#        else
+#            error                                                                                                    \
+                "Unknown AMDGPU architecture, please define __gfxXXX__ macro for your target. Until alpaka is updated you can define the macro AV2P_AMDGPU_ARCH to avoid this error."
+#            define AV2P_AMDGPU_ARCH AV2P_VERSION_NUMBER_NOT_AVAILABLE
+#        endif
+
+#    endif
+#endif

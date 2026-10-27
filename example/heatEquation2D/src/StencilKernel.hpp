@@ -6,7 +6,7 @@
 
 #include "helpers.hpp"
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 
 //! alpaka version of explicit finite-difference 2D heat equation solver
 //!
@@ -31,40 +31,40 @@ template<size_t T_SharedMemSize1D>
 struct StencilKernel
 {
     template<typename TAcc, typename TDim, typename TIdx>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         double const* const uCurrBuf,
         double* const uNextBuf,
-        alpaka::Vec<TDim, TIdx> const chunkSize,
-        alpaka::Vec<TDim, TIdx> const pitchCurr,
-        alpaka::Vec<TDim, TIdx> const pitchNext,
+        aV2P::Vec<TDim, TIdx> const chunkSize,
+        aV2P::Vec<TDim, TIdx> const pitchCurr,
+        aV2P::Vec<TDim, TIdx> const pitchNext,
         double const dx,
         double const dy,
         double const dt) const -> void
     {
-        auto& sdata = alpaka::declareSharedVar<double[T_SharedMemSize1D], __COUNTER__>(acc);
+        auto& sdata = aV2P::declareSharedVar<double[T_SharedMemSize1D], __COUNTER__>(acc);
 
         // Get extents(dimensions)
-        auto const blockThreadExtent = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc);
+        auto const blockThreadExtent = aV2P::getWorkDiv<aV2P::Block, aV2P::Threads>(acc);
         auto const numThreadsPerBlock = blockThreadExtent.prod();
 
         // Get indexes
-        auto const gridBlockIdx = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc);
-        auto const blockThreadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc);
-        auto const threadIdx1D = alpaka::mapIdx<1>(blockThreadIdx, blockThreadExtent)[0u];
+        auto const gridBlockIdx = aV2P::getIdx<aV2P::Grid, aV2P::Blocks>(acc);
+        auto const blockThreadIdx = aV2P::getIdx<aV2P::Block, aV2P::Threads>(acc);
+        auto const threadIdx1D = aV2P::mapIdx<1>(blockThreadIdx, blockThreadExtent)[0u];
         auto const blockStartIdx = gridBlockIdx * chunkSize;
 
-        constexpr alpaka::Vec<TDim, TIdx> halo{2, 2};
+        constexpr aV2P::Vec<TDim, TIdx> halo{2, 2};
 
         for(auto i = threadIdx1D; i < T_SharedMemSize1D; i += numThreadsPerBlock)
         {
-            auto idx2d = alpaka::mapIdx<2>(alpaka::Vec(i), chunkSize + halo);
+            auto idx2d = aV2P::mapIdx<2>(aV2P::Vec(i), chunkSize + halo);
             idx2d = idx2d + blockStartIdx;
             auto elem = getElementPtr(uCurrBuf, idx2d, pitchCurr);
             sdata[i] = *elem;
         }
 
-        alpaka::syncBlockThreads(acc);
+        aV2P::syncBlockThreads(acc);
 
         // Each kernel executes one element
         double const rX = dt / (dx * dx);
@@ -73,9 +73,9 @@ struct StencilKernel
         // go over only core cells
         for(auto i = threadIdx1D; i < chunkSize.prod(); i += numThreadsPerBlock)
         {
-            auto idx2D = alpaka::mapIdx<2>(alpaka::Vec(i), chunkSize);
-            idx2D = idx2D + alpaka::Vec<TDim, TIdx>{1, 1}; // offset for halo above and to the left
-            auto localIdx1D = alpaka::mapIdx<1>(idx2D, chunkSize + halo)[0u];
+            auto idx2D = aV2P::mapIdx<2>(aV2P::Vec(i), chunkSize);
+            idx2D = idx2D + aV2P::Vec<TDim, TIdx>{1, 1}; // offset for halo above and to the left
+            auto localIdx1D = aV2P::mapIdx<1>(idx2D, chunkSize + halo)[0u];
 
 
             auto bufIdx = idx2D + blockStartIdx;

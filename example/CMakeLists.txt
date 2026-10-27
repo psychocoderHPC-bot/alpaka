@@ -9,12 +9,13 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-project("alpakaExamples" LANGUAGES CXX)
+project("aV2PExamples" LANGUAGES CXX)
 
 ################################################################################
 # Add subdirectories.
 ################################################################################
 
+add_subdirectory("aV2PInterop/")
 add_subdirectory("bufferCopy/")
 add_subdirectory("complex/")
 add_subdirectory("convolution1D/")

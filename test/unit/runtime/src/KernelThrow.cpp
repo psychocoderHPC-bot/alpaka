@@ -2,10 +2,9 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/core/RuntimeMacros.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-
+#include <aV2P/core/RuntimeMacros.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -13,42 +12,42 @@ class KernelWithThrow
 {
 public:
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc) const -> void
     {
-        using Idx = alpaka::Idx<TAcc>;
-        using Dim = alpaka::Dim<TAcc>;
-        using Vec = alpaka::Vec<Dim, Idx>;
-        Vec const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        using Idx = aV2P::Idx<TAcc>;
+        using Dim = aV2P::Dim<TAcc>;
+        using Vec = aV2P::Vec<Dim, Idx>;
+        Vec const globalThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
         if(globalThreadIdx == Vec::zeros())
         {
             // Throw abort or std::runtime_error depending on acc type
-            ALPAKA_THROW_ACC("Exception thrown by the kernel.");
+            AV2P_THROW_ACC("Exception thrown by the kernel.");
         }
-        alpaka::syncBlockThreads(acc);
+        aV2P::syncBlockThreads(acc);
     }
 };
 
 template<typename T, typename Acc>
 void checkThrow(std::string const& expectedErrStr)
 {
-    if constexpr(alpaka::accMatchesTags<Acc, T>)
+    if constexpr(aV2P::accMatchesTags<Acc, T>)
     {
-        using Idx = alpaka::Idx<Acc>;
-        using Dim = alpaka::Dim<Acc>;
-        using Vec = alpaka::Vec<Dim, Idx>;
-        using Queue = alpaka::Queue<Acc, alpaka::Blocking>;
+        using Idx = aV2P::Idx<Acc>;
+        using Dim = aV2P::Dim<Acc>;
+        using Vec = aV2P::Vec<Dim, Idx>;
+        using Queue = aV2P::Queue<Acc, aV2P::Blocking>;
 
-        auto const platformAcc = alpaka::Platform<Acc>{};
-        auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+        auto const platformAcc = aV2P::Platform<Acc>{};
+        auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
         Queue queue(devAcc);
-        auto const workDiv = alpaka::WorkDivMembers<Dim, Idx>{Vec{8}, Vec{1}, Vec{1}};
+        auto const workDiv = aV2P::WorkDivMembers<Dim, Idx>{Vec{8}, Vec{1}, Vec{1}};
 
         try
         {
-            alpaka::exec<Acc>(queue, workDiv, KernelWithThrow{});
+            aV2P::exec<Acc>(queue, workDiv, KernelWithThrow{});
             // Cuda can catch exceptions which were thrown at kernel during the wait(); therefore wait is added.
-            alpaka::wait(queue);
+            aV2P::wait(queue);
         }
         catch(std::runtime_error& e)
         {
@@ -66,19 +65,19 @@ void checkThrow(std::string const& expectedErrStr)
     }
 }
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::uint32_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::uint32_t>;
 
 TEMPLATE_LIST_TEST_CASE("ThrowForCpuThreadAndSerial", "[runtime]", TestAccs)
 {
     using Acc = TestType;
     // Test runtime-error exceptions.
-    checkThrow<alpaka::TagCpuThreads, Acc>("Exception thrown by the kernel");
-    checkThrow<alpaka::TagCpuSerial, Acc>("Exception thrown by the kernel");
+    checkThrow<aV2P::TagCpuThreads, Acc>("Exception thrown by the kernel");
+    checkThrow<aV2P::TagCpuSerial, Acc>("Exception thrown by the kernel");
 }
 
 TEMPLATE_LIST_TEST_CASE("ThrowForGpuBackend", "[runtime]", TestAccs)
 {
     using Acc = TestType;
     // Test runtime-error exceptions.
-    checkThrow<alpaka::TagGpuCudaRt, Acc>("cudaErrorLaunchFailure");
+    checkThrow<aV2P::TagGpuCudaRt, Acc>("cudaErrorLaunchFailure");
 }

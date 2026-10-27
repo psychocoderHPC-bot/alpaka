@@ -15,7 +15,7 @@
 #endif
 
 // Computes x * y + z as if to infinite precision and rounded only once to fit the result type.
-inline ALPAKA_FN_HOST_ACC auto myfma(float x, float y, float z) noexcept -> float
+inline AV2P_FN_HOST_ACC auto myfma(float x, float y, float z) noexcept -> float
 {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return ::fmaf(x, y, z);
@@ -27,7 +27,7 @@ inline ALPAKA_FN_HOST_ACC auto myfma(float x, float y, float z) noexcept -> floa
 }
 
 // A square root calculation using simple operations.
-ALPAKA_FN_HOST_ACC auto mysqrt(float x) noexcept -> float
+AV2P_FN_HOST_ACC auto mysqrt(float x) noexcept -> float
 {
     if(x <= 0)
     {

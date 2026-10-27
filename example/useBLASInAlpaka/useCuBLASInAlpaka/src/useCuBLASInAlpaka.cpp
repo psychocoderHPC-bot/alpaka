@@ -6,8 +6,7 @@
  * buffers and queue. Since the code needs only AccGpuCuda backend. Make sure the correct alpaka cmake backend flag is
  * set for alpaka.
  */
-#include <alpaka/alpaka.hpp>
-
+#include <aV2P/alpaka.hpp>
 #include <cublas_v2.h>
 
 #include <cmath>
@@ -33,7 +32,7 @@ void initializeMatrix(DataType* buffer, Idx rows, Idx cols)
 
 auto main() -> int
 {
-    using Dim1D = alpaka::DimInt<1>;
+    using Dim1D = aV2P::DimInt<1>;
 
     // Define matrix dimensions, A is MxK and B is KxN
     Idx const M = 4; // Rows in A and C
@@ -42,20 +41,20 @@ auto main() -> int
 
     // Define the accelerator and queue
     // Use Cuda Accelerator. Cmake Acc flags should be set to Cuda-Only
-    using Acc = alpaka::TagToAcc<alpaka::TagGpuCudaRt, Dim1D, Idx>;
-    using Queue = alpaka::Queue<Acc, alpaka::Blocking>;
+    using Acc = aV2P::TagToAcc<aV2P::TagGpuCudaRt, Dim1D, Idx>;
+    using Queue = aV2P::Queue<Acc, aV2P::Blocking>;
 
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     Queue queue(devAcc);
 
     // Allocate 1D host memory
-    auto bufHostA = alpaka::allocBuf<DataType, Idx>(devHost, M * K);
-    auto bufHostB = alpaka::allocBuf<DataType, Idx>(devHost, K * N);
-    auto bufHostC = alpaka::allocBuf<DataType, Idx>(devHost, M * N);
+    auto bufHostA = aV2P::allocBuf<DataType, Idx>(devHost, M * K);
+    auto bufHostB = aV2P::allocBuf<DataType, Idx>(devHost, K * N);
+    auto bufHostC = aV2P::allocBuf<DataType, Idx>(devHost, M * N);
 
     DataType* hostA = std::data(bufHostA);
     DataType* hostB = std::data(bufHostB);
@@ -88,20 +87,20 @@ auto main() -> int
     }
 
     // Allocate 1D device memory
-    auto bufDevA = alpaka::allocBuf<DataType, Idx>(devAcc, M * K);
-    auto bufDevB = alpaka::allocBuf<DataType, Idx>(devAcc, K * N);
-    auto bufDevC = alpaka::allocBuf<DataType, Idx>(devAcc, M * N);
+    auto bufDevA = aV2P::allocBuf<DataType, Idx>(devAcc, M * K);
+    auto bufDevB = aV2P::allocBuf<DataType, Idx>(devAcc, K * N);
+    auto bufDevC = aV2P::allocBuf<DataType, Idx>(devAcc, M * N);
 
     // Copy data to device
-    alpaka::memcpy(queue, bufDevA, bufHostA);
-    alpaka::memcpy(queue, bufDevB, bufHostB);
-    alpaka::memcpy(queue, bufDevC, bufHostC);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, bufDevA, bufHostA);
+    aV2P::memcpy(queue, bufDevB, bufHostB);
+    aV2P::memcpy(queue, bufDevC, bufHostC);
+    aV2P::wait(queue);
 
     std::cout << "Copied matrices A and B to the device." << std::endl;
 
     // Get the native CUDA stream from Alpaka queue
-    auto alpakaStream = alpaka::getNativeHandle(queue);
+    auto alpakaStream = aV2P::getNativeHandle(queue);
 
     // cuBLAS setup
     cublasHandle_t cublasHandle;
@@ -128,12 +127,12 @@ auto main() -> int
         M // Leading dimension of C
     );
 
-    alpaka::wait(queue); // Wait for multiplication to complete
+    aV2P::wait(queue); // Wait for multiplication to complete
     std::cout << "Matrix multiplication completed." << std::endl;
 
     // Copy result back to host
-    alpaka::memcpy(queue, bufHostC, bufDevC);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, bufHostC, bufDevC);
+    aV2P::wait(queue);
     std::cout << "Copied result matrix C back to the host." << std::endl;
 
     // Print result matrix C

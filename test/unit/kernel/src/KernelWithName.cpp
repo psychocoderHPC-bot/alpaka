@@ -2,34 +2,33 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/kernel/Traits.hpp>
-#include <alpaka/meta/ForEachType.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-
+#include <aV2P/kernel/Traits.hpp>
+#include <aV2P/meta/ForEachType.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 class KernelWithName
 {
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& /* acc */, bool* success, std::int32_t val) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& /* acc */, bool* success, std::int32_t val) const -> void
     {
-        ALPAKA_CHECK(*success, 42 == val);
+        AV2P_CHECK(*success, 42 == val);
     }
 };
 
-ALPAKA_KERNEL_NAME(KernelWithName, kernelWithName)
+AV2P_KERNEL_NAME(KernelWithName, kernelWithName)
 
-TEMPLATE_LIST_TEST_CASE("KernelWithName", "[kernel]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("KernelWithName", "[kernel]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     KernelWithName kernel;
 
@@ -39,23 +38,23 @@ TEMPLATE_LIST_TEST_CASE("KernelWithName", "[kernel]", alpaka::test::TestAccs)
 class KernelWithScopedName
 {
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& /* acc */, bool* success, std::int32_t val) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& /* acc */, bool* success, std::int32_t val) const -> void
     {
-        ALPAKA_CHECK(*success, 42 == val);
+        AV2P_CHECK(*success, 42 == val);
     }
 };
 
-ALPAKA_KERNEL_SCOPED_NAME(KernelWithScopedName, scope, kernelWithName)
+AV2P_KERNEL_SCOPED_NAME(KernelWithScopedName, scope, kernelWithName)
 
-TEMPLATE_LIST_TEST_CASE("KernelWithScopedName", "[kernel]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("KernelWithScopedName", "[kernel]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     KernelWithScopedName kernel;
 

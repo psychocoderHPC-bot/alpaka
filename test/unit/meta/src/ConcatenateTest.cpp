@@ -2,8 +2,7 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/meta/Concatenate.hpp>
-
+#include <aV2P/meta/Concatenate.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
@@ -16,9 +15,9 @@ TEST_CASE("concatenate", "[meta]")
 
     using TestTuple2 = std::tuple<bool, std::string>;
 
-    using ConcatenateResult = alpaka::meta::Concatenate<TestTuple1, TestTuple2>;
+    using ConcatenateResult = aV2P::meta::Concatenate<TestTuple1, TestTuple2>;
 
     using ConcatenateReference = std::tuple<float, int, std::tuple<double, unsigned long>, bool, std::string>;
 
-    static_assert(std::is_same_v<ConcatenateReference, ConcatenateResult>, "alpaka::meta::Concatenate failed!");
+    static_assert(std::is_same_v<ConcatenateReference, ConcatenateResult>, "aV2P::meta::Concatenate failed!");
 }

@@ -2,36 +2,35 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/block/shared/dyn/Traits.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-
+#include <aV2P/block/shared/dyn/Traits.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 class BlockSharedMemDynTestKernel
 {
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
     {
         // Assure that the pointer is non null.
-        auto a = alpaka::getDynSharedMem<std::uint32_t>(acc);
-        ALPAKA_CHECK(*success, static_cast<std::uint32_t*>(nullptr) != a);
+        auto a = aV2P::getDynSharedMem<std::uint32_t>(acc);
+        AV2P_CHECK(*success, static_cast<std::uint32_t*>(nullptr) != a);
 
         // Each call should return the same pointer ...
-        auto b = alpaka::getDynSharedMem<std::uint32_t>(acc);
-        ALPAKA_CHECK(*success, a == b);
+        auto b = aV2P::getDynSharedMem<std::uint32_t>(acc);
+        AV2P_CHECK(*success, a == b);
 
         // ... even for different types.
-        auto c = alpaka::getDynSharedMem<float>(acc);
-        ALPAKA_CHECK(*success, a == reinterpret_cast<std::uint32_t*>(c));
+        auto c = aV2P::getDynSharedMem<float>(acc);
+        AV2P_CHECK(*success, a == reinterpret_cast<std::uint32_t*>(c));
     }
 };
 
-namespace alpaka::trait
+namespace aV2P::trait
 {
     //! The trait for getting the size of the block shared dynamic memory for a kernel.
     template<typename TAcc>
@@ -39,7 +38,7 @@ namespace alpaka::trait
     {
         //! \return The size of the shared memory allocated for a block.
         template<typename TVec>
-        ALPAKA_FN_HOST_ACC static auto getBlockSharedMemDynSizeBytes(
+        AV2P_FN_HOST_ACC static auto getBlockSharedMemDynSizeBytes(
             BlockSharedMemDynTestKernel const& /* blockSharedMemDyn */,
             TVec const& blockThreadExtent,
             TVec const& threadElemExtent,
@@ -49,15 +48,15 @@ namespace alpaka::trait
             return static_cast<std::size_t>(gridSize) * sizeof(std::uint32_t);
         }
     };
-} // namespace alpaka::trait
+} // namespace aV2P::trait
 
-TEMPLATE_LIST_TEST_CASE("sameNonNullAdress", "[blockSharedMemDyn]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("sameNonNullAdress", "[blockSharedMemDyn]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     BlockSharedMemDynTestKernel kernel;
 

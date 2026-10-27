@@ -4,30 +4,29 @@
 
 #pragma once
 
-#include <alpaka/acc/Tag.hpp>
-#include <alpaka/warp/WarpGenericSycl.hpp>
+#include <aV2P/acc/Tag.hpp>
+#include <aV2P/warp/WarpGenericSycl.hpp>
 
-namespace alpaka::test
+namespace aV2P::test
 {
     //! Return why the warp operations are not supported by the accelerator TAcc, or nullptr if they are supported.
     //! The warp operations are always supported, except by some SYCL backends and oneAPI versions: see
-    //! alpaka/warp/WarpGenericSycl.hpp .
+    //! aV2P/warp/WarpGenericSycl.hpp .
     template<typename TAcc>
     constexpr auto warpUnsupportedReason() -> char const*
     {
-#ifdef ALPAKA_ACC_SYCL_ENABLED
-        if constexpr(alpaka::accMatchesTags<
+#ifdef AV2P_ACC_SYCL_ENABLED
+        if constexpr(aV2P::accMatchesTags<
                          TAcc,
-                         alpaka::TagCpuSycl,
-                         alpaka::TagGpuSyclIntel,
-                         alpaka::TagGpuSyclNvidia,
-                         alpaka::TagGpuSyclAmd,
-                         alpaka::TagFpgaSyclIntel,
-                         alpaka::TagGenericSycl>)
+                         aV2P::TagCpuSycl,
+                         aV2P::TagGpuSyclIntel,
+                         aV2P::TagGpuSyclNvidia,
+                         aV2P::TagGpuSyclAmd,
+                         aV2P::TagGenericSycl>)
         {
-            return alpaka::warp::detail::syclWarpUnsupportedReason<alpaka::AccToTag<TAcc>>();
+            return aV2P::warp::detail::syclWarpUnsupportedReason<aV2P::AccToTag<TAcc>>();
         }
 #endif
         return nullptr;
     }
-} // namespace alpaka::test
+} // namespace aV2P::test

@@ -2,6 +2,6 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 
-ALPAKA_FN_HOST_ACC ALPAKA_FN_EXTERN auto mysqrt(float x) noexcept -> float;
+AV2P_FN_HOST_ACC AV2P_FN_EXTERN auto mysqrt(float x) noexcept -> float;

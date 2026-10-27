@@ -2,16 +2,16 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 // Needed for running example for all backends available; one by one
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <iostream>
 
 //! Matrix multiplication example by using mdspan data structure
 
 //! Some simple type traits for checking the types
-//! isMdspan simply checks if a type is of type alpaka::experimental::mdspan or not
+//! isMdspan simply checks if a type is of type aV2P::experimental::mdspan or not
 //! Primary template for is_mdspan (defaults to false)
 template<typename T>
 struct IsMdspan : std::false_type
@@ -20,7 +20,7 @@ struct IsMdspan : std::false_type
 
 //! Specialization for mdspan
 template<typename... TArgs>
-struct IsMdspan<alpaka::experimental::mdspan<TArgs...>> : std::true_type
+struct IsMdspan<aV2P::experimental::mdspan<TArgs...>> : std::true_type
 {
 };
 
@@ -46,7 +46,7 @@ struct MatrixMulKernel
     //! \param C Output matrix where the result of A * B will be stored
     //! \param K The shared dimension between A and B
     template<typename TAcc, typename TMdSpan>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc, TMdSpan A, TMdSpan B, TMdSpan C) const
+    AV2P_FN_ACC void operator()(TAcc const& acc, TMdSpan A, TMdSpan B, TMdSpan C) const
     {
         // compile time checks
         static_assert(is_mdspan<TMdSpan>, "The type TMdSpan should be an std mdspan");
@@ -55,8 +55,8 @@ struct MatrixMulKernel
         // A is MxK and B is KxN
         auto const K = static_cast<Idx>(A.extent(1));
 
-        auto const i = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
-        auto const j = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[1];
+        auto const i = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0];
+        auto const j = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[1];
 
         if(i < C.extent(0) && j < C.extent(1))
         {
@@ -89,11 +89,11 @@ inline void initializeMatrx(TMdSpan& span)
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Set number of dimensions (i.e 2) as a type
-    using Dim = alpaka::DimInt<2>;
+    using Dim = aV2P::DimInt<2>;
 
     // Define matrix dimensions, A is MxK and B is KxN
     Idx const M = 250;
@@ -101,14 +101,14 @@ auto example(TAccTag const&) -> int
     Idx const K = 250;
 
     // Define device and queue
-    using Acc = alpaka::TagToAcc<TAccTag, Dim, Idx>;
-    using Queue = alpaka::Queue<Acc, alpaka::Blocking>;
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Acc = aV2P::TagToAcc<TAccTag, Dim, Idx>;
+    using Queue = aV2P::Queue<Acc, aV2P::Blocking>;
+    using Vec = aV2P::Vec<Dim, Idx>;
 
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     Queue queue(devAcc);
 
@@ -118,50 +118,50 @@ auto example(TAccTag const&) -> int
     Vec const extentC(static_cast<Idx>(M), static_cast<Idx>(N));
 
     // Allocate host memory
-    auto bufHostA = alpaka::allocBuf<DataType, Idx>(devHost, extentA);
-    auto bufHostB = alpaka::allocBuf<DataType, Idx>(devHost, extentB);
-    auto bufHostC = alpaka::allocBuf<DataType, Idx>(devHost, extentC);
+    auto bufHostA = aV2P::allocBuf<DataType, Idx>(devHost, extentA);
+    auto bufHostB = aV2P::allocBuf<DataType, Idx>(devHost, extentB);
+    auto bufHostC = aV2P::allocBuf<DataType, Idx>(devHost, extentC);
 
-    // Create mdspan view for bufHostA and bufHostB using alpaka::experimental::getMdSpan to fill the host buffers
-    auto mdHostA = alpaka::experimental::getMdSpan(bufHostA);
-    auto mdHostB = alpaka::experimental::getMdSpan(bufHostB);
+    // Create mdspan view for bufHostA and bufHostB using aV2P::experimental::getMdSpan to fill the host buffers
+    auto mdHostA = aV2P::experimental::getMdSpan(bufHostA);
+    auto mdHostB = aV2P::experimental::getMdSpan(bufHostB);
 
     // Initialize host matrices
     initializeMatrx(mdHostA);
     initializeMatrx(mdHostB);
 
     // Allocate device memory
-    auto bufDevA = alpaka::allocBuf<DataType, Idx>(devAcc, extentA);
-    auto bufDevB = alpaka::allocBuf<DataType, Idx>(devAcc, extentB);
-    auto bufDevC = alpaka::allocBuf<DataType, Idx>(devAcc, extentC);
+    auto bufDevA = aV2P::allocBuf<DataType, Idx>(devAcc, extentA);
+    auto bufDevB = aV2P::allocBuf<DataType, Idx>(devAcc, extentB);
+    auto bufDevC = aV2P::allocBuf<DataType, Idx>(devAcc, extentC);
 
     // Copy data to device, use directly host buffers (not mdspans used to fill the data)
-    alpaka::memcpy(queue, bufDevA, bufHostA);
-    alpaka::memcpy(queue, bufDevB, bufHostB);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, bufDevA, bufHostA);
+    aV2P::memcpy(queue, bufDevB, bufHostB);
+    aV2P::wait(queue);
 
-    // Create mdspan views for device buffers using alpaka::experimental::getMdSpan
-    auto mdDevA = alpaka::experimental::getMdSpan(bufDevA);
-    auto mdDevB = alpaka::experimental::getMdSpan(bufDevB);
-    auto mdDevC = alpaka::experimental::getMdSpan(bufDevC);
+    // Create mdspan views for device buffers using aV2P::experimental::getMdSpan
+    auto mdDevA = aV2P::experimental::getMdSpan(bufDevA);
+    auto mdDevB = aV2P::experimental::getMdSpan(bufDevB);
+    auto mdDevC = aV2P::experimental::getMdSpan(bufDevC);
 
     MatrixMulKernel kernel;
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    alpaka::KernelCfg<Acc> const kernelCfg
-        = {extentC, Vec::ones(), false, alpaka::GridBlockExtentSubDivRestrictions::Unrestricted};
-    auto const workDiv = alpaka::getValidWorkDiv<Acc>(kernelCfg, devAcc, kernel, mdDevA, mdDevB, mdDevC);
+    aV2P::KernelCfg<Acc> const kernelCfg
+        = {extentC, Vec::ones(), false, aV2P::GridBlockExtentSubDivRestrictions::Unrestricted};
+    auto const workDiv = aV2P::getValidWorkDiv<Acc>(kernelCfg, devAcc, kernel, mdDevA, mdDevB, mdDevC);
 
     // Execute the kernel
-    alpaka::exec<Acc>(queue, workDiv, kernel, mdDevA, mdDevB, mdDevC);
+    aV2P::exec<Acc>(queue, workDiv, kernel, mdDevA, mdDevB, mdDevC);
 
     // Copy result back to host
-    alpaka::memcpy(queue, bufHostC, bufDevC);
-    alpaka::wait(queue);
+    aV2P::memcpy(queue, bufHostC, bufDevC);
+    aV2P::wait(queue);
 
     // Verify the result
     bool success = true;
-    auto mdHostC = alpaka::experimental::getMdSpan(bufHostC);
+    auto mdHostC = aV2P::experimental::getMdSpan(bufHostC);
     for(Idx i = 0; i < M; ++i)
     {
         if(success)
@@ -194,7 +194,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -205,6 +205,6 @@ auto main() -> int
     // valid tags:
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
-    //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    //   TagGenericSycl, TagGpuSyclIntel
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

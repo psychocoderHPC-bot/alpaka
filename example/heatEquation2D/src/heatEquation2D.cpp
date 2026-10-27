@@ -11,8 +11,8 @@
 #    include "writeImage.hpp"
 #endif
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -31,29 +31,29 @@
 //! Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 //! selected accelerator only. If you use the example as the starting point for your project, you can rename the
 //! example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Set Dim and Idx type
-    using Dim = alpaka::DimInt<2u>;
+    using Dim = aV2P::DimInt<2u>;
     using Idx = uint32_t;
 
     // Define the accelerator
-    using Acc = alpaka::TagToAcc<TAccTag, Dim, Idx>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<TAccTag, Dim, Idx>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
 
     // Select specific devices
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc = alpaka::Platform<Acc>{};
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
     // get suitable device for this Acc
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // simulation defines
     // {Y, X}
-    constexpr alpaka::Vec<Dim, Idx> numNodes{64, 64};
-    constexpr alpaka::Vec<Dim, Idx> haloSize{2, 2};
-    constexpr alpaka::Vec<Dim, Idx> extent = numNodes + haloSize;
+    constexpr aV2P::Vec<Dim, Idx> numNodes{64, 64};
+    constexpr aV2P::Vec<Dim, Idx> haloSize{2, 2};
+    constexpr aV2P::Vec<Dim, Idx> extent = numNodes + haloSize;
 
     constexpr uint32_t numTimeSteps = 4000;
     constexpr double tMax = 0.1;
@@ -74,41 +74,41 @@ auto example(TAccTag const&) -> int
 
     // Initialize host-buffer
     // This buffer will hold the current values (used for the next step)
-    auto uBufHost = alpaka::allocBuf<double, Idx>(devHost, extent);
+    auto uBufHost = aV2P::allocBuf<double, Idx>(devHost, extent);
 
     // Accelerator buffer
-    auto uCurrBufAcc = alpaka::allocBuf<double, Idx>(devAcc, extent);
-    auto uNextBufAcc = alpaka::allocBuf<double, Idx>(devAcc, extent);
+    auto uCurrBufAcc = aV2P::allocBuf<double, Idx>(devAcc, extent);
+    auto uNextBufAcc = aV2P::allocBuf<double, Idx>(devAcc, extent);
 
-    auto const pitchCurrAcc{alpaka::getPitchesInBytes(uCurrBufAcc)};
-    auto const pitchNextAcc{alpaka::getPitchesInBytes(uNextBufAcc)};
+    auto const pitchCurrAcc{aV2P::getPitchesInBytes(uCurrBufAcc)};
+    auto const pitchNextAcc{aV2P::getPitchesInBytes(uNextBufAcc)};
 
     // Set buffer to initial conditions
     initalizeBuffer(uBufHost, dx, dy);
 
     // Select queue
-    using QueueProperty = alpaka::NonBlocking;
-    using QueueAcc = alpaka::Queue<Acc, QueueProperty>;
+    using QueueProperty = aV2P::NonBlocking;
+    using QueueAcc = aV2P::Queue<Acc, QueueProperty>;
     QueueAcc dumpQueue{devAcc};
     QueueAcc computeQueue{devAcc};
 
     // Copy host -> device
-    alpaka::memcpy(computeQueue, uCurrBufAcc, uBufHost);
-    alpaka::wait(computeQueue);
+    aV2P::memcpy(computeQueue, uCurrBufAcc, uBufHost);
+    aV2P::wait(computeQueue);
 
     // Define a workdiv for the given problem
-    constexpr alpaka::Vec<Dim, Idx> elemPerThread{1, 1};
+    constexpr aV2P::Vec<Dim, Idx> elemPerThread{1, 1};
 
     // Appropriate chunk size to split your problem for your Acc
     constexpr Idx xSize = 16u;
     constexpr Idx ySize = 16u;
     constexpr Idx halo = 2u;
-    constexpr alpaka::Vec<Dim, Idx> chunkSize{ySize, xSize};
+    constexpr aV2P::Vec<Dim, Idx> chunkSize{ySize, xSize};
     constexpr auto sharedMemSize = (ySize + halo) * (xSize + halo);
 
-    constexpr alpaka::Vec<Dim, Idx> numChunks{
-        alpaka::core::divCeil(numNodes[0], chunkSize[0]),
-        alpaka::core::divCeil(numNodes[1], chunkSize[1]),
+    constexpr aV2P::Vec<Dim, Idx> numChunks{
+        aV2P::core::divCeil(numNodes[0], chunkSize[0]),
+        aV2P::core::divCeil(numNodes[1], chunkSize[1]),
     };
 
     assert(
@@ -119,7 +119,7 @@ auto example(TAccTag const&) -> int
     BoundaryKernel boundaryKernel;
 
     // Get max threads that can be run in a block for this kernel
-    auto const kernelFunctionAttributes = alpaka::getFunctionAttributes<Acc>(
+    auto const kernelFunctionAttributes = aV2P::getFunctionAttributes<Acc>(
         devAcc,
         stencilKernel,
         uCurrBufAcc.data(),
@@ -133,15 +133,15 @@ auto example(TAccTag const&) -> int
     auto const maxThreadsPerBlock = kernelFunctionAttributes.maxThreadsPerBlock;
 
     auto const threadsPerBlock
-        = maxThreadsPerBlock < chunkSize.prod() ? alpaka::Vec<Dim, Idx>{maxThreadsPerBlock, 1} : chunkSize;
+        = maxThreadsPerBlock < chunkSize.prod() ? aV2P::Vec<Dim, Idx>{maxThreadsPerBlock, 1} : chunkSize;
 
-    alpaka::WorkDivMembers<Dim, Idx> workDiv_manual{numChunks, threadsPerBlock, elemPerThread};
+    aV2P::WorkDivMembers<Dim, Idx> workDiv_manual{numChunks, threadsPerBlock, elemPerThread};
 
     // Simulate
     for(uint32_t step = 1; step <= numTimeSteps; ++step)
     {
         // Compute next values
-        alpaka::exec<Acc>(
+        aV2P::exec<Acc>(
             computeQueue,
             workDiv_manual,
             stencilKernel,
@@ -155,7 +155,7 @@ auto example(TAccTag const&) -> int
             dt);
 
         // Apply boundaries
-        alpaka::exec<Acc>(
+        aV2P::exec<Acc>(
             computeQueue,
             workDiv_manual,
             boundaryKernel,
@@ -170,9 +170,9 @@ auto example(TAccTag const&) -> int
 #ifdef PNGWRITER_ENABLED
         if((step - 1) % 100 == 0)
         {
-            alpaka::wait(computeQueue);
-            alpaka::memcpy(dumpQueue, uBufHost, uCurrBufAcc);
-            alpaka::wait(dumpQueue);
+            aV2P::wait(computeQueue);
+            aV2P::memcpy(dumpQueue, uBufHost, uCurrBufAcc);
+            aV2P::wait(dumpQueue);
             writeImage(step - 1, uBufHost);
         }
 #endif
@@ -182,9 +182,9 @@ auto example(TAccTag const&) -> int
     }
 
     // Copy device -> host
-    alpaka::wait(computeQueue);
-    alpaka::memcpy(dumpQueue, uBufHost, uCurrBufAcc);
-    alpaka::wait(dumpQueue);
+    aV2P::wait(computeQueue);
+    aV2P::memcpy(dumpQueue, uBufHost, uCurrBufAcc);
+    aV2P::wait(dumpQueue);
 
     // Validate
     auto const [resultIsCorrect, maxError] = validateSolution(uBufHost, extent, dx, dy, tMax);
@@ -205,7 +205,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -216,6 +216,6 @@ auto main() -> int
     // valid tags:
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
-    //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    //   TagGenericSycl, TagGpuSyclIntel
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

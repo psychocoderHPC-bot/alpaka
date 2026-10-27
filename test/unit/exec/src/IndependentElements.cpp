@@ -3,19 +3,19 @@
  */
 
 #include "WorkDiv.hpp"
-#include "alpaka/acc/Traits.hpp"
-#include "alpaka/core/Config.hpp"
-#include "alpaka/dev/DevCpu.hpp"
-#include "alpaka/dev/Traits.hpp"
-#include "alpaka/exec/UniformElements.hpp"
-#include "alpaka/idx/Traits.hpp"
-#include "alpaka/kernel/Traits.hpp"
-#include "alpaka/mem/view/Traits.hpp"
-#include "alpaka/platform/PlatformCpu.hpp"
-#include "alpaka/platform/Traits.hpp"
-#include "alpaka/queue/Traits.hpp"
-#include "alpaka/test/acc/TestAccs.hpp"
-#include "alpaka/wait/Traits.hpp"
+#include "aV2P/acc/Traits.hpp"
+#include "aV2P/core/Config.hpp"
+#include "aV2P/dev/DevCpu.hpp"
+#include "aV2P/dev/Traits.hpp"
+#include "aV2P/exec/UniformElements.hpp"
+#include "aV2P/idx/Traits.hpp"
+#include "aV2P/kernel/Traits.hpp"
+#include "aV2P/mem/view/Traits.hpp"
+#include "aV2P/platform/PlatformCpu.hpp"
+#include "aV2P/platform/Traits.hpp"
+#include "aV2P/queue/Traits.hpp"
+#include "aV2P/test/acc/TestAccs.hpp"
+#include "aV2P/wait/Traits.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -23,19 +23,19 @@
 #include <random>
 #include <type_traits>
 
-#if ALPAKA_COMP_MSVC
+#if AV2P_COMP_MSVC
 // MSVC uses __restrict instead of __restrict__.
 #    define __restrict__ __restrict
 #endif
 
-#if ALPAKA_COMP_CLANG
+#if AV2P_COMP_CLANG
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wexit-time-destructors"
 #endif
 // Global Host object used by all tests.
-using Host = alpaka::DevCpu;
-static Host host = alpaka::getDevByIdx(alpaka::PlatformCpu{}, 0);
-#if ALPAKA_COMP_CLANG
+using Host = aV2P::DevCpu;
+static Host host = aV2P::getDevByIdx(aV2P::PlatformCpu{}, 0);
+#if AV2P_COMP_CLANG
 #    pragma clang diagnostic pop
 #endif
 
@@ -45,21 +45,21 @@ static Host host = alpaka::getDevByIdx(alpaka::PlatformCpu{}, 0);
 struct IndependentWorkKernel
 {
     template<typename TAcc, typename T>
-    ALPAKA_FN_ACC void operator()(
+    AV2P_FN_ACC void operator()(
         TAcc const& acc,
         T const* __restrict__ in,
         T* __restrict__ out,
-        alpaka::Idx<TAcc> const* __restrict__ indices,
-        alpaka::Idx<TAcc> groups) const
+        aV2P::Idx<TAcc> const* __restrict__ indices,
+        aV2P::Idx<TAcc> groups) const
     {
-        using Idx = alpaka::Idx<TAcc>;
+        using Idx = aV2P::Idx<TAcc>;
 
-        for(auto group : alpaka::independentGroups(acc, groups))
+        for(auto group : aV2P::independentGroups(acc, groups))
         {
             Idx first = indices[group];
             Idx last = indices[group + 1];
             Idx size = last - first;
-            for(auto index : alpaka::independentGroupElements(acc, size))
+            for(auto index : aV2P::independentGroupElements(acc, size))
             {
                 out[first + index] = in[first + index] + static_cast<float>(group);
             }
@@ -71,16 +71,16 @@ struct IndependentWorkKernel
  */
 template<typename TAcc, typename TKernel>
 void testIndependentWorkKernel(
-    alpaka::Idx<TAcc> groups,
-    alpaka::Idx<TAcc> grid_size,
-    alpaka::Idx<TAcc> block_size,
+    aV2P::Idx<TAcc> groups,
+    aV2P::Idx<TAcc> grid_size,
+    aV2P::Idx<TAcc> block_size,
     TKernel kernel)
 {
     using Acc = TAcc;
-    using Idx = alpaka::Idx<Acc>;
-    using Platform = alpaka::Platform<Acc>;
-    using Device = alpaka::Dev<Platform>;
-    using Queue = alpaka::Queue<Device, alpaka::NonBlocking>;
+    using Idx = aV2P::Idx<Acc>;
+    using Platform = aV2P::Platform<Acc>;
+    using Device = aV2P::Dev<Platform>;
+    using Queue = aV2P::Queue<Device, aV2P::NonBlocking>;
 
     // Initialise the accelerator platform.
     Platform platform{};
@@ -96,7 +96,7 @@ void testIndependentWorkKernel(
     std::normal_distribution<float> dist{0.f, 1.f};
 
     // Build the groups.
-    auto indices_h = alpaka::allocMappedBuf<Idx, Idx>(host, platform, groups + 1);
+    auto indices_h = aV2P::allocMappedBuf<Idx, Idx>(host, platform, groups + 1);
     indices_h[0] = 0;
     for(Idx i = 0; i < groups; ++i)
     {
@@ -112,8 +112,8 @@ void testIndependentWorkKernel(
     const Idx size = indices_h[groups];
 
     // Allocate the input and output host buffer in pinned memory accessible by the Platform devices.
-    auto in_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
-    auto out_h = alpaka::allocMappedBuf<float, Idx>(host, platform, size);
+    auto in_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
+    auto out_h = aV2P::allocMappedBuf<float, Idx>(host, platform, size);
 
     // Fill the input buffers with random data, and the output buffer with zeros.
     for(Idx i = 0; i < size; ++i)
@@ -123,36 +123,36 @@ void testIndependentWorkKernel(
     }
 
     // Run the test on each device.
-    for(auto const& device : alpaka::getDevs(platform))
+    for(auto const& device : aV2P::getDevs(platform))
     {
         /* clang-format off */
-        INFO("Test IndependentWorkKernel on " << alpaka::getName(device) << " over " << size << " elements in "
+        INFO("Test IndependentWorkKernel on " << aV2P::getName(device) << " over " << size << " elements in "
                                               << groups << " independent groups with " << grid_size << " blocks of "
                                               << block_size << " elements");
         /* clang-format on */
         auto queue = Queue(device);
 
         // Allocate input and output buffers on the device.
-        auto indices_d = alpaka::allocAsyncBufIfSupported<Idx, Idx>(queue, groups + 1);
-        auto in_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
-        auto out_d = alpaka::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto indices_d = aV2P::allocAsyncBufIfSupported<Idx, Idx>(queue, groups + 1);
+        auto in_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
+        auto out_d = aV2P::allocAsyncBufIfSupported<float, Idx>(queue, size);
 
         // Copy the input data to the device; the size is known from the buffer objects.
-        alpaka::memcpy(queue, indices_d, indices_h);
-        alpaka::memcpy(queue, in_d, in_h);
+        aV2P::memcpy(queue, indices_d, indices_h);
+        aV2P::memcpy(queue, in_d, in_h);
 
         // Fill the output buffer with zeros; the size is known from the buffer objects.
-        alpaka::memset(queue, out_d, 0);
+        aV2P::memset(queue, out_d, 0);
 
         // Launch the 1-dimensional kernel with independent work groups.
         auto workdiv = makeWorkDiv<TAcc>(grid_size, block_size);
-        alpaka::exec<TAcc>(queue, workdiv, kernel, in_d.data(), out_d.data(), indices_d.data(), groups);
+        aV2P::exec<TAcc>(queue, workdiv, kernel, in_d.data(), out_d.data(), indices_d.data(), groups);
 
         // Copy the results from the device to the host.
-        alpaka::memcpy(queue, out_h, out_d);
+        aV2P::memcpy(queue, out_h, out_d);
 
         // Wait for all the operations to complete.
-        alpaka::wait(queue);
+        aV2P::wait(queue);
 
         // Check the results.
         for(Idx g = 0; g < groups; ++g)
@@ -170,10 +170,10 @@ void testIndependentWorkKernel(
     }
 }
 
-TEMPLATE_LIST_TEST_CASE("IndependentElements", "[exec]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("IndependentElements", "[exec]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
+    using Dim = aV2P::Dim<Acc>;
 
     // 1-dimensional kernels.
     if constexpr(Dim::value == 1)

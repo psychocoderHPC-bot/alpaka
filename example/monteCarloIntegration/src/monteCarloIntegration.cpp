@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <cstdint>
 #include <cstdlib>
@@ -16,9 +16,9 @@ struct Function
     //! \param acc The accelerator to be executed on.
     //! \param x The argument.
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, float const x) -> float
+    AV2P_FN_ACC auto operator()(TAcc const& acc, float const x) -> float
     {
-        return alpaka::math::sqrt(acc, (1.0f - x * x));
+        return aV2P::math::sqrt(acc, (1.0f - x * x));
     }
 };
 
@@ -34,26 +34,26 @@ struct Kernel
     //! \param numPoints The total number of points to be calculated.
     //! \param globalCounter The sum of all local results.
     //! \param functor The function for which the integral is to be computed.
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename TFunctor>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         size_t const numPoints,
         uint32_t* const globalCounter,
         TFunctor functor) const -> void
     {
         // Get the global linearized thread idx.
-        auto const globalThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
-        auto const globalThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc);
+        auto const globalThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
+        auto const globalThreadExtent = aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc);
 
-        auto const linearizedGlobalThreadIdx = alpaka::mapIdx<1u>(globalThreadIdx, globalThreadExtent)[0];
+        auto const linearizedGlobalThreadIdx = aV2P::mapIdx<1u>(globalThreadIdx, globalThreadExtent)[0];
         // Setup generator engine and distribution.
-        auto engine = alpaka::rand::engine::createDefault(
+        auto engine = aV2P::rand::engine::createDefault(
             acc,
             linearizedGlobalThreadIdx,
             0); // No specific subsequence start.
         // For simplicity the interval is fixed to [0.0,1.0].
-        auto dist = alpaka::rand::distribution::createUniformReal<float>(acc);
+        auto dist = aV2P::rand::distribution::createUniformReal<float>(acc);
 
         uint32_t localCount = 0;
         for(size_t i = linearizedGlobalThreadIdx; i < numPoints; i += globalThreadExtent.prod())
@@ -69,7 +69,7 @@ struct Kernel
         }
 
         // Add the local result to the sum of the other results.
-        alpaka::atomicAdd(acc, globalCounter, localCount, alpaka::hierarchy::Blocks{});
+        aV2P::atomicAdd(acc, globalCounter, localCount, aV2P::hierarchy::Blocks{});
     }
 };
 
@@ -77,25 +77,25 @@ struct Kernel
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Defines and setup.
-    using Dim = alpaka::DimInt<1>;
+    using Dim = aV2P::DimInt<1>;
     using Idx = std::size_t;
-    using Vec = alpaka::Vec<Dim, Idx>;
-    using Acc = alpaka::TagToAcc<TAccTag, Dim, Idx>;
-    using Host = alpaka::DevCpu;
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
-    using QueueProperty = alpaka::Blocking;
-    using QueueAcc = alpaka::Queue<Acc, QueueProperty>;
+    using Vec = aV2P::Vec<Dim, Idx>;
+    using Acc = aV2P::TagToAcc<TAccTag, Dim, Idx>;
+    using Host = aV2P::DevCpu;
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
+    using QueueProperty = aV2P::Blocking;
+    using QueueAcc = aV2P::Queue<Acc, QueueProperty>;
     QueueAcc queue{devAcc};
 
-    using BufHost = alpaka::Buf<Host, uint32_t, Dim, Idx>;
-    using BufAcc = alpaka::Buf<Acc, uint32_t, Dim, Idx>;
+    using BufHost = aV2P::Buf<Host, uint32_t, Dim, Idx>;
+    using BufAcc = aV2P::Buf<Acc, uint32_t, Dim, Idx>;
 
     // Problem parameter.
     constexpr size_t numPoints = 1'000'000u;
@@ -104,23 +104,23 @@ auto example(TAccTag const&) -> int
     constexpr size_t numAlpakaElementsPerThread = 1;
 
     // Setup buffer.
-    BufHost bufHost{alpaka::allocBuf<uint32_t, Idx>(devHost, extent)};
-    BufAcc bufAcc{alpaka::allocBuf<uint32_t, Idx>(devAcc, extent)};
+    BufHost bufHost{aV2P::allocBuf<uint32_t, Idx>(devHost, extent)};
+    BufAcc bufAcc{aV2P::allocBuf<uint32_t, Idx>(devAcc, extent)};
     uint32_t* const ptrBufAcc{std::data(bufAcc)};
 
     // Initialize the global count to 0.
     bufHost[0] = 0.0f;
-    alpaka::memcpy(queue, bufAcc, bufHost);
+    aV2P::memcpy(queue, bufAcc, bufHost);
 
-    alpaka::KernelCfg<Acc> const kernelCfg = {Vec(numThreads), Vec(numAlpakaElementsPerThread)};
+    aV2P::KernelCfg<Acc> const kernelCfg = {Vec(numThreads), Vec(numAlpakaElementsPerThread)};
     Kernel kernel;
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = alpaka::getValidWorkDiv(kernelCfg, devAcc, kernel, numPoints, ptrBufAcc, Function{});
+    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, kernel, numPoints, ptrBufAcc, Function{});
 
-    alpaka::exec<Acc>(queue, workDiv, kernel, numPoints, ptrBufAcc, Function{});
-    alpaka::memcpy(queue, bufHost, bufAcc);
-    alpaka::wait(queue);
+    aV2P::exec<Acc>(queue, workDiv, kernel, numPoints, ptrBufAcc, Function{});
+    aV2P::memcpy(queue, bufHost, bufAcc);
+    aV2P::wait(queue);
 
     // Check the result.
     uint32_t globalCount = bufHost[0];
@@ -140,7 +140,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -151,6 +151,6 @@ auto main() -> int
     // valid tags:
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
-    //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    //   TagGenericSycl, TagGpuSyclIntel
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

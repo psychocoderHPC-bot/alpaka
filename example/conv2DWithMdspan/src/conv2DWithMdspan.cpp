@@ -2,9 +2,9 @@
  * SPDX-License-Identifier: ISC
  */
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 // Needed for running example for all backends available; one by one
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <iomanip>
 #include <iostream>
@@ -29,11 +29,10 @@ struct ConvolutionKernelMdspan2D
     //! \param filter Filter-matrix
 
     template<typename TAcc, typename MdSpan>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, MdSpan const input, MdSpan output, MdSpan const filter) const
-        -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, MdSpan const input, MdSpan output, MdSpan const filter) const -> void
     {
         static_assert(
-            alpaka::Dim<TAcc>::value == 2u,
+            aV2P::Dim<TAcc>::value == 2u,
             "The accelerator used for the Alpaka Kernel has to be 2 dimensional!");
 
         auto matrixWidth = input.extent(0);
@@ -42,8 +41,8 @@ struct ConvolutionKernelMdspan2D
         int32_t filterWidth = filter.extent(0);
 
         // Get thread index, the center of filter-matrix is positioned to the item on this index.
-        int32_t const row = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
-        int32_t const col = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[1];
+        int32_t const row = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0];
+        int32_t const col = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[1];
 
         // The convolutional filter-matrix applied to the input matrix, it's position is row and col. If some of the
         // items of the filter are outside the matrix, those are not taken into calculation or they are assumed zero.
@@ -77,29 +76,29 @@ auto FuzzyEqual(float a, float b) -> bool
 // Instead, a single accelerator is selected once from the active accelerators and the kernels are executed with the
 // selected accelerator only. If you use the example as the starting point for your project, you can rename the
 // example() function to main() and move the accelerator tag to the function body.
-template<alpaka::concepts::Tag TAccTag>
+template<aV2P::concepts::Tag TAccTag>
 auto example(TAccTag const&) -> int
 {
     // Define the index domain
-    using Dim = alpaka::DimInt<2>;
+    using Dim = aV2P::DimInt<2>;
     // Index type
     using Idx = std::uint32_t;
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Vec = aV2P::Vec<Dim, Idx>;
     // Define the accelerator
-    using DevAcc = alpaka::TagToAcc<TAccTag, Dim, Idx>;
-    using QueueAcc = alpaka::Queue<DevAcc, alpaka::NonBlocking>;
+    using DevAcc = aV2P::TagToAcc<TAccTag, Dim, Idx>;
+    using QueueAcc = aV2P::Queue<DevAcc, aV2P::NonBlocking>;
 
     using DataType = float;
     static constexpr Idx filterWidth = 5;
     static constexpr Idx matrixWidth = 128;
     static constexpr Idx matrixHeight = 128;
 
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<DevAcc>() << std::endl;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<DevAcc>() << std::endl;
 
-    auto const devHost = alpaka::getDevByIdx(alpaka::PlatformCpu{}, 0);
+    auto const devHost = aV2P::getDevByIdx(aV2P::PlatformCpu{}, 0);
     // Select a device from the accelerator
-    auto const platformAcc = alpaka::Platform<DevAcc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<DevAcc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Create a queue on the device
     QueueAcc queueAcc(devAcc);
@@ -117,17 +116,17 @@ auto example(TAccTag const&) -> int
         element /= matrixWidth;
     }
     // Create 2D view
-    auto bufInputHostView = alpaka::createView(devHost, bufInputHost1D.data(), extent);
+    auto bufInputHostView = aV2P::createView(devHost, bufInputHost1D.data(), extent);
 
     // Input buffer at device
-    auto bufInputAcc = alpaka::allocBuf<DataType, Idx>(devAcc, extent);
+    auto bufInputAcc = aV2P::allocBuf<DataType, Idx>(devAcc, extent);
     // Copy input view from host to device by copying to alpaka buffer type
-    alpaka::memcpy(queueAcc, bufInputAcc, bufInputHostView);
-    alpaka::wait(queueAcc);
+    aV2P::memcpy(queueAcc, bufInputAcc, bufInputHostView);
+    aV2P::wait(queueAcc);
     //
     //  Output buffer allocation at device
     //
-    auto outputDeviceMemory = alpaka::allocBuf<DataType, Idx>(devAcc, extent);
+    auto outputDeviceMemory = aV2P::allocBuf<DataType, Idx>(devAcc, extent);
 
     //  Prepare convolution filter at host
     //
@@ -135,43 +134,43 @@ auto example(TAccTag const&) -> int
                                           0.34, 0.35, 0.41, 0.42, 0.43, 0.44, 0.45, 0.51, 0.52, 0.53, 0.54, 0.55};
 
     Vec const filterExtent(static_cast<Idx>(filterWidth), static_cast<Idx>(filterWidth));
-    // Create 2D view from std::vector in order to use in alpaka::memcpy
-    auto bufFilterHostView = alpaka::createView(devHost, filter.data(), filterExtent);
+    // Create 2D view from std::vector in order to use in aV2P::memcpy
+    auto bufFilterHostView = aV2P::createView(devHost, filter.data(), filterExtent);
 
     // The buffer for the filter data at device
-    auto bufFilterAcc = alpaka::allocBuf<DataType, Idx>(devAcc, filterExtent);
+    auto bufFilterAcc = aV2P::allocBuf<DataType, Idx>(devAcc, filterExtent);
     // Copy input view from host to device by copying to alpaka buffer type
-    alpaka::memcpy(queueAcc, bufFilterAcc, bufFilterHostView);
-    alpaka::wait(queueAcc);
+    aV2P::memcpy(queueAcc, bufFilterAcc, bufFilterHostView);
+    aV2P::wait(queueAcc);
 
     //  Construct kernel object
     ConvolutionKernelMdspan2D convolutionKernel2D;
 
     //   Let alpaka calculate good block and grid sizes given our full problem extent.
-    alpaka::KernelCfg<DevAcc> const kernelCfg = {extent, Vec::ones()};
-    auto const workDiv = alpaka::getValidWorkDiv(
+    aV2P::KernelCfg<DevAcc> const kernelCfg = {extent, Vec::ones()};
+    auto const workDiv = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         convolutionKernel2D,
-        alpaka::experimental::getMdSpan(bufInputAcc),
-        alpaka::experimental::getMdSpan(outputDeviceMemory),
-        alpaka::experimental::getMdSpan(bufFilterAcc));
+        aV2P::experimental::getMdSpan(bufInputAcc),
+        aV2P::experimental::getMdSpan(outputDeviceMemory),
+        aV2P::experimental::getMdSpan(bufFilterAcc));
 
 
     // Run the kernel, pass 3 arrays as 2D mdspans
-    alpaka::exec<DevAcc>(
+    aV2P::exec<DevAcc>(
         queueAcc,
         workDiv,
         convolutionKernel2D,
-        alpaka::experimental::getMdSpan(bufInputAcc),
-        alpaka::experimental::getMdSpan(outputDeviceMemory),
-        alpaka::experimental::getMdSpan(bufFilterAcc));
+        aV2P::experimental::getMdSpan(bufInputAcc),
+        aV2P::experimental::getMdSpan(outputDeviceMemory),
+        aV2P::experimental::getMdSpan(bufFilterAcc));
 
     // Allocate memory on host to receive the resulting matrix as an array
-    auto resultGpuHost = alpaka::allocBuf<DataType, Idx>(devHost, extent);
+    auto resultGpuHost = aV2P::allocBuf<DataType, Idx>(devHost, extent);
     // Copy result from device memory to host
-    alpaka::memcpy(queueAcc, resultGpuHost, outputDeviceMemory, extent);
-    alpaka::wait(queueAcc);
+    aV2P::memcpy(queueAcc, resultGpuHost, outputDeviceMemory, extent);
+    aV2P::wait(queueAcc);
 
     //  Print results
     std::cout << "Convolution filter kernel ConvolutionKernelMdspan2D.\n";
@@ -190,7 +189,7 @@ auto example(TAccTag const&) -> int
         for(size_t j{0}; j < matrixWidth; ++j)
         {
             std::cout << "outputMdSpan[" << i << "," << j << "]:" << std::setprecision(6)
-                      << alpaka::experimental::getMdSpan(resultGpuHost)(i, j) << std::endl;
+                      << aV2P::experimental::getMdSpan(resultGpuHost)(i, j) << std::endl;
         }
     }
 
@@ -231,7 +230,7 @@ auto example(TAccTag const&) -> int
 auto main() -> int
 {
     std::cout << "Check enabled accelerator tags:" << std::endl;
-    alpaka::printTagNames<alpaka::EnabledAccTags>();
+    aV2P::printTagNames<aV2P::EnabledAccTags>();
     // Execute the example once for each enabled accelerator.
     // If you would like to execute it for a single accelerator only you can use the following code.
     //  \code{.cpp}
@@ -242,6 +241,6 @@ auto main() -> int
     // valid tags:
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
-    //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    //   TagGenericSycl, TagGpuSyclIntel
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

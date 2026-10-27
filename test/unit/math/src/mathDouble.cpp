@@ -5,19 +5,18 @@
 #include "Functor.hpp"
 #include "TestTemplate.hpp"
 
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 
 #include <tuple>
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::size_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::size_t>;
 
 // This file only has unit tests for real numbers in order to split the tests between object files
-using FunctorsReal = alpaka::meta::
+using FunctorsReal = aV2P::meta::
     Concatenate<mathtest::UnaryFunctorsReal, mathtest::BinaryFunctorsReal, mathtest::TernaryFunctorsReal>;
-using TestAccFunctorTuplesReal = alpaka::meta::CartesianProduct<std::tuple, TestAccs, FunctorsReal>;
+using TestAccFunctorTuplesReal = aV2P::meta::CartesianProduct<std::tuple, TestAccs, FunctorsReal>;
 
 TEMPLATE_LIST_TEST_CASE("mathOpsDouble", "[math] [operator]", TestAccFunctorTuplesReal)
 {

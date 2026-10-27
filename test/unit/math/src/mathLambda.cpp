@@ -12,19 +12,33 @@
 #    include "Functor.hpp"
 #    include "TestTemplate.hpp"
 
-#    include <alpaka/core/Config.hpp>
-#    include <alpaka/math/Complex.hpp>
-#    include <alpaka/test/KernelExecutionFixture.hpp>
-#    include <alpaka/test/acc/TestAccs.hpp>
-
+#    include <aV2P/core/Config.hpp>
+#    include <aV2P/math/Complex.hpp>
+#    include <aV2P/test/KernelExecutionFixture.hpp>
+#    include <aV2P/test/acc/TestAccs.hpp>
 #    include <catch2/catch_template_test_macros.hpp>
 
 #    include <cstdint>
 #    include <tuple>
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::size_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::size_t>;
 
-//! Caller of test template with additional lambda wrapping the functor
+//! Device wrapper forwarding to a mathtest functor.
+//!
+//! The accelerator parameter stays deduced: on oneAPI the in-kernel accelerator facade differs from
+//! the host-time public accelerator type (one kernel instantiation per runtime subgroup size), so a
+//! wrapper that pins the public type could not receive the in-kernel facade.
+template<typename TFunctor, typename TAcc, typename TArgsItem>
+struct WrappedMathFunctor
+{
+    template<typename TCtx>
+    AV2P_FN_ACC auto operator()(TArgsItem const& arguments, TCtx const& acc) const
+    {
+        return TFunctor{}(arguments, acc);
+    }
+};
+
+//! Caller of test template with an additional functor wrapper
 //! @tparam TAcc Accelerator.
 //! @tparam TData Input data type..
 template<typename TAcc, typename TData>
@@ -41,8 +55,7 @@ struct LambdaMathTestTemplate
         constexpr uint32_t index = (sizeof(TAcc) + sizeof(TData) + sizeof(TFunctors)) % std::tuple_size_v<TFunctors>;
         using Functor = std::tuple_element_t<index, TFunctors>;
         using ArgsItem = mathtest::ArgsItem<TData, Functor::arity>;
-        auto wrappedFunctor
-            = [] ALPAKA_FN_ACC(ArgsItem const& arguments, TAcc const& acc) { return Functor{}(arguments, acc); };
+        WrappedMathFunctor<Functor, TAcc, ArgsItem> wrappedFunctor;
         auto testTemplate = mathtest::TestTemplate<TAcc, Functor>{};
         testTemplate.template operator()<TData>(wrappedFunctor);
     }
@@ -69,7 +82,7 @@ TEMPLATE_LIST_TEST_CASE("mathOpsLambdaDouble", "[math] [operator]", TestAccs)
 TEMPLATE_LIST_TEST_CASE("mathOpsLambdaComplexFloat", "[math] [operator]", TestAccs)
 {
     using Acc = TestType;
-    auto testTemplate = LambdaMathTestTemplate<Acc, alpaka::Complex<float>>{};
+    auto testTemplate = LambdaMathTestTemplate<Acc, aV2P::Complex<float>>{};
     testTemplate.template operator()<mathtest::UnaryFunctorsComplex>();
     testTemplate.template operator()<mathtest::BinaryFunctorsComplex>();
 }
@@ -77,7 +90,7 @@ TEMPLATE_LIST_TEST_CASE("mathOpsLambdaComplexFloat", "[math] [operator]", TestAc
 TEMPLATE_LIST_TEST_CASE("mathOpsLambdaComplexDouble", "[math] [operator]", TestAccs)
 {
     using Acc = TestType;
-    auto testTemplate = LambdaMathTestTemplate<Acc, alpaka::Complex<double>>{};
+    auto testTemplate = LambdaMathTestTemplate<Acc, aV2P::Complex<double>>{};
     testTemplate.template operator()<mathtest::UnaryFunctorsComplex>();
     testTemplate.template operator()<mathtest::BinaryFunctorsComplex>();
 }

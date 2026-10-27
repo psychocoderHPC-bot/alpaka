@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <alpaka/alpaka.hpp>
+#include <aV2P/alpaka.hpp>
 
 //! An iterator base class.
 //!
@@ -24,7 +24,7 @@ public:
     //! \param data A pointer to the data.
     //! \param index The index.
     //! \param maximum The first index outside of the iterator memory.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE Iterator(TBuf const* data, uint32_t index, uint64_t maximum)
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE Iterator(TBuf const* data, uint32_t index, uint64_t maximum)
         : mData(data)
         , mIndex(index)
         , mMaximum(maximum)
@@ -41,7 +41,7 @@ public:
     //! \param other The other object.
     //!
     //! Returns true if objects are equal and false otherwise.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator==(Iterator const& other) const -> bool
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator==(Iterator const& other) const -> bool
     {
         return (this->mData == other.mData) && (this->mIndex == other.mIndex) && (this->mMaximum == other.mMaximum);
     }
@@ -51,7 +51,7 @@ public:
     //! \param other The other object.
     //!
     //! Returns false if objects are equal and true otherwise.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator!=(Iterator const& other) const -> bool
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator!=(Iterator const& other) const -> bool
     {
         return !operator==(other);
     }
@@ -62,7 +62,7 @@ public:
     //!
     //! Returns false if the other object is equal or smaller and true
     //! otherwise.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator<(Iterator const& other) const -> bool
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator<(Iterator const& other) const -> bool
     {
         return mIndex < other.mIndex;
     }
@@ -72,7 +72,7 @@ public:
     //! \param other The other object.
     //!
     //! Returns false if the other object is equal or bigger and true otherwise.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator>(Iterator const& other) const -> bool
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator>(Iterator const& other) const -> bool
     {
         return mIndex > other.mIndex;
     }
@@ -82,7 +82,7 @@ public:
     //! \param other The other object.
     //!
     //! Returns true if the other object is equal or bigger and false otherwise.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator<=(Iterator const& other) const -> bool
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator<=(Iterator const& other) const -> bool
     {
         return mIndex <= other.mIndex;
     }
@@ -93,7 +93,7 @@ public:
     //!
     //! Returns true if the other object is equal or smaller and false
     //! otherwise.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator>=(Iterator const& other) const -> bool
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator>=(Iterator const& other) const -> bool
     {
         return mIndex >= other.mIndex;
     }
@@ -101,7 +101,7 @@ public:
     //! Returns the current element.
     //!
     //! Returns a reference to the current index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator*() -> T const&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator*() -> T const&
     {
         return mData[mIndex];
     }
@@ -123,22 +123,18 @@ public:
     //! \param linearizedIndex The linearized index.
     //! \param gridSize The grid size.
     //! \param n The problem size.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE IteratorCpu(
-        TAcc const& acc,
-        TBuf const* data,
-        uint32_t linearizedIndex,
-        uint32_t gridSize,
-        uint64_t n)
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE
+    IteratorCpu(TAcc const& acc, TBuf const* data, uint32_t linearizedIndex, uint32_t gridSize, uint64_t n)
         : Iterator<T, TBuf>(
             data,
-            static_cast<uint32_t>((n * linearizedIndex) / alpaka::math::min(acc, static_cast<uint64_t>(gridSize), n)),
+            static_cast<uint32_t>((n * linearizedIndex) / aV2P::math::min(acc, static_cast<uint64_t>(gridSize), n)),
             static_cast<uint32_t>(
-                (n * (linearizedIndex + 1)) / alpaka::math::min(acc, static_cast<uint64_t>(gridSize), n)))
+                (n * (linearizedIndex + 1)) / aV2P::math::min(acc, static_cast<uint64_t>(gridSize), n)))
     {
     }
 
     //! Returns the iterator for the last item.
-    [[nodiscard]] ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto end() const -> IteratorCpu
+    [[nodiscard]] AV2P_FN_HOST_ACC AV2P_FN_INLINE auto end() const -> IteratorCpu
     {
         auto ret = *this;
         ret.mIndex = this->mMaximum;
@@ -149,7 +145,7 @@ public:
     //! element.
     //!
     //! Returns a reference to the next index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator++() -> IteratorCpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator++() -> IteratorCpu&
     {
         ++(this->mIndex);
         return *this;
@@ -159,7 +155,7 @@ public:
     //! next one.
     //!
     //! Returns a reference to the current index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator++(int) -> IteratorCpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator++(int) -> IteratorCpu
     {
         auto ret = *this;
         ++(this->mIndex);
@@ -170,7 +166,7 @@ public:
     //! element.
     //!
     //! Returns a reference to the previous index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator--() -> IteratorCpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator--() -> IteratorCpu&
     {
         --(this->mIndex);
         return *this;
@@ -180,7 +176,7 @@ public:
     //! previous one.
     //!
     //! Returns a reference to the current index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator--(int) -> IteratorCpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator--(int) -> IteratorCpu
     {
         auto ret = *this;
         --(this->mIndex);
@@ -190,7 +186,7 @@ public:
     //! Returns the index + a supplied offset.
     //!
     //! \param n The offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator+(uint64_t n) const -> IteratorCpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator+(uint64_t n) const -> IteratorCpu
     {
         auto ret = *this;
         ret.mIndex += n;
@@ -200,7 +196,7 @@ public:
     //! Returns the index - a supplied offset.
     //!
     //! \param n The offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator-(uint64_t n) const -> IteratorCpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator-(uint64_t n) const -> IteratorCpu
     {
         auto ret = *this;
         ret.mIndex -= n;
@@ -212,7 +208,7 @@ public:
     //! \param offset The offset.
     //!
     //! Returns the current object offset by the offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator+=(uint64_t offset) -> IteratorCpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator+=(uint64_t offset) -> IteratorCpu&
     {
         this->mIndex += offset;
         return *this;
@@ -223,7 +219,7 @@ public:
     //! \param offset The offset.
     //!
     //! Returns the current object offset by the offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator-=(uint64_t offset) -> IteratorCpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator-=(uint64_t offset) -> IteratorCpu&
     {
         this->mIndex -= offset;
         return *this;
@@ -248,19 +244,15 @@ public:
     //! \param linearizedIndex The linearized index.
     //! \param gridSize The grid size.
     //! \param n The problem size.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE IteratorGpu(
-        TAcc const&,
-        TBuf const* data,
-        uint32_t linearizedIndex,
-        uint32_t gridSize,
-        uint64_t n)
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE
+    IteratorGpu(TAcc const&, TBuf const* data, uint32_t linearizedIndex, uint32_t gridSize, uint64_t n)
         : Iterator<T, TBuf>(data, linearizedIndex, n)
         , mGridSize(gridSize)
     {
     }
 
     //! Returns the iterator for the last item.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto end() const -> IteratorGpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto end() const -> IteratorGpu
     {
         auto ret = *this;
         ret.mIndex = this->mMaximum;
@@ -271,7 +263,7 @@ public:
     //! element.
     //!
     //! Returns a reference to the next index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator++() -> IteratorGpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator++() -> IteratorGpu&
     {
         this->mIndex += this->mGridSize;
         return *this;
@@ -281,7 +273,7 @@ public:
     //! next one.
     //!
     //! Returns a reference to the current index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator++(int) -> IteratorGpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator++(int) -> IteratorGpu
     {
         auto ret = *this;
         this->mIndex += this->mGridSize;
@@ -292,7 +284,7 @@ public:
     //! element.
     //!
     //! Returns a reference to the previous index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator--() -> IteratorGpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator--() -> IteratorGpu&
     {
         this->mIndex -= this->mGridSize;
         return *this;
@@ -302,7 +294,7 @@ public:
     //! previous one.
     //!
     //! Returns a reference to the current index.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator--(int) -> IteratorGpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator--(int) -> IteratorGpu
     {
         auto ret = *this;
         this->mIndex -= this->mGridSize;
@@ -312,7 +304,7 @@ public:
     //! Returns the index + a supplied offset.
     //!
     //! \param n The offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator+(uint64_t n) const -> IteratorGpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator+(uint64_t n) const -> IteratorGpu
     {
         auto ret = *this;
         ret.mIndex += n * mGridSize;
@@ -322,7 +314,7 @@ public:
     //! Returns the index - a supplied offset.
     //!
     //! \param n The offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator-(uint64_t n) const -> IteratorGpu
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator-(uint64_t n) const -> IteratorGpu
     {
         auto ret = *this;
         ret.mIndex -= n * mGridSize;
@@ -334,7 +326,7 @@ public:
     //! \param offset The offset.
     //!
     //! Returns the current object offset by the offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator+=(uint64_t offset) -> IteratorGpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator+=(uint64_t offset) -> IteratorGpu&
     {
         this->mIndex += offset * this->mGridSize;
         return *this;
@@ -345,7 +337,7 @@ public:
     //! \param offset The offset.
     //!
     //! Returns the current object offset by the offset.
-    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto operator-=(uint64_t offset) -> IteratorGpu&
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE auto operator-=(uint64_t offset) -> IteratorGpu&
     {
         this->mIndex -= offset * this->mGridSize;
         return *this;

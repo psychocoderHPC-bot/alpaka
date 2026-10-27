@@ -2,11 +2,10 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/intrinsic/Traits.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-
+#include <aV2P/intrinsic/Traits.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -14,9 +13,9 @@ template<typename TInput>
 class PopcountTestKernel
 {
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
     {
         // Use negative values to get inputs near the max value of TInput type
         TInput const inputs[]
@@ -33,13 +32,13 @@ public:
         for(auto const input : inputs)
         {
             int const expected = popcountNaive(input);
-            int const actual = alpaka::popcount(acc, input);
-            ALPAKA_CHECK(*success, actual == expected);
+            int const actual = aV2P::popcount(acc, input);
+            AV2P_CHECK(*success, actual == expected);
         }
     }
 
 private:
-    ALPAKA_FN_ACC static auto popcountNaive(TInput value) -> int
+    AV2P_FN_ACC static auto popcountNaive(TInput value) -> int
     {
         int result = 0;
         while(value)
@@ -51,13 +50,13 @@ private:
     }
 };
 
-TEMPLATE_LIST_TEST_CASE("popcount", "[intrinsic]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("popcount", "[intrinsic]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     PopcountTestKernel<std::uint32_t> kernel32bit;
     REQUIRE(fixture(kernel32bit));

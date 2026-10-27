@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <alpaka/dim/Traits.hpp>
-#include <alpaka/elem/Traits.hpp>
-#include <alpaka/extent/Traits.hpp>
-#include <alpaka/vec/Vec.hpp>
+#include <aV2P/dim/Traits.hpp>
+#include <aV2P/elem/Traits.hpp>
+#include <aV2P/extent/Traits.hpp>
+#include <aV2P/vec/Vec.hpp>
 
 #include <array>
 #include <iostream>
@@ -53,7 +53,7 @@ public:
     }
 };
 
-namespace alpaka::trait
+namespace aV2P::trait
 {
 
     //! The DimType specialization for the user defined vector
@@ -62,7 +62,7 @@ namespace alpaka::trait
     template<typename TVal, size_t N>
     struct DimType<FooVec<TVal, N>>
     {
-        using type = alpaka::DimInt<N>;
+        using type = aV2P::DimInt<N>;
     };
 
     //! The ElemType specialization for the user defined vector
@@ -90,11 +90,10 @@ namespace alpaka::trait
     template<typename TVal, size_t N>
     struct GetExtents<FooVec<TVal, N>>
     {
-        ALPAKA_NO_HOST_ACC_WARNING
-        ALPAKA_FN_HOST_ACC constexpr auto operator()(FooVec<TVal, N> const& extent) const
-            -> alpaka::Vec<DimInt<N>, TVal>
+        AV2P_NO_HOST_ACC_WARNING
+        AV2P_FN_HOST_ACC constexpr auto operator()(FooVec<TVal, N> const& extent) const -> aV2P::Vec<DimInt<N>, TVal>
         {
-            alpaka::Vec<DimInt<N>, TVal> v{};
+            aV2P::Vec<DimInt<N>, TVal> v{};
             if constexpr(DimInt<N>::value > 0)
             {
                 // Reverse the vector since the dimensions ordered as z-y-x in alpaka
@@ -105,4 +104,4 @@ namespace alpaka::trait
             return v;
         }
     };
-} // namespace alpaka::trait
+} // namespace aV2P::trait

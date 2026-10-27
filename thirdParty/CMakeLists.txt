@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: MPL-2.0
 #
 
-if(BUILD_TESTING OR alpaka_BUILD_BENCHMARKS)
-    if(alpaka_USE_INTERNAL_CATCH2)
+if(BUILD_TESTING OR aV2P_BUILD_BENCHMARKS)
+    if(aV2P_USE_INTERNAL_CATCH2)
         message(STATUS "Catch2: Using INTERNAL version 3.5.2")
         # Force Catch2's CMake to pick up the variables we set below
         set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -14,7 +14,7 @@ if(BUILD_TESTING OR alpaka_BUILD_BENCHMARKS)
             set(CATCH_CONFIG_WINDOWS_CRTDBG ON)
         endif()
         # Ensure that Catch2 and alpaka use the same C++ standard
-        set(CMAKE_CXX_STANDARD ${alpaka_CXX_STANDARD})
+        set(CMAKE_CXX_STANDARD ${aV2P_CXX_STANDARD})
         set(CMAKE_CXX_STANDARD_REQUIRED ON)
         set(CMAKE_CXX_EXTENSIONS OFF)
         # Workaround for STL atomic issue: https://forums.developer.nvidia.com/t/support-for-atomic-in-libstdc-missing/135403/2

@@ -5,10 +5,9 @@
 #include "Functor.hpp"
 #include "TestTemplate.hpp"
 
-#include <alpaka/math/Complex.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-
+#include <aV2P/math/Complex.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -16,12 +15,12 @@
 #include <tuple>
 #include <type_traits>
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::size_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::size_t>;
 
 // This file only has unit tests for complex numbers in order to split the tests between object files and save compiler
 // memory. For the same reason single- and double-precision are done separately and not wrapped into a common template.
-using FunctorsComplex = alpaka::meta::Concatenate<mathtest::UnaryFunctorsComplex, mathtest::BinaryFunctorsComplex>;
-using TestAccFunctorTuplesComplex = alpaka::meta::CartesianProduct<std::tuple, TestAccs, FunctorsComplex>;
+using FunctorsComplex = aV2P::meta::Concatenate<mathtest::UnaryFunctorsComplex, mathtest::BinaryFunctorsComplex>;
+using TestAccFunctorTuplesComplex = aV2P::meta::CartesianProduct<std::tuple, TestAccs, FunctorsComplex>;
 
 TEMPLATE_LIST_TEST_CASE("mathOpsComplexFloat", "[math] [operator]", TestAccFunctorTuplesComplex)
 {
@@ -29,27 +28,27 @@ TEMPLATE_LIST_TEST_CASE("mathOpsComplexFloat", "[math] [operator]", TestAccFunct
     using Acc = std::tuple_element_t<0u, TestType>;
     using Functor = std::tuple_element_t<1u, TestType>;
     auto testTemplate = mathtest::TestTemplate<Acc, Functor>{};
-    testTemplate.template operator()<alpaka::Complex<float>>();
+    testTemplate.template operator()<aV2P::Complex<float>>();
 }
 
 TEST_CASE("mathArrayOrientedComplexFloat", "[array-oriented]")
 {
     // Ensure that our implementation matches the behaviour of std::complex with regard to array-oriented access.
     // See https://en.cppreference.com/w/cpp/numeric/complex - Array-oriented access - for more information.
-    auto const complex_alpaka = alpaka::Complex<float>{42.f, 42.f};
+    auto const complex_alpaka = aV2P::Complex<float>{42.f, 42.f};
     auto const complex_std = std::complex<float>{42.f, 42.f};
 
     auto const real_alpaka = reinterpret_cast<float const(&)[2]>(complex_alpaka)[0];
     auto const real_std = reinterpret_cast<float const(&)[2]>(complex_std)[0];
-    REQUIRE(alpaka::math::floatEqualExactNoWarning(real_alpaka, real_std));
+    REQUIRE(aV2P::math::floatEqualExactNoWarning(real_alpaka, real_std));
 
     auto const imag_alpaka = reinterpret_cast<float const(&)[2]>(complex_alpaka)[1];
     auto const imag_std = reinterpret_cast<float const(&)[2]>(complex_std)[1];
-    REQUIRE(alpaka::math::floatEqualExactNoWarning(imag_alpaka, imag_std));
+    REQUIRE(aV2P::math::floatEqualExactNoWarning(imag_alpaka, imag_std));
 }
 
 TEST_CASE("mathPaddingComplexFloat", "[padding]")
 {
     // Ensure that we don't accidentally introduce padding
-    STATIC_REQUIRE(sizeof(alpaka::Complex<float>) == 2 * sizeof(float));
+    STATIC_REQUIRE(sizeof(aV2P::Complex<float>) == 2 * sizeof(float));
 }

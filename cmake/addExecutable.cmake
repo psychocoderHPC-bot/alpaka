@@ -5,20 +5,24 @@
 
 #------------------------------------------------------------------------------
 #
-# alpaka_add_executable(<name> [WIN32] [MACOSX_BUNDLE] [EXCLUDE_FROM_ALL] [<source>...])
+# aV2P_add_executable(<name> [WIN32] [MACOSX_BUNDLE] [EXCLUDE_FROM_ALL] [<source>...])
 #
 # Calls add_executable under the hood. Depending on the enabled back-ends, source file or target properties which
-# cannot be propagated by the alpaka::alpaka target are set here.
+# cannot be propagated by the aV2P::aV2P target are set here.
 #
 # Using a macro to stay in the scope (fixes lost assignment of linker command in FindHIP.cmake)
 # https://github.com/ROCm-Developer-Tools/HIP/issues/631
 
-macro(alpaka_add_executable In_Name)
+macro(aV2P_add_executable In_Name)
 
     add_executable(${In_Name} ${ARGN})
 
-    if(alpaka_ACC_GPU_CUDA_ENABLE)
+    if(aV2P_ACC_GPU_CUDA_ENABLE)
        enable_language(CUDA)
+       # Imported toolkit targets are directory-scoped. Acquire them in the
+       # consumer directory so a source-tree/add_subdirectory consumer can see
+       # targets that native alpaka created in a nested directory.
+       find_package(CUDAToolkit REQUIRED)
        foreach(_file ${ARGN})
             if((${_file} MATCHES "\\.cpp$") OR
                (${_file} MATCHES "\\.cxx$") OR
@@ -26,18 +30,29 @@ macro(alpaka_add_executable In_Name)
             )
                 set_source_files_properties(${_file} PROPERTIES LANGUAGE CUDA)
             endif()
+            # Native alpaka's finalize mechanism copies the target's sources into
+            # alpaka_build_files before the GPU translation unit is compiled, so
+            # quoted includes of headers living next to the original source file
+            # (2.2-style same-directory headers) no longer resolve from the
+            # including file's directory.  Add the original source directory to
+            # the include path so those headers keep resolving.
+            get_filename_component(_src_dir ${_file} DIRECTORY)
+            if(_src_dir)
+                target_include_directories(${In_Name} PRIVATE ${_src_dir})
+            endif()
         endforeach()
 
-        # We have to set this here since CUDA_SEPARABLE_COMPILATION is not propagated by the alpaka::alpaka target.
-        if(alpaka_RELOCATABLE_DEVICE_CODE STREQUAL ON)
+        # We have to set this here since CUDA_SEPARABLE_COMPILATION is not propagated by the aV2P::aV2P target.
+        if(aV2P_RELOCATABLE_DEVICE_CODE STREQUAL ON)
             set_property(TARGET ${In_Name} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-        elseif(alpaka_RELOCATABLE_DEVICE_CODE STREQUAL OFF)
+        elseif(aV2P_RELOCATABLE_DEVICE_CODE STREQUAL OFF)
             set_property(TARGET ${In_Name} PROPERTY CUDA_SEPARABLE_COMPILATION OFF)
         endif()
     endif()
 
-    if(alpaka_ACC_GPU_HIP_ENABLE)
+    if(aV2P_ACC_GPU_HIP_ENABLE)
         enable_language(HIP)
+        find_package(hip REQUIRED)
         foreach(_file ${ARGN})
             if((${_file} MATCHES "\\.cpp$") OR
                (${_file} MATCHES "\\.cxx$") OR
@@ -45,12 +60,23 @@ macro(alpaka_add_executable In_Name)
             )
                 set_source_files_properties(${_file} PROPERTIES LANGUAGE HIP)
             endif()
+            # See the CUDA branch: the finalize mechanism copies sources into
+            # alpaka_build_files, so same-directory headers need the original
+            # source directory on the include path.
+            get_filename_component(_src_dir ${_file} DIRECTORY)
+            if(_src_dir)
+                target_include_directories(${In_Name} PRIVATE ${_src_dir})
+            endif()
         endforeach()
 
         # We have to set this here because CMake currently doesn't provide hip_std_${VERSION} for
         # target_compile_features() and HIP_STANDARD isn't propagated by interface libraries.
         set_target_properties(${In_Name} PROPERTIES
-                              HIP_STANDARD ${alpaka_CXX_STANDARD}
+                              HIP_STANDARD ${aV2P_CXX_STANDARD}
                               HIP_STANDARD_REQUIRED ON)
     endif()
+    # Native alpaka 3 requires finalizing every target that links it. The call is
+    # deferred so it runs after the usual target_link_libraries(<target> ...
+    # aV2P::aV2P) in this directory. See cmake/aV2PFinalize.cmake.
+    _aV2P_schedule_finalize(${In_Name})
 endmacro()

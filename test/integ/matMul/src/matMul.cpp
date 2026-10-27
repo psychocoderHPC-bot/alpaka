@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/test/MeasureKernelRunTime.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-
+#include <aV2P/alpaka.hpp>
+#include <aV2P/test/MeasureKernelRunTime.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -34,9 +33,9 @@ public:
     //! \param ldb The pitch of the B matrix in elements.
     //! \param C The pointer to the matrix C data.
     //! \param ldc The pitch of the C matrix in elements.
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename TElem, typename TIndex>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         TIndex const& m,
         TIndex const& n,
@@ -51,22 +50,22 @@ public:
         TIndex const& ldc) const -> void
     {
         static_assert(
-            alpaka::Dim<TAcc>::value == 2u,
+            aV2P::Dim<TAcc>::value == 2u,
             "The accelerator used for the GemmAlpakaKernel has to be 2 dimensional!");
 
         // Column and row of C to calculate.
-        auto const [gridThreadIdxY, gridThreadIdxX] = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc);
+        auto const [gridThreadIdxY, gridThreadIdxX] = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc);
 
         // Column and row inside the block of C to calculate.
-        auto const [blockThreadIdxY, blockThreadIdxX] = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc);
+        auto const [blockThreadIdxY, blockThreadIdxX] = aV2P::getIdx<aV2P::Block, aV2P::Threads>(acc);
 
         // The block threads extent.
-        auto const [blockThreadExtentY, blockThreadExtentX] = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc);
-        // ALPAKA_ASSERT(blockThreadExtentX == blockThreadExtentY);
+        auto const [blockThreadExtentY, blockThreadExtentX] = aV2P::getWorkDiv<aV2P::Block, aV2P::Threads>(acc);
+        // AV2P_ASSERT(blockThreadExtentX == blockThreadExtentY);
         auto const& blockThreadExtentVal = blockThreadExtentX;
 
         // Shared memory used to store the current blocks of A and B.
-        auto* const pBlockSharedA = alpaka::getDynSharedMem<TElem>(acc);
+        auto* const pBlockSharedA = aV2P::getDynSharedMem<TElem>(acc);
         auto* const pBlockSharedB = pBlockSharedA + blockThreadExtentX * blockThreadExtentY;
 
         auto const sharedBlockIdx1d = blockThreadIdxY * blockThreadExtentX + blockThreadIdxX;
@@ -94,7 +93,7 @@ public:
             pBlockSharedB[sharedBlockIdx1d] = (!insideB || BIdxY >= k) ? TElem{0} : B[BIdx1d];
 
             // Synchronize to make sure the complete blocks are loaded before starting the computation.
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
 
             // Compute the dot products within shared memory.
             for(TIndex k3(0); k3 < blockThreadExtentVal; ++k3)
@@ -105,7 +104,7 @@ public:
 
             // Synchronize to make sure that the preceding computation is done before loading the next blocks of A and
             // B.
-            alpaka::syncBlockThreads(acc);
+            aV2P::syncBlockThreads(acc);
         }
 
         // If the element is outside of the matrix it was only a helper thread that did not calculate any meaningful
@@ -118,7 +117,7 @@ public:
     }
 };
 
-namespace alpaka::trait
+namespace aV2P::trait
 {
     //! The trait for getting the size of the block shared dynamic memory for a kernel.
     template<typename TAcc>
@@ -126,7 +125,7 @@ namespace alpaka::trait
     {
         //! \return The size of the shared memory allocated for a block.
         template<typename TVec, typename TIndex, typename TElem>
-        ALPAKA_FN_HOST_ACC static auto getBlockSharedMemDynSizeBytes(
+        AV2P_FN_HOST_ACC static auto getBlockSharedMemDynSizeBytes(
             MatMulKernel const& /* matMulKernel */,
             TVec const& blockThreadExtent,
             TVec const& threadElemExtent,
@@ -146,38 +145,38 @@ namespace alpaka::trait
             return static_cast<std::size_t>(2u * blockThreadExtent.prod() * threadElemExtent.prod()) * sizeof(TElem);
         }
     };
-} // namespace alpaka::trait
+} // namespace aV2P::trait
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<2u>, std::uint32_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<2u>, std::uint32_t>;
 
 TEMPLATE_LIST_TEST_CASE("matMul", "[matMul]", TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
     Idx const m(64u);
     Idx const n(79u);
     Idx const k(23u);
 
     using Val = std::uint32_t;
-    using Vec2 = alpaka::Vec<Dim, Idx>;
-    using QueueAcc = alpaka::test::DefaultQueue<alpaka::Dev<Acc>>;
-    using QueueHost = alpaka::QueueCpuNonBlocking;
+    using Vec2 = aV2P::Vec<Dim, Idx>;
+    using QueueAcc = aV2P::test::DefaultQueue<aV2P::Dev<Acc>>;
+    using QueueHost = aV2P::QueueCpuNonBlocking;
 
     // Create the kernel function object.
     MatMulKernel kernel;
 
     // Get the host device.
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
     // Get a queue on the host device.
     QueueHost queueHost(devHost);
 
     // Select a device to execute on.
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Get a queue on the accelerator device.
     QueueAcc queueAcc(devAcc);
@@ -192,48 +191,48 @@ TEMPLATE_LIST_TEST_CASE("matMul", "[matMul]", TestAccs)
 
 
     // Allocate the A and B matrices as std::vectors because this allows them to be filled with uint32_t(1).
-    // alpaka::set only supports setting all bytes leading to a value of 16843009 in all elements.
+    // aV2P::set only supports setting all bytes leading to a value of 16843009 in all elements.
     std::vector<Val> bufAHost1d(m * k, static_cast<Val>(1));
     std::vector<Val> bufBHost1d(k * n, static_cast<Val>(1));
     // Wrap the std::vectors into a memory buffer object.
-    // For 1D data this would not be required because alpaka::copy is specialized for std::vector and std::array.
-    // For multi dimensional data you could directly create them using alpaka::malloc<Type>(devHost, extent), which is
+    // For 1D data this would not be required because aV2P::copy is specialized for std::vector and std::array.
+    // For multi dimensional data you could directly create them using aV2P::malloc<Type>(devHost, extent), which is
     // not used here. Instead we create a View to wrap the data.
-    auto bufAHost = alpaka::createView(devHost, bufAHost1d.data(), extentA);
-    auto bufBHost = alpaka::createView(devHost, bufBHost1d.data(), extentB);
+    auto bufAHost = aV2P::createView(devHost, bufAHost1d.data(), extentA);
+    auto bufBHost = aV2P::createView(devHost, bufBHost1d.data(), extentB);
 
     // Allocate C and set it to zero.
-    auto bufCHost = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extentC);
-    alpaka::memset(queueHost, bufCHost, 0u);
+    auto bufCHost = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extentC);
+    aV2P::memset(queueHost, bufCHost, 0u);
 
     // Allocate the buffers on the accelerator.
-    auto bufAAccMut = alpaka::allocBuf<Val, Idx>(devAcc, extentA);
-    auto bufBAccMut = alpaka::allocBuf<Val, Idx>(devAcc, extentB);
-    auto bufCAcc = alpaka::allocBuf<Val, Idx>(devAcc, extentC);
+    auto bufAAccMut = aV2P::allocBuf<Val, Idx>(devAcc, extentA);
+    auto bufBAccMut = aV2P::allocBuf<Val, Idx>(devAcc, extentB);
+    auto bufCAcc = aV2P::allocBuf<Val, Idx>(devAcc, extentC);
 
     // Copy inputs Host -> Acc.
     std::cout << "Input1 copy time: "
-              << alpaka::test::integ::measureRunTimeMs(
+              << aV2P::test::integ::measureRunTimeMs(
                      [&]
                      {
-                         alpaka::memcpy(queueAcc, bufAAccMut, bufAHost);
-                         alpaka::memcpy(queueAcc, bufBAccMut, bufBHost);
-                         alpaka::wait(queueAcc);
+                         aV2P::memcpy(queueAcc, bufAAccMut, bufAHost);
+                         aV2P::memcpy(queueAcc, bufBAccMut, bufBHost);
+                         aV2P::wait(queueAcc);
                      })
               << " ms" << std::endl;
-    alpaka::wait(queueHost); // Make sure memset finished
+    aV2P::wait(queueHost); // Make sure memset finished
 
     // bufA and bufB can be constant
-    auto bufAAcc = alpaka::makeConstBuf(bufAAccMut);
-    auto bufBAcc = alpaka::makeConstBuf(bufBAccMut);
+    auto bufAAcc = aV2P::makeConstBuf(bufAAccMut);
+    auto bufBAcc = aV2P::makeConstBuf(bufBAccMut);
 
     std::cout << "Input2 copy time: "
-              << alpaka::test::integ::measureRunTimeMs([&] { alpaka::memcpy(queueAcc, bufCAcc, bufCHost); }) << " ms"
+              << aV2P::test::integ::measureRunTimeMs([&] { aV2P::memcpy(queueAcc, bufCAcc, bufCHost); }) << " ms"
               << std::endl;
 
-    auto const rowPitchA = alpaka::getPitchesInBytes(bufAAcc)[0];
-    auto const rowPitchB = alpaka::getPitchesInBytes(bufBAcc)[0];
-    auto const rowPitchC = alpaka::getPitchesInBytes(bufCAcc)[0];
+    auto const rowPitchA = aV2P::getPitchesInBytes(bufAAcc)[0];
+    auto const rowPitchB = aV2P::getPitchesInBytes(bufBAcc)[0];
+    auto const rowPitchC = aV2P::getPitchesInBytes(bufCAcc)[0];
 
     // We assume that the row pitches are divisible by the element size
     REQUIRE(rowPitchA % sizeof(Val) == 0);
@@ -244,14 +243,14 @@ TEMPLATE_LIST_TEST_CASE("matMul", "[matMul]", TestAccs)
     auto const ldb = static_cast<Idx>(rowPitchB / sizeof(Val));
     auto const ldc = static_cast<Idx>(rowPitchC / sizeof(Val));
 
-    std::cout << "pitchesA " << alpaka::getPitchesInBytes(bufAAcc) << " lda: " << lda << "\n";
-    std::cout << "pitchesB " << alpaka::getPitchesInBytes(bufBAcc) << " ldb: " << ldb << "\n";
-    std::cout << "pitchesC " << alpaka::getPitchesInBytes(bufCAcc) << " ldc: " << ldc << "\n";
+    std::cout << "pitchesA " << aV2P::getPitchesInBytes(bufAAcc) << " lda: " << lda << "\n";
+    std::cout << "pitchesB " << aV2P::getPitchesInBytes(bufBAcc) << " ldb: " << ldb << "\n";
+    std::cout << "pitchesC " << aV2P::getPitchesInBytes(bufCAcc) << " ldc: " << ldc << "\n";
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    alpaka::KernelCfg<Acc> const kernelCfg
-        = {extentC, alpaka::Vec<Dim, Idx>::ones(), false, alpaka::GridBlockExtentSubDivRestrictions::EqualExtent};
-    auto const workDiv = alpaka::getValidWorkDiv(
+    aV2P::KernelCfg<Acc> const kernelCfg
+        = {extentC, aV2P::Vec<Dim, Idx>::ones(), false, aV2P::GridBlockExtentSubDivRestrictions::EqualExtent};
+    auto const workDiv = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         kernel,
@@ -269,13 +268,13 @@ TEMPLATE_LIST_TEST_CASE("matMul", "[matMul]", TestAccs)
 
 
     std::cout << "MatMulKernel("
-              << "m:" << m << ", n:" << n << ", k:" << k << ", accelerator: " << alpaka::getAccName<Acc>()
-              << ", kernel: " << alpaka::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
+              << "m:" << m << ", n:" << n << ", k:" << k << ", accelerator: " << aV2P::getAccName<Acc>()
+              << ", kernel: " << aV2P::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
               << std::endl;
 
 
     // Create the kernel execution task.
-    auto const taskKernel = alpaka::createTaskKernel<Acc>(
+    auto const taskKernel = aV2P::createTaskKernel<Acc>(
         workDiv,
         kernel,
         m,
@@ -291,16 +290,16 @@ TEMPLATE_LIST_TEST_CASE("matMul", "[matMul]", TestAccs)
         ldc);
 
     // Profile the kernel execution.
-    std::cout << "Execution time:   " << alpaka::test::integ::measureTaskRunTimeMs(queueAcc, taskKernel) << " ms"
+    std::cout << "Execution time:   " << aV2P::test::integ::measureTaskRunTimeMs(queueAcc, taskKernel) << " ms"
               << std::endl;
 
     // Copy back the result.
     std::cout << "Output copy time: "
-              << alpaka::test::integ::measureRunTimeMs(
+              << aV2P::test::integ::measureRunTimeMs(
                      [&]
                      {
-                         alpaka::memcpy(queueAcc, bufCHost, bufCAcc);
-                         alpaka::wait(queueAcc);
+                         aV2P::memcpy(queueAcc, bufCHost, bufCAcc);
+                         aV2P::wait(queueAcc);
                      })
               << " ms" << std::endl;
 

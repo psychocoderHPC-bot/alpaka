@@ -2,26 +2,25 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/acc/Traits.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-
+#include <aV2P/acc/Traits.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-TEMPLATE_LIST_TEST_CASE("isSingleThreadAcc", "[acc]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("isSingleThreadAcc", "[acc]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
 
     // Check that both traits are defined, and that only one is true.
-    REQUIRE(alpaka::isSingleThreadAcc<Acc> != alpaka::isMultiThreadAcc<Acc>);
+    REQUIRE(aV2P::isSingleThreadAcc<Acc> != aV2P::isMultiThreadAcc<Acc>);
 
-    auto const platform = alpaka::Platform<Acc>{};
-    auto const dev = alpaka::getDevByIdx(platform, 0);
-    auto const devProps = alpaka::getAccDevProps<Acc>(dev);
+    auto const platform = aV2P::Platform<Acc>{};
+    auto const dev = aV2P::getDevByIdx(platform, 0);
+    auto const devProps = aV2P::getAccDevProps<Acc>(dev);
 
     // Compare the runtime properties with the compile time trait.
-    INFO("Accelerator: " << alpaka::core::demangled<Acc>);
-    if constexpr(alpaka::isSingleThreadAcc<Acc>)
+    INFO("Accelerator: " << aV2P::core::demangled<Acc>);
+    if constexpr(aV2P::isSingleThreadAcc<Acc>)
     {
         // Require a single thread per block.
         REQUIRE(devProps.m_blockThreadCountMax == 1);

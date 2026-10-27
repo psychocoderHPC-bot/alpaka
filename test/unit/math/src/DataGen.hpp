@@ -11,7 +11,7 @@
 #include <limits>
 #include <random>
 
-#if ALPAKA_COMP_CLANG
+#if AV2P_COMP_CLANG
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wswitch-default"
 #endif
@@ -48,7 +48,7 @@ namespace mathtest
         }
     };
 
-    //! Specialization for generating alpaka::Complex<TData>
+    //! Specialization for generating aV2P::Complex<TData>
     //!
     //! It has a much reduced range of numbers.
     //! The reason is, the results of operations much easier go to infinity area.
@@ -57,11 +57,11 @@ namespace mathtest
     //! So this range at least makes sure the "simple" cases work and therefore the implementation is
     //! logically correct.
     template<typename TData>
-    struct RngWrapper<alpaka::Complex<TData>>
+    struct RngWrapper<aV2P::Complex<TData>>
     {
         auto getMax()
         {
-            return alpaka::Complex<TData>{TData{10}, TData{10}};
+            return aV2P::Complex<TData>{TData{10}, TData{10}};
         }
 
         auto getLowest()
@@ -77,7 +77,7 @@ namespace mathtest
         template<typename TDistribution, typename TEngine>
         auto getNumber(TDistribution& distribution, TEngine& engine)
         {
-            return alpaka::Complex<TData>{distribution(engine), distribution(engine)};
+            return aV2P::Complex<TData>{distribution(engine), distribution(engine)};
         }
     };
 
@@ -196,15 +196,15 @@ namespace mathtest
                     args(5).arg[k] = 1.1; // Use double literal
                     args(6).arg[k] = -1.1;
                 }
-                else if constexpr(std::is_same_v<TData, alpaka::Complex<float>>)
+                else if constexpr(std::is_same_v<TData, aV2P::Complex<float>>)
                 {
-                    args(5).arg[k] = alpaka::Complex<float>{1.1f, 2.1f}; // Complex float
-                    args(6).arg[k] = alpaka::Complex<float>{-1.1f, -2.1f};
+                    args(5).arg[k] = aV2P::Complex<float>{1.1f, 2.1f}; // Complex float
+                    args(6).arg[k] = aV2P::Complex<float>{-1.1f, -2.1f};
                 }
-                else if constexpr(std::is_same_v<TData, alpaka::Complex<double>>)
+                else if constexpr(std::is_same_v<TData, aV2P::Complex<double>>)
                 {
-                    args(5).arg[k] = alpaka::Complex<double>{1.1, 2.1}; // Complex double
-                    args(6).arg[k] = alpaka::Complex<double>{-1.1, -2.1};
+                    args(5).arg[k] = aV2P::Complex<double>{1.1, 2.1}; // Complex double
+                    args(6).arg[k] = aV2P::Complex<double>{-1.1, -2.1};
                 }
 
                 constexpr size_t nFixed = 7;
@@ -228,6 +228,6 @@ namespace mathtest
     }
 } // namespace mathtest
 
-#if ALPAKA_COMP_CLANG
+#if AV2P_COMP_CLANG
 #    pragma clang diagnostic pop
 #endif

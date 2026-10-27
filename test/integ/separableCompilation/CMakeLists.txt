@@ -3,17 +3,17 @@
 # SPDX-License-Identifier: MPL-2.0
 #
 
-if((NOT alpaka_ACC_GPU_CUDA_ENABLE AND NOT alpaka_ACC_GPU_HIP_ENABLE AND NOT alpaka_ACC_SYCL_ENABLE) OR
-   (alpaka_ACC_GPU_CUDA_ENABLE AND (alpaka_RELOCATABLE_DEVICE_CODE STREQUAL ON)) OR # OFF by default
-   (alpaka_ACC_GPU_HIP_ENABLE AND (alpaka_RELOCATABLE_DEVICE_CODE STREQUAL ON)) OR  # OFF by default
-   (alpaka_ACC_SYCL_ENABLE AND NOT (alpaka_RELOCATABLE_DEVICE_CODE STREQUAL OFF)))  # ON by default
+if((NOT aV2P_ACC_GPU_CUDA_ENABLE AND NOT aV2P_ACC_GPU_HIP_ENABLE AND NOT aV2P_ACC_SYCL_ENABLE) OR
+   (aV2P_ACC_GPU_CUDA_ENABLE AND (aV2P_RELOCATABLE_DEVICE_CODE STREQUAL ON)) OR # OFF by default
+   (aV2P_ACC_GPU_HIP_ENABLE AND (aV2P_RELOCATABLE_DEVICE_CODE STREQUAL ON)) OR  # OFF by default
+   (aV2P_ACC_SYCL_ENABLE AND NOT (aV2P_RELOCATABLE_DEVICE_CODE STREQUAL OFF)))  # ON by default
 
     set(_TARGET_NAME "separableCompilationTest")
 
     append_recursive_files_add_to_src_group("src/" "src/" "cpp" _FILES_SOURCE)
     append_recursive_files_add_to_src_group("include/" "include/" "hpp" _FILES_HEADER)
 
-    alpaka_add_executable(
+    aV2P_add_executable(
         ${_TARGET_NAME}
         ${_FILES_SOURCE}
         ${_FILES_HEADER})
@@ -26,6 +26,6 @@ if((NOT alpaka_ACC_GPU_CUDA_ENABLE AND NOT alpaka_ACC_GPU_HIP_ENABLE AND NOT alp
 
     set_target_properties(${_TARGET_NAME} PROPERTIES FOLDER "test/integ")
 
-    add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_alpaka_TEST_OPTIONS})
+    add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})
 
 endif()

@@ -2,13 +2,12 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/mem/buf/Traits.hpp>
-#include <alpaka/meta/ForEachType.hpp>
-#include <alpaka/test/Extent.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/mem/view/ViewTest.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-
+#include <aV2P/mem/buf/Traits.hpp>
+#include <aV2P/meta/ForEachType.hpp>
+#include <aV2P/test/Extent.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/mem/view/ViewTest.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -16,46 +15,46 @@
 #include <type_traits>
 
 template<typename TAcc>
-static auto testP2P(alpaka::Vec<alpaka::Dim<TAcc>, alpaka::Idx<TAcc>> const& extent) -> void
+static auto testP2P(aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const& extent) -> void
 {
-    using Dev = alpaka::Dev<TAcc>;
-    using Queue = alpaka::test::DefaultQueue<Dev>;
+    using Dev = aV2P::Dev<TAcc>;
+    using Queue = aV2P::test::DefaultQueue<Dev>;
 
     using Elem = std::uint32_t;
-    using Idx = alpaka::Idx<TAcc>;
+    using Idx = aV2P::Idx<TAcc>;
 
-    auto const platformAcc = alpaka::Platform<TAcc>{};
-    if(alpaka::getDevCount(platformAcc) < 2)
+    auto const platformAcc = aV2P::Platform<TAcc>{};
+    if(aV2P::getDevCount(platformAcc) < 2)
     {
         std::cerr << "No two devices found to test peer-to-peer copy." << std::endl;
         CHECK(true);
         return;
     }
 
-    Dev const dev0 = alpaka::getDevByIdx(platformAcc, 0);
-    Dev const dev1 = alpaka::getDevByIdx(platformAcc, 1);
+    Dev const dev0 = aV2P::getDevByIdx(platformAcc, 0);
+    Dev const dev1 = aV2P::getDevByIdx(platformAcc, 1);
     Queue queue0(dev0);
     Queue queue1(dev1);
 
-    auto buf0 = alpaka::allocBuf<Elem, Idx>(dev0, extent);
-    auto buf1 = alpaka::allocBuf<Elem, Idx>(dev1, extent);
+    auto buf0 = aV2P::allocBuf<Elem, Idx>(dev0, extent);
+    auto buf1 = aV2P::allocBuf<Elem, Idx>(dev1, extent);
 
     // fill each byte with value 42
     auto const byte(static_cast<uint8_t>(42u));
-    alpaka::memset(queue1, buf1, byte);
-    alpaka::wait(queue1);
+    aV2P::memset(queue1, buf1, byte);
+    aV2P::wait(queue1);
 
     // copy buffer from device 1 into device 0 buffer
-    alpaka::memcpy(queue0, buf0, buf1);
-    alpaka::wait(queue0);
+    aV2P::memcpy(queue0, buf0, buf1);
+    aV2P::wait(queue0);
     // verify buffer on device 0
-    alpaka::test::verifyBytesSet<TAcc>(buf0, byte);
+    aV2P::test::verifyBytesSet<TAcc>(buf0, byte);
 }
 
-TEMPLATE_LIST_TEST_CASE("memP2PTest", "[memP2P]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("memP2PTest", "[memP2P]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
-    testP2P<Acc>(alpaka::test::extentBuf<Dim, Idx>);
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
+    testP2P<Acc>(aV2P::test::extentBuf<Dim, Idx>);
 }

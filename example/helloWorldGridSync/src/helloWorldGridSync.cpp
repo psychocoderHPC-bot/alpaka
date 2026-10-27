@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/example/ExecuteForEachAccTag.hpp>
+#include <aV2P/alpaka.hpp>
+#include <aV2P/example/ExecuteForEachAccTag.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -17,13 +17,13 @@
 struct HelloWorldKernel
 {
     template<typename Acc>
-    ALPAKA_FN_ACC void operator()(Acc const& acc, size_t* array, bool* success) const
+    AV2P_FN_ACC void operator()(Acc const& acc, size_t* array, bool* success) const
     {
         // Get index of the current thread in the grid and the total number of threads.
-        size_t gridThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0];
-        size_t gridThreadExtent = alpaka::getWorkDiv<alpaka::Grid, alpaka::Threads>(acc)[0];
+        size_t gridThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0];
+        size_t gridThreadExtent = aV2P::getWorkDiv<aV2P::Grid, aV2P::Threads>(acc)[0];
 
-        if(alpaka::oncePerGrid(acc))
+        if(aV2P::oncePerGrid(acc))
         {
             printf("Hello, World from alpaka thread %lu!\n", gridThreadIdx);
         }
@@ -32,7 +32,7 @@ struct HelloWorldKernel
         array[gridThreadIdx] = gridThreadIdx;
 
         // Perform grid synchronization.
-        alpaka::syncGridThreads(acc);
+        aV2P::syncGridThreads(acc);
 
         // Get the index of the thread from the opposite side of 1D array.
         size_t gridThreadIdxOpposite = array[gridThreadExtent - gridThreadIdx - 1];
@@ -69,23 +69,23 @@ struct CooperativeLaunchConfig
 
 //! Query the launch configuration of the cooperative HelloWorldKernel. On the GPU back-ends, use the native CUDA, HIP
 //! or SYCL functions to get the maximum block size for the kernel, and the maximum number of concurrent blocks with
-//! that block size. On the other back-ends, use the block size suggested by alpaka::getValidWorkDiv(), and the largest
-//! number of blocks that can be active at the same time, as given by alpaka::getMaxActiveBlocks().
+//! that block size. On the other back-ends, use the block size suggested by aV2P::getValidWorkDiv(), and the largest
+//! number of blocks that can be active at the same time, as given by aV2P::getMaxActiveBlocks().
 //! If a native query fails, the maximum number of blocks is 0.
 template<typename TAcc>
 auto nativeCooperativeLaunchConfig(
-    alpaka::Dev<TAcc> const& dev,
-    alpaka::Idx<TAcc> totalSize,
-    alpaka::Idx<TAcc> elementsPerThread) -> CooperativeLaunchConfig
+    aV2P::Dev<TAcc> const& dev,
+    aV2P::Idx<TAcc> totalSize,
+    aV2P::Idx<TAcc> elementsPerThread) -> CooperativeLaunchConfig
 {
-    using Tag [[maybe_unused]] = alpaka::AccToTag<TAcc>;
-    using Dim [[maybe_unused]] = alpaka::Dim<TAcc>;
-    using Idx [[maybe_unused]] = alpaka::Idx<TAcc>;
+    using Tag [[maybe_unused]] = aV2P::AccToTag<TAcc>;
+    using Dim [[maybe_unused]] = aV2P::Dim<TAcc>;
+    using Idx [[maybe_unused]] = aV2P::Idx<TAcc>;
 
-#if defined(ALPAKA_ACC_GPU_CUDA_ENABLED)
-    if constexpr(std::is_same_v<Tag, alpaka::TagGpuCudaRt>)
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+    if constexpr(std::is_same_v<Tag, aV2P::TagGpuCudaRt>)
     {
-        auto const kernel = alpaka::detail::kernelName<HelloWorldKernel, TAcc, size_t*, bool*>;
+        auto const kernel = aV2P::detail::kernelName<HelloWorldKernel, TAcc, size_t*, bool*>;
         int minGridSize = 0;
         int blockSize = 0;
         int blocksPerMultiprocessor = 0;
@@ -93,11 +93,11 @@ auto nativeCooperativeLaunchConfig(
         if(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, 0) != cudaSuccess
            || cudaOccupancyMaxActiveBlocksPerMultiprocessor(&blocksPerMultiprocessor, kernel, blockSize, 0)
                   != cudaSuccess
-           || cudaDeviceGetAttribute(&multiprocessors, cudaDevAttrMultiProcessorCount, alpaka::getNativeHandle(dev))
+           || cudaDeviceGetAttribute(&multiprocessors, cudaDevAttrMultiProcessorCount, aV2P::getNativeHandle(dev))
                   != cudaSuccess)
             return CooperativeLaunchConfig{1, 0};
 #    ifdef __CUDACC_DEBUG__
-        // as in alpaka::getMaxActiveBlocks(), use at most one block per multiprocessor in device-debug mode
+        // as in aV2P::getMaxActiveBlocks(), use at most one block per multiprocessor in device-debug mode
         blocksPerMultiprocessor = std::min(blocksPerMultiprocessor, 1);
 #    endif
         return CooperativeLaunchConfig{
@@ -106,10 +106,10 @@ auto nativeCooperativeLaunchConfig(
     }
 #endif
 
-#if defined(ALPAKA_ACC_GPU_HIP_ENABLED)
-    if constexpr(std::is_same_v<Tag, alpaka::TagGpuHipRt>)
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
+    if constexpr(std::is_same_v<Tag, aV2P::TagGpuHipRt>)
     {
-        auto const kernel = alpaka::detail::kernelName<HelloWorldKernel, TAcc, size_t*, bool*>;
+        auto const kernel = aV2P::detail::kernelName<HelloWorldKernel, TAcc, size_t*, bool*>;
         int minGridSize = 0;
         int blockSize = 0;
         int blocksPerMultiprocessor = 0;
@@ -120,7 +120,7 @@ auto nativeCooperativeLaunchConfig(
            || hipDeviceGetAttribute(
                   &multiprocessors,
                   hipDeviceAttributeMultiprocessorCount,
-                  alpaka::getNativeHandle(dev))
+                  aV2P::getNativeHandle(dev))
                   != hipSuccess)
             return CooperativeLaunchConfig{1, 0};
         return CooperativeLaunchConfig{
@@ -129,19 +129,19 @@ auto nativeCooperativeLaunchConfig(
     }
 #endif
 
-#if defined(ALPAKA_ACC_SYCL_ENABLED)
-    if constexpr(alpaka::concepts::Tag<Tag> && std::is_same_v<alpaka::Dev<TAcc>, alpaka::DevGenericSycl<Tag>>)
+#if defined(AV2P_ACC_SYCL_ENABLED)
+    if constexpr(aV2P::concepts::Tag<Tag> && std::is_same_v<aV2P::Dev<TAcc>, aV2P::DevGenericSycl<Tag>>)
     {
         auto const [device, context] = dev.getNativeHandle();
         sycl::queue queue{context, device};
         auto const bundle = sycl::get_kernel_bundle<sycl::bundle_state::executable>(context, {device});
         auto const kernel
-            = bundle.template get_kernel<alpaka::detail::SyclKernel<HelloWorldKernel, Dim, Idx, size_t*, bool*>>();
+            = bundle.template get_kernel<aV2P::detail::SyclKernel<HelloWorldKernel, Dim, Idx, size_t*, bool*>>();
         // the maximum work-group size for the kernel on this device
         auto const blockSize = kernel.template get_info<sycl::info::kernel_device_specific::work_group_size>(device);
         // the kernel uses at least 1 byte of dynamic local memory, and the static shared memory
-        [[maybe_unused]] auto const localMemBytes = std::size_t{1} + alpaka::detail::syclStaticSharedMemBytes;
-#    if ALPAKA_COMP_ICPX >= ALPAKA_VERSION_NUMBER(2025, 1, 0)
+        [[maybe_unused]] auto const localMemBytes = std::size_t{1} + aV2P::detail::syclStaticSharedMemBytes;
+#    if AV2P_COMP_ICPX >= AV2P_VERSION_NUMBER(2025, 1, 0)
         auto const maxBlocks = kernel.template ext_oneapi_get_info<
             sycl::ext::oneapi::experimental::info::kernel_queue_specific::max_num_work_groups>(
             queue,
@@ -157,10 +157,10 @@ auto nativeCooperativeLaunchConfig(
 
     // On the other back-ends, use the block size suggested by alpaka, and the largest number of blocks that can be
     // active at the same time.
-    alpaka::KernelCfg<TAcc> config
-        = {totalSize, elementsPerThread, false, alpaka::GridBlockExtentSubDivRestrictions::Unrestricted};
-    auto const workDiv = alpaka::getValidWorkDiv(config, dev, HelloWorldKernel{}, (size_t*) nullptr, (bool*) nullptr);
-    int const maxBlocks = alpaka::getMaxActiveBlocks<TAcc>(
+    aV2P::KernelCfg<TAcc> config
+        = {totalSize, elementsPerThread, false, aV2P::GridBlockExtentSubDivRestrictions::Unrestricted};
+    auto const workDiv = aV2P::getValidWorkDiv(config, dev, HelloWorldKernel{}, (size_t*) nullptr, (bool*) nullptr);
+    int const maxBlocks = aV2P::getMaxActiveBlocks<TAcc>(
         dev,
         HelloWorldKernel{},
         workDiv.m_blockThreadExtent,
@@ -181,29 +181,29 @@ auto example(TAccTag const&) -> int
 {
     // Define the accelerator
     // For simplicity this examples always uses 1 dimensional indexing, and index type size_t
-    using Acc = alpaka::TagToAcc<TAccTag, alpaka::DimInt<1>, std::size_t>;
-    std::cout << "Using alpaka accelerator: " << alpaka::getAccName<Acc>() << std::endl;
+    using Acc = aV2P::TagToAcc<TAccTag, aV2P::DimInt<1>, std::size_t>;
+    std::cout << "Using alpaka accelerator: " << aV2P::getAccName<Acc>() << std::endl;
 
     // Define dimensionality and type of indices to be used in kernels
-    using Dim = alpaka::DimInt<1>;
+    using Dim = aV2P::DimInt<1>;
     using Idx = std::size_t;
-    using Scalar = alpaka::Vec<alpaka::DimInt<0u>, Idx>;
+    using Scalar = aV2P::Vec<aV2P::DimInt<0u>, Idx>;
 
     // Select the first device available on a system, for the chosen accelerator
-    auto const platform = alpaka::Platform<Acc>{};
+    auto const platform = aV2P::Platform<Acc>{};
     auto const device = getDevByIdx(platform, 0u);
 
     // Select CPU host
-    constexpr auto platformHost = alpaka::Platform<alpaka::DevCpu>{};
+    constexpr auto platformHost = aV2P::Platform<aV2P::DevCpu>{};
     auto const host = getDevByIdx(platformHost, 0u);
 
     // Define type for a queue with requested properties: Blocking.
-    using Queue = alpaka::Queue<Acc, alpaka::Blocking>;
+    using Queue = aV2P::Queue<Acc, aV2P::Blocking>;
     // Create a queue for the device.
     auto queue = Queue{device};
 
     // Grid synchronization requires a device that supports cooperative kernels.
-    if(!alpaka::getAccDevProps<Acc>(device).m_cooperativeLaunch)
+    if(!aV2P::getAccDevProps<Acc>(device).m_cooperativeLaunch)
     {
         std::cout << "The device does not support cooperative kernels, skipping." << std::endl;
         return EXIT_SUCCESS;
@@ -217,7 +217,7 @@ auto example(TAccTag const&) -> int
     // Query the largest block size, and the largest number of blocks that can be active at the same time.
     auto const launchConfig = nativeCooperativeLaunchConfig<Acc>(device, totalSize, elementsPerThread);
     Idx const activeBlocks = static_cast<Idx>(launchConfig.maxBlocks);
-    alpaka::WorkDivMembers<Dim, Idx> grid{Idx{1}, static_cast<Idx>(launchConfig.threadsPerBlock), elementsPerThread};
+    aV2P::WorkDivMembers<Dim, Idx> grid{Idx{1}, static_cast<Idx>(launchConfig.threadsPerBlock), elementsPerThread};
     grid.m_gridBlockExtent[0] = (totalSize + grid.m_blockThreadExtent[0] - 1) / grid.m_blockThreadExtent[0];
     std::cout << "Threads per block: " << grid.m_blockThreadExtent[0] << std::endl;
     std::cout << "Maximum blocks for the kernel: " << activeBlocks << std::endl;
@@ -234,25 +234,25 @@ auto example(TAccTag const&) -> int
     }
 
     // Allocate memory on the device.
-    auto d_array = alpaka::allocBuf<size_t, Idx>(device, Idx{grid.m_gridBlockExtent[0] * grid.m_blockThreadExtent[0]});
+    auto d_array = aV2P::allocBuf<size_t, Idx>(device, Idx{grid.m_gridBlockExtent[0] * grid.m_blockThreadExtent[0]});
 
     // Allocate the result value.
-    auto d_result = alpaka::allocBuf<bool, Idx>(device, Scalar{});
-    alpaka::memset(queue, d_result, static_cast<std::uint8_t>(true));
+    auto d_result = aV2P::allocBuf<bool, Idx>(device, Scalar{});
+    aV2P::memset(queue, d_result, static_cast<std::uint8_t>(true));
 
     // Create a task to run the kernel.
     // Note the cooperative kernel specification: only cooperative kernels can
     // perform grid synchronization.
     auto taskRunKernel
-        = alpaka::createTaskCooperativeKernel<Acc>(grid, helloWorldKernel, d_array.data(), d_result.data());
+        = aV2P::createTaskCooperativeKernel<Acc>(grid, helloWorldKernel, d_array.data(), d_result.data());
 
     // Enqueue the kernel execution task.
-    alpaka::enqueue(queue, taskRunKernel);
+    aV2P::enqueue(queue, taskRunKernel);
 
     // Copy the result value to the host
-    auto h_result = alpaka::allocBuf<bool, Idx>(host, Scalar{});
-    alpaka::memcpy(queue, h_result, d_result);
-    alpaka::wait(queue);
+    auto h_result = aV2P::allocBuf<bool, Idx>(host, Scalar{});
+    aV2P::memcpy(queue, h_result, d_result);
+    aV2P::wait(queue);
 
     return *h_result ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -269,6 +269,6 @@ auto main() -> int
     // valid tags:
     //   TagCpuSerial, TagGpuHipRt, TagGpuCudaRt, TagCpuOmp2Blocks, TagCpuTbbBlocks,
     //   TagCpuOmp2Threads, TagCpuSycl, TagCpuTbbBlocks, TagCpuThreads,
-    //   TagFpgaSyclIntel, TagGenericSycl, TagGpuSyclIntel
-    return alpaka::executeForEachAccTag([=](auto const& tag) { return example(tag); });
+    //   TagGenericSycl, TagGpuSyclIntel
+    return aV2P::executeForEachAccTag([=](auto const& tag) { return example(tag); });
 }

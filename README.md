@@ -58,7 +58,7 @@ Accelerator Back-ends
 | TBB                    | TBB 2.2+                                                | Host CPU (multi core)           | parallel (preemptive multitasking) | sequential (only 1 thread per block) |
 | CUDA                   | CUDA 12.0+                                              | NVIDIA GPUs                     | parallel (undefined)               | parallel (lock-step within warps)    |
 | HIP(clang)             | [HIP 6.0+](https://github.com/ROCm-Developer-Tools/HIP) | AMD GPUs                        | parallel (undefined)               | parallel (lock-step within warps)    |
-| SYCL(oneAPI)           | oneAPI 2024.2+                                          | CPUs, Intel GPUs and FPGAs [^3] | parallel (undefined)               | parallel (lock-step within warps)    |
+| SYCL(oneAPI)           | oneAPI 2024.2+                                          | CPUs and Intel GPUs | parallel (undefined)               | parallel (lock-step within warps)    |
 
 
 Supported Compilers
@@ -83,7 +83,6 @@ Other compilers or combinations marked with :x: in the table above may work but 
 
 [^1]: Clang-CUDA does not generate debug symbols for device code in debug builds with clang older than 20.1.0, due to an [LLVM bug](https://github.com/llvm/llvm-project/issues/58491), or with CUDA older than 12.3, because `ptxas` crashes on the device debug information for `sm_90`.
 [^2]: Currently, the unit tests are compiled but not executed.
-[^3]: FPGAs are supported up to oneAPI 2025.0, later releases do not include the FPGA compiler.
 [^4]: The OpenMP back-ends are not tested with icpx in the CI, because of an [Intel LLVM bug](https://github.com/intel/llvm/issues/10711).
 
 Dependencies
@@ -107,7 +106,7 @@ Usage
 -----
 
 The library is header only so nothing has to be built.
-CMake 3.22+ is required to provide the correct defines and include paths.
+CMake 3.25+ is required to provide the correct defines and include paths.
 Just call `alpaka_add_executable` instead of `add_executable` and the difficulties of the CUDA nvcc compiler in handling `.cu` and `.cpp` files are automatically taken care of.
 Source files do not need any special file ending.
 Examples of how to utilize alpaka within CMake can be found in the `example` folder.
@@ -129,6 +128,70 @@ Just include alpaka like
 #include <https://raw.githubusercontent.com/alpaka-group/alpaka/single-header/include/alpaka/alpaka.hpp>
 ```
 and enable the desired backend on the compiler's command line using the corresponding macro, e.g. via `-DALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED`.
+
+### Migrating from alpaka 2.x
+
+`script/av2p-migrate-2x.sh` applies the mechanical alpaka 2.x to aV2P
+renames to a legacy alpaka 2.x source tree. Name the consumer project
+explicitly and invoke the script from anywhere:
+
+```bash
+/path/to/alpaka/script/av2p-migrate-2x.sh --dry-run /path/to/legacy-2.x-project
+/path/to/alpaka/script/av2p-migrate-2x.sh /path/to/legacy-2.x-project
+```
+
+**Never run the script on the aV2P tree itself.** Its adapter layer
+intentionally contains native `alpaka::` and `ALPAKA_` names, which the
+migrator would rewrite.
+
+The dry run prints a unified diff and exits with status 2 when it would change
+anything, so it can gate a pre-migration review. A real run replaces each file
+through a temporary file in the same directory and an atomic rename. The
+migration is idempotent: a second run reports no changes, so it is safe to
+re-run after pulling upstream code.
+
+Options:
+
+- `--dry-run` prints the diff and writes nothing.
+- `--exclude GLOB` skips paths relative to `ROOT`; repeatable.
+- `--quiet`, `-q` suppress progress and the summary.
+- `--no-backup` is accepted; the script never creates backups.
+- `--self-test` runs the built-in fixture test.
+- `-h`, `--help` shows the full usage.
+
+The script does not convert device lambdas. Detection, including the
+split-form `[captures]` + `ALPAKA_FN_ACC(...)` layout, is best effort; confirm
+with a build. It reports candidate locations as `manual` lines; convert each
+one to a named functor as described in
+[docs/aV2P/migration.md](docs/aV2P/migration.md). That guide also contains the
+core substitution table this script implements.
+
+The script also renames the package in `find_package`,
+`FetchContent_Declare`, `CPMDeclarePackage`, `CPMAddPackage`,
+`ExternalProject_Add`, and `add_controlled` declarations to `aV2P`. These
+declarations keep their original version, tag, and URL, so a `manual` line asks
+you to repoint them at aV2P. A `NAME alpaka` value is renamed to `NAME aV2P` as
+well, and every such rewrite gets its own `manual` line, because the same
+pattern can appear in an `add_test` or `add_custom_target`. `NAME alpaka-tools`
+is left untouched. `add_subdirectory(.../alpaka...)` is never renamed; the
+`manual` line asks you to point that dependency at aV2P and update its version,
+tag, or repository. aV2P requires CMake 3.25 or newer, so every lower
+`cmake_minimum_required` is reported for a manual bump.
+
+Symlinks and files named `CMakeLists.txt.in` are skipped; migrate those by hand.
+
+aV2P's backend selection is fixed when aV2P itself is built and installed, so a
+migrated consumer inherits the backends of the install it finds; use one install
+per backend set.
+
+```diff
+-#include <alpaka/alpaka.hpp>
+-ALPAKA_FN_ACC void kernel() {}
+-alpaka::Vec v;
++#include <aV2P/alpaka.hpp>
++AV2P_FN_ACC void kernel() {}
++aV2P::Vec v;
+```
 
 Introduction
 ------------

@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/rand/Traits.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-
+#include <aV2P/rand/Traits.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -14,78 +13,78 @@
 
 class RandTestKernel
 {
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename T_Generator>
-    ALPAKA_FN_ACC void genNumbers(TAcc const& acc, bool* success, T_Generator& gen) const
+    AV2P_FN_ACC void genNumbers(TAcc const& acc, bool* success, T_Generator& gen) const
     {
         {
-            auto dist = alpaka::rand::distribution::createNormalReal<float>(acc);
+            auto dist = aV2P::rand::distribution::createNormalReal<float>(acc);
             [[maybe_unused]] auto const r = dist(gen);
-            if constexpr(!ALPAKA_ARCH_PTX)
-                ALPAKA_CHECK(*success, std::isfinite(r));
+            if constexpr(!AV2P_ARCH_PTX)
+                AV2P_CHECK(*success, std::isfinite(r));
         }
 
         {
-            auto dist = alpaka::rand::distribution::createNormalReal<double>(acc);
+            auto dist = aV2P::rand::distribution::createNormalReal<double>(acc);
             [[maybe_unused]] auto const r = dist(gen);
-            if constexpr(!ALPAKA_ARCH_PTX)
-                ALPAKA_CHECK(*success, std::isfinite(r));
+            if constexpr(!AV2P_ARCH_PTX)
+                AV2P_CHECK(*success, std::isfinite(r));
         }
         {
-            auto dist = alpaka::rand::distribution::createUniformReal<float>(acc);
+            auto dist = aV2P::rand::distribution::createUniformReal<float>(acc);
             auto const r = dist(gen);
-            ALPAKA_CHECK(*success, 0.0f <= r);
-            ALPAKA_CHECK(*success, 1.0f > r);
+            AV2P_CHECK(*success, 0.0f <= r);
+            AV2P_CHECK(*success, 1.0f > r);
         }
 
         {
-            auto dist = alpaka::rand::distribution::createUniformReal<double>(acc);
+            auto dist = aV2P::rand::distribution::createUniformReal<double>(acc);
             auto const r = dist(gen);
-            ALPAKA_CHECK(*success, 0.0 <= r);
-            ALPAKA_CHECK(*success, 1.0 > r);
+            AV2P_CHECK(*success, 0.0 <= r);
+            AV2P_CHECK(*success, 1.0 > r);
         }
 
         {
-            auto dist = alpaka::rand::distribution::createUniformUint<std::uint32_t>(acc);
+            auto dist = aV2P::rand::distribution::createUniformUint<std::uint32_t>(acc);
             [[maybe_unused]] auto const r = dist(gen);
         }
     }
 
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
     {
         // default generator for accelerator
-        auto genDefault = alpaka::rand::engine::createDefault(acc, 12345u, 6789u);
+        auto genDefault = aV2P::rand::engine::createDefault(acc, 12345u, 6789u);
         genNumbers(acc, success, genDefault);
 
-#if !defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && !defined(ALPAKA_ACC_GPU_HIP_ENABLED) && !defined(ALPAKA_ACC_SYCL_ENABLED)
+#if !defined(AV2P_ACC_GPU_CUDA_ENABLED) && !defined(AV2P_ACC_GPU_HIP_ENABLED) && !defined(AV2P_ACC_SYCL_ENABLED)
         // TODO: These ifdefs are wrong: They will reduce the test to the
         // smallest common denominator from all enabled backends
         // std::random_device
-        auto genRandomDevice = alpaka::rand::engine::createDefault(alpaka::rand::RandomDevice{}, 12345u, 6789u);
+        auto genRandomDevice = aV2P::rand::engine::createDefault(aV2P::rand::RandomDevice{}, 12345u, 6789u);
         genNumbers(acc, success, genRandomDevice);
 
         // MersenneTwister
-        auto genMersenneTwister = alpaka::rand::engine::createDefault(alpaka::rand::MersenneTwister{}, 12345u, 6789u);
+        auto genMersenneTwister = aV2P::rand::engine::createDefault(aV2P::rand::MersenneTwister{}, 12345u, 6789u);
         genNumbers(acc, success, genMersenneTwister);
 
         // TinyMersenneTwister
         auto genTinyMersenneTwister
-            = alpaka::rand::engine::createDefault(alpaka::rand::TinyMersenneTwister{}, 12345u, 6789u);
+            = aV2P::rand::engine::createDefault(aV2P::rand::TinyMersenneTwister{}, 12345u, 6789u);
         genNumbers(acc, success, genTinyMersenneTwister);
 #endif
     }
 };
 
-TEMPLATE_LIST_TEST_CASE("defaultRandomGeneratorIsWorking", "[rand]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("defaultRandomGeneratorIsWorking", "[rand]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     RandTestKernel kernel;
 
@@ -98,16 +97,16 @@ struct IsAccHIP : public std::false_type
 {
 };
 
-#if defined(ALPAKA_ACC_GPU_HIP_ENABLED)
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
 template<typename TDim, typename TIdx>
-struct IsAccHIP<alpaka::AccGpuHipRt<TDim, TIdx>> : public std::true_type
+struct IsAccHIP<aV2P::AccGpuHipRt<TDim, TIdx>> : public std::true_type
 {
 };
 #endif
 
-TEMPLATE_LIST_TEST_CASE("defaultRandomGeneratorIsTriviallyCopyable", "[rand]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("defaultRandomGeneratorIsTriviallyCopyable", "[rand]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using DefaultEngine = decltype(alpaka::rand::engine::createDefault(std::declval<Acc>(), 0u, 0u, 0u));
+    using DefaultEngine = decltype(aV2P::rand::engine::createDefault(std::declval<Acc>(), 0u, 0u, 0u));
     STATIC_REQUIRE(std::is_trivially_copyable_v<DefaultEngine>);
 }

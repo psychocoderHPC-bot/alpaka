@@ -2,15 +2,14 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/core/ThreadPool.hpp>
-
+#include <aV2P/core/ThreadPool.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("threadpool", "[core]")
 {
-    alpaka::core::detail::ThreadPool tp{2};
+    aV2P::core::detail::ThreadPool tp{2};
 
-#if ALPAKA_COMP_CLANG >= ALPAKA_VERSION_NUMBER(21, 1, 0) && ALPAKA_COMP_CLANG < ALPAKA_VERSION_NUMBER(22, 0, 0)
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0) && AV2P_COMP_CLANG < AV2P_VERSION_NUMBER(22, 0, 0)
     // This triggers a false positive with clang 21.1.x, including icpx 2025.3.x.
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wmissing-noreturn"
@@ -18,13 +17,13 @@ TEST_CASE("threadpool", "[core]")
     auto f1 = tp.enqueueTask([] { throw std::runtime_error("42"); });
     auto f2 = tp.enqueueTask([] { throw 42; });
     auto f3 = tp.enqueueTask([]() noexcept {});
-#if ALPAKA_COMP_CLANG >= ALPAKA_VERSION_NUMBER(21, 1, 0) && ALPAKA_COMP_CLANG < ALPAKA_VERSION_NUMBER(22, 0, 0)
+#if AV2P_COMP_CLANG >= AV2P_VERSION_NUMBER(21, 1, 0) && AV2P_COMP_CLANG < AV2P_VERSION_NUMBER(22, 0, 0)
 #    pragma clang diagnostic pop
 #endif
 
     CHECK_THROWS_AS(f1.get(), std::runtime_error);
 
-#ifndef ALPAKA_USES_TSAN
+#ifndef AV2P_USES_TSAN
     try
     {
         f2.get();

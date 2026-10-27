@@ -9,10 +9,10 @@ append_recursive_files_add_to_src_group("src/" "src/" "cpp" _FILES_SOURCE)
 # TODO(bgruber): Revisit this in the future on a new CI image. This problem does not happen locally.
 if(CMAKE_CXX_FLAGS MATCHES ".*-fsanitize=thread.*")
     message(WARNING "Part of the threadpool test fails the TSan CI and is therefore disabled. See also: https://github.com/alpaka-group/alpaka/issues/2101")
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/ThreadPool.cpp" PROPERTIES COMPILE_DEFINITIONS "ALPAKA_USES_TSAN")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/ThreadPool.cpp" PROPERTIES COMPILE_DEFINITIONS "AV2P_USES_TSAN")
 endif()
 
-alpaka_add_executable(
+aV2P_add_executable(
     ${_TARGET_NAME}
     ${_FILES_SOURCE})
 target_link_libraries(
@@ -21,4 +21,4 @@ target_link_libraries(
 
 set_target_properties(${_TARGET_NAME} PROPERTIES FOLDER "test/unit")
 
-add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_alpaka_TEST_OPTIONS})
+add_test(NAME ${_TARGET_NAME} COMMAND ${_TARGET_NAME} ${_aV2P_TEST_OPTIONS})

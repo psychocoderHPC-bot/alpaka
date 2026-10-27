@@ -2,11 +2,10 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/intrinsic/Traits.hpp>
-#include <alpaka/test/KernelExecutionFixture.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-
+#include <aV2P/intrinsic/Traits.hpp>
+#include <aV2P/test/KernelExecutionFixture.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -17,9 +16,9 @@ template<typename TInput>
 class FfsTestKernel
 {
 public:
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc>
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, bool* success) const -> void
     {
         TInput const inputs[]
             = {0,
@@ -37,13 +36,13 @@ public:
         for(auto const input : inputs)
         {
             std::int32_t const expected = ffsNaive(input);
-            std::int32_t const actual = alpaka::ffs(acc, input);
-            ALPAKA_CHECK(*success, actual == expected);
+            std::int32_t const actual = aV2P::ffs(acc, input);
+            AV2P_CHECK(*success, actual == expected);
         }
     }
 
 private:
-    ALPAKA_FN_ACC static auto ffsNaive(TInput value) -> std::int32_t
+    AV2P_FN_ACC static auto ffsNaive(TInput value) -> std::int32_t
     {
         if(value == 0)
             return 0;
@@ -57,13 +56,13 @@ private:
     }
 };
 
-TEMPLATE_LIST_TEST_CASE("ffs", "[intrinsic]", alpaka::test::TestAccs)
+TEMPLATE_LIST_TEST_CASE("ffs", "[intrinsic]", aV2P::test::TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-    alpaka::test::KernelExecutionFixture<Acc> fixture(alpaka::Vec<Dim, Idx>::ones());
+    aV2P::test::KernelExecutionFixture<Acc> fixture(aV2P::Vec<Dim, Idx>::ones());
 
     FfsTestKernel<std::int32_t> kernel32bit;
     REQUIRE(fixture(kernel32bit));

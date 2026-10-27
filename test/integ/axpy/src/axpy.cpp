@@ -2,11 +2,10 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/alpaka.hpp>
-#include <alpaka/test/MeasureKernelRunTime.hpp>
-#include <alpaka/test/acc/TestAccs.hpp>
-#include <alpaka/test/queue/Queue.hpp>
-
+#include <aV2P/alpaka.hpp>
+#include <aV2P/test/MeasureKernelRunTime.hpp>
+#include <aV2P/test/acc/TestAccs.hpp>
+#include <aV2P/test/queue/Queue.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -30,19 +29,19 @@ public:
     //! \param alpha Scalar the X vector is multiplied with.
     //! \param X Vector of at least n elements.
     //! \param Y Vector of at least n elements.
-    ALPAKA_NO_HOST_ACC_WARNING
+    AV2P_NO_HOST_ACC_WARNING
     template<typename TAcc, typename TElem, typename TIdx>
-    ALPAKA_FN_ACC auto operator()(
+    AV2P_FN_ACC auto operator()(
         TAcc const& acc,
         TIdx const& numElements,
         TElem const& alpha,
         TElem const* const X,
         TElem* const Y) const -> void
     {
-        static_assert(alpaka::Dim<TAcc>::value == 1, "The AxpyKernel expects 1-dimensional indices!");
+        static_assert(aV2P::Dim<TAcc>::value == 1, "The AxpyKernel expects 1-dimensional indices!");
 
-        auto const gridThreadIdx = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u];
-        auto const threadElemExtent = alpaka::getWorkDiv<alpaka::Thread, alpaka::Elems>(acc)[0u];
+        auto const gridThreadIdx = aV2P::getIdx<aV2P::Grid, aV2P::Threads>(acc)[0u];
+        auto const threadElemExtent = aV2P::getWorkDiv<aV2P::Thread, aV2P::Elems>(acc)[0u];
         auto const threadFirstElemIdx = gridThreadIdx * threadElemExtent;
 
         if(threadFirstElemIdx < numElements)
@@ -60,44 +59,44 @@ public:
     }
 };
 
-using TestAccs = alpaka::test::EnabledAccs<alpaka::DimInt<1u>, std::size_t>;
+using TestAccs = aV2P::test::EnabledAccs<aV2P::DimInt<1u>, std::size_t>;
 
 TEMPLATE_LIST_TEST_CASE("axpy", "[axpy]", TestAccs)
 {
     using Acc = TestType;
-    using Dim = alpaka::Dim<Acc>;
-    using Idx = alpaka::Idx<Acc>;
+    using Dim = aV2P::Dim<Acc>;
+    using Idx = aV2P::Idx<Acc>;
 
-#ifdef ALPAKA_CI
+#ifdef AV2P_CI
     Idx const numElements = 1u << 9u;
 #else
     Idx const numElements = 1u << 16u;
 #endif
 
     using Val = float;
-    using DevAcc = alpaka::Dev<Acc>;
-    using QueueAcc = alpaka::test::DefaultQueue<DevAcc>;
+    using DevAcc = aV2P::Dev<Acc>;
+    using QueueAcc = aV2P::test::DefaultQueue<DevAcc>;
 
     // Create the kernel function object.
     AxpyKernel kernel;
 
     // Get the host device.
-    auto const platformHost = alpaka::PlatformCpu{};
-    auto const devHost = alpaka::getDevByIdx(platformHost, 0);
+    auto const platformHost = aV2P::PlatformCpu{};
+    auto const devHost = aV2P::getDevByIdx(platformHost, 0);
 
     // Select a device to execute on.
-    auto const platformAcc = alpaka::Platform<Acc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    auto const platformAcc = aV2P::Platform<Acc>{};
+    auto const devAcc = aV2P::getDevByIdx(platformAcc, 0);
 
     // Get a queue on this device.
     QueueAcc queue(devAcc);
 
-    alpaka::Vec<Dim, Idx> const extent(numElements);
+    aV2P::Vec<Dim, Idx> const extent(numElements);
 
     // Allocate host memory buffers in pinned memory.
-    auto memBufHostX = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
-    auto memBufHostOrigY = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
-    auto memBufHostY = alpaka::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
+    auto memBufHostX = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
+    auto memBufHostOrigY = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
+    auto memBufHostY = aV2P::allocMappedBufIfSupported<Val, Idx>(devHost, platformAcc, extent);
     Val* const pBufHostX = std::data(memBufHostX);
     Val* const pBufHostOrigY = std::data(memBufHostOrigY);
     Val* const pBufHostY = std::data(memBufHostY);
@@ -117,41 +116,41 @@ TEMPLATE_LIST_TEST_CASE("axpy", "[axpy]", TestAccs)
     }
     Val const alpha(dist(eng));
 
-#if ALPAKA_DEBUG >= ALPAKA_DEBUG_FULL
+#if AV2P_DEBUG >= AV2P_DEBUG_FULL
     std::cout << __func__ << " alpha: " << alpha << std::endl;
     std::cout << __func__ << " X_host: ";
-    alpaka::print(memBufHostX, std::cout);
+    aV2P::print(memBufHostX, std::cout);
     std::cout << std::endl;
     std::cout << __func__ << " Y_host: ";
-    alpaka::print(memBufHostOrigY, std::cout);
+    aV2P::print(memBufHostOrigY, std::cout);
     std::cout << std::endl;
 #endif
 
     // Allocate the buffer on the accelerator.
-    auto memBufAccX = alpaka::allocBuf<Val, Idx>(devAcc, extent);
-    auto memBufAccY = alpaka::allocBuf<Val, Idx>(devAcc, extent);
+    auto memBufAccX = aV2P::allocBuf<Val, Idx>(devAcc, extent);
+    auto memBufAccY = aV2P::allocBuf<Val, Idx>(devAcc, extent);
 
     // Copy Host -> Acc.
-    alpaka::memcpy(queue, memBufAccX, memBufHostX);
-    alpaka::memcpy(queue, memBufAccY, memBufHostOrigY);
+    aV2P::memcpy(queue, memBufAccX, memBufHostX);
+    aV2P::memcpy(queue, memBufAccY, memBufHostOrigY);
 
-#if ALPAKA_DEBUG >= ALPAKA_DEBUG_FULL
-    alpaka::wait(queue);
+#if AV2P_DEBUG >= AV2P_DEBUG_FULL
+    aV2P::wait(queue);
 
     std::cout << __func__ << " X_Dev: ";
-    alpaka::print(memBufHostX, std::cout);
+    aV2P::print(memBufHostX, std::cout);
     std::cout << std::endl;
     std::cout << __func__ << " Y_Dev: ";
-    alpaka::print(memBufHostX, std::cout);
+    aV2P::print(memBufHostX, std::cout);
     std::cout << std::endl;
 #endif
 
 
-    alpaka::KernelCfg<Acc> const kernelCfg
-        = {extent, static_cast<Idx>(3u), false, alpaka::GridBlockExtentSubDivRestrictions::Unrestricted};
+    aV2P::KernelCfg<Acc> const kernelCfg
+        = {extent, static_cast<Idx>(3u), false, aV2P::GridBlockExtentSubDivRestrictions::Unrestricted};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv = alpaka::getValidWorkDiv(
+    auto const workDiv = aV2P::getValidWorkDiv(
         kernelCfg,
         devAcc,
         kernel,
@@ -161,12 +160,12 @@ TEMPLATE_LIST_TEST_CASE("axpy", "[axpy]", TestAccs)
         std::data(memBufAccY));
 
     std::cout << "AxpyKernel("
-              << " numElements:" << numElements << ", accelerator: " << alpaka::getAccName<Acc>()
-              << ", kernel: " << alpaka::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
+              << " numElements:" << numElements << ", accelerator: " << aV2P::getAccName<Acc>()
+              << ", kernel: " << aV2P::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
               << std::endl;
 
     // Create the kernel execution task.
-    auto const taskKernel = alpaka::createTaskKernel<Acc>(
+    auto const taskKernel = aV2P::createTaskKernel<Acc>(
         workDiv,
         kernel,
         numElements,
@@ -175,14 +174,14 @@ TEMPLATE_LIST_TEST_CASE("axpy", "[axpy]", TestAccs)
         std::data(memBufAccY));
 
     // Profile the kernel execution.
-    std::cout << "Execution time: " << alpaka::test::integ::measureTaskRunTimeMs(queue, taskKernel) << " ms"
+    std::cout << "Execution time: " << aV2P::test::integ::measureTaskRunTimeMs(queue, taskKernel) << " ms"
               << std::endl;
 
     // Copy back the result.
-    alpaka::memcpy(queue, memBufHostY, memBufAccY);
+    aV2P::memcpy(queue, memBufHostY, memBufAccY);
 
     // Wait for the queue to finish the memory operation.
-    alpaka::wait(queue);
+    aV2P::wait(queue);
 
     bool resultCorrect(true);
     for(Idx i(0u); i < numElements; ++i)

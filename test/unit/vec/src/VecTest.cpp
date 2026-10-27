@@ -2,10 +2,9 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-#include <alpaka/meta/ForEachType.hpp>
-#include <alpaka/test/dim/TestDims.hpp>
-#include <alpaka/vec/Vec.hpp>
-
+#include <aV2P/meta/ForEachType.hpp>
+#include <aV2P/test/dim/TestDims.hpp>
+#include <aV2P/vec/Vec.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -33,9 +32,9 @@ namespace
 
 TEST_CASE("basicVecTraits", "[vec]")
 {
-    using Dim = alpaka::DimInt<3u>;
+    using Dim = aV2P::DimInt<3u>;
     using Idx = std::size_t;
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Vec = aV2P::Vec<Dim, Idx>;
 
     STATIC_REQUIRE(std::is_trivially_copyable_v<Vec>);
 
@@ -66,33 +65,33 @@ TEST_CASE("basicVecTraits", "[vec]")
         [[maybe_unused]] constexpr Vec v(s, s, s);
     }
 
-    // alpaka::Vec<0> default ctor
+    // aV2P::Vec<0> default ctor
     {
-        using Dim0 = alpaka::DimInt<0u>;
-        [[maybe_unused]] alpaka::Vec<Dim0, Idx> const v1;
-        [[maybe_unused]] constexpr alpaka::Vec<Dim0, Idx> v2{};
+        using Dim0 = aV2P::DimInt<0u>;
+        [[maybe_unused]] aV2P::Vec<Dim0, Idx> const v1;
+        [[maybe_unused]] constexpr aV2P::Vec<Dim0, Idx> v2{};
     }
 
     // default ctor
     {
-        [[maybe_unused]] alpaka::Vec<Dim, Idx> const v1;
-        [[maybe_unused]] constexpr alpaka::Vec<Dim, Idx> v2{};
+        [[maybe_unused]] aV2P::Vec<Dim, Idx> const v1;
+        [[maybe_unused]] constexpr aV2P::Vec<Dim, Idx> v2{};
     }
 
-    // alpaka::subVecFromIndices
+    // aV2P::subVecFromIndices
     {
         using IdxSequence = std::integer_sequence<std::size_t, 0u, Dim::value - 1u, 0u>;
-        constexpr auto vecSubIndices(alpaka::subVecFromIndices<IdxSequence>(vec));
+        constexpr auto vecSubIndices(aV2P::subVecFromIndices<IdxSequence>(vec));
 
         STATIC_REQUIRE(vecSubIndices[0u] == vec[0u]);
         STATIC_REQUIRE(vecSubIndices[1u] == vec[Dim::value - 1u]);
         STATIC_REQUIRE(vecSubIndices[2u] == vec[0u]);
     }
 
-    // alpaka::subVecBegin
+    // aV2P::subVecBegin
     {
-        using DimSubVecEnd = alpaka::DimInt<2u>;
-        [[maybe_unused]] static constexpr auto vecSubBegin(alpaka::subVecBegin<DimSubVecEnd>(vec));
+        using DimSubVecEnd = aV2P::DimInt<2u>;
+        [[maybe_unused]] static constexpr auto vecSubBegin(aV2P::subVecBegin<DimSubVecEnd>(vec));
 
         foreach
             <DimSubVecEnd::value>(
@@ -103,10 +102,10 @@ TEST_CASE("basicVecTraits", "[vec]")
                 });
     }
 
-    // alpaka::subVecEnd
+    // aV2P::subVecEnd
     {
-        using DimSubVecEnd = alpaka::DimInt<2u>;
-        [[maybe_unused]] static constexpr auto vecSubEnd(alpaka::subVecEnd<DimSubVecEnd>(vec));
+        using DimSubVecEnd = aV2P::DimInt<2u>;
+        [[maybe_unused]] static constexpr auto vecSubEnd(aV2P::subVecEnd<DimSubVecEnd>(vec));
 
         foreach
             <DimSubVecEnd::value>(
@@ -117,16 +116,16 @@ TEST_CASE("basicVecTraits", "[vec]")
                 });
     }
 
-    // alpaka::castVec
+    // aV2P::castVec
     {
         using SizeCast = std::uint16_t;
-        [[maybe_unused]] static constexpr auto vecCast(alpaka::castVec<SizeCast>(vec));
+        [[maybe_unused]] static constexpr auto vecCast(aV2P::castVec<SizeCast>(vec));
 
         /*using VecCastConst = decltype(vecCast);
         using VecCast = std::decay_t<VecCastConst>;
         STATIC_REQUIRE(
             std::is_same_v<
-                alpaka::Idx<VecCast>,
+                aV2P::Idx<VecCast>,
                 SizeCast
             >);*/
 
@@ -139,9 +138,9 @@ TEST_CASE("basicVecTraits", "[vec]")
                 });
     }
 
-    // alpaka::reverseVec
+    // aV2P::reverseVec
     {
-        [[maybe_unused]] static constexpr auto vecReverse(alpaka::reverseVec(vec));
+        [[maybe_unused]] static constexpr auto vecReverse(aV2P::reverseVec(vec));
 
         foreach
             <Dim::value>(
@@ -152,13 +151,13 @@ TEST_CASE("basicVecTraits", "[vec]")
                 });
     }
 
-    // alpaka::concatVec
+    // aV2P::concatVec
     {
-        using Dim2 = alpaka::DimInt<2u>;
-        static constexpr alpaka::Vec<Dim2, Idx> vec2(static_cast<Idx>(47u), static_cast<Idx>(11u));
+        using Dim2 = aV2P::DimInt<2u>;
+        static constexpr aV2P::Vec<Dim2, Idx> vec2(static_cast<Idx>(47u), static_cast<Idx>(11u));
 
-        [[maybe_unused]] static constexpr auto vecConcat(alpaka::concatVec(vec, vec2));
-        STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(vecConcat)>>, alpaka::DimInt<5u>>);
+        [[maybe_unused]] static constexpr auto vecConcat(aV2P::concatVec(vec, vec2));
+        STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(vecConcat)>>, aV2P::DimInt<5u>>);
 
         foreach
             <Dim::value>(
@@ -177,137 +176,137 @@ TEST_CASE("basicVecTraits", "[vec]")
     }
 
     {
-        using Vec3 = alpaka::Vec<Dim, Idx>;
+        using Vec3 = aV2P::Vec<Dim, Idx>;
         constexpr Vec3 vec3(static_cast<Idx>(47u), static_cast<Idx>(8u), static_cast<Idx>(3u));
 
-        // alpaka::Vec::dim
+        // aV2P::Vec::dim
         {
             STATIC_REQUIRE(vec3.dim() == 3);
             STATIC_REQUIRE(Vec3::dim() == 3);
         }
 
-        // alpaka::Vec operator +
+        // aV2P::Vec operator +
         {
             constexpr auto result(vec + vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, Idx>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, Idx>);
 
-            constexpr alpaka::Vec<Dim, Idx> reference(
+            constexpr aV2P::Vec<Dim, Idx> reference(
                 static_cast<Idx>(47u),
                 static_cast<Idx>(16u),
                 static_cast<Idx>(18u));
             STATIC_REQUIRE(reference == result);
         }
 
-        // alpaka::Vec operator -
+        // aV2P::Vec operator -
         {
             constexpr auto result(vec - vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, Idx>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, Idx>);
 
-            constexpr alpaka::Vec<Dim, Idx> reference(
+            constexpr aV2P::Vec<Dim, Idx> reference(
                 static_cast<Idx>(-47),
                 static_cast<Idx>(0u),
                 static_cast<Idx>(12u));
             STATIC_REQUIRE(reference == result);
         }
 
-        // alpaka::Vec operator *
+        // aV2P::Vec operator *
         {
             constexpr auto result(vec * vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, Idx>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, Idx>);
 
-            constexpr alpaka::Vec<Dim, Idx> reference(
+            constexpr aV2P::Vec<Dim, Idx> reference(
                 static_cast<Idx>(0u),
                 static_cast<Idx>(64u),
                 static_cast<Idx>(45u));
             STATIC_REQUIRE(reference == result);
         }
 
-        // alpaka::Vec operator <
+        // aV2P::Vec operator <
         {
             constexpr auto result(vec < vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, bool>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, bool>);
 
-            constexpr alpaka::Vec<Dim, bool> reference(true, false, false);
+            constexpr aV2P::Vec<Dim, bool> reference(true, false, false);
             STATIC_REQUIRE(reference == result);
         }
 
-        // alpaka::Vec operator <=
+        // aV2P::Vec operator <=
         {
             constexpr auto result(vec <= vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, bool>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, bool>);
 
-            constexpr alpaka::Vec<Dim, bool> reference(true, true, false);
+            constexpr aV2P::Vec<Dim, bool> reference(true, true, false);
             STATIC_REQUIRE(reference == result);
         }
 
-        // alpaka::Vec operator >=
+        // aV2P::Vec operator >=
         {
             constexpr auto result(vec >= vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, bool>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, bool>);
 
-            constexpr alpaka::Vec<Dim, bool> reference(false, true, true);
+            constexpr aV2P::Vec<Dim, bool> reference(false, true, true);
 
             STATIC_REQUIRE(reference == result);
         }
 
-        // alpaka::Vec operator >
+        // aV2P::Vec operator >
         {
             constexpr auto result(vec > vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, bool>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, bool>);
 
-            constexpr alpaka::Vec<Dim, bool> reference(false, false, true);
+            constexpr aV2P::Vec<Dim, bool> reference(false, false, true);
             STATIC_REQUIRE(reference == result);
         }
 
-        // alpaka::Vec elementwise_min
+        // aV2P::Vec elementwise_min
         {
-            STATIC_REQUIRE(alpaka::elementwise_min(vec) == vec);
+            STATIC_REQUIRE(aV2P::elementwise_min(vec) == vec);
 
-            constexpr auto result = alpaka::elementwise_min(vec, vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, Idx>);
+            constexpr auto result = aV2P::elementwise_min(vec, vec3);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, Idx>);
             STATIC_REQUIRE(result == Vec{0, 8, 3});
 
-            STATIC_REQUIRE(alpaka::elementwise_min(vec, vec3, Vec{9, 7, 9}, Vec{12, 42, 12}) == Vec{0, 7, 3});
+            STATIC_REQUIRE(aV2P::elementwise_min(vec, vec3, Vec{9, 7, 9}, Vec{12, 42, 12}) == Vec{0, 7, 3});
         }
 
-        // alpaka::Vec elementwise_max
+        // aV2P::Vec elementwise_max
         {
-            STATIC_REQUIRE(alpaka::elementwise_max(vec) == vec);
+            STATIC_REQUIRE(aV2P::elementwise_max(vec) == vec);
 
-            constexpr auto result = alpaka::elementwise_max(vec, vec3);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Dim<std::decay_t<decltype(result)>>, Dim>);
-            STATIC_REQUIRE(std::is_same_v<alpaka::Idx<std::decay_t<decltype(result)>>, Idx>);
+            constexpr auto result = aV2P::elementwise_max(vec, vec3);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Dim<std::decay_t<decltype(result)>>, Dim>);
+            STATIC_REQUIRE(std::is_same_v<aV2P::Idx<std::decay_t<decltype(result)>>, Idx>);
             STATIC_REQUIRE(result == Vec{47, 8, 15});
 
-            STATIC_REQUIRE(alpaka::elementwise_max(vec, vec3, Vec{9, 7, 9}, Vec{12, 42, 12}) == Vec{47, 42, 15});
+            STATIC_REQUIRE(aV2P::elementwise_max(vec, vec3, Vec{9, 7, 9}, Vec{12, 42, 12}) == Vec{47, 42, 15});
         }
 
-        // alpaka::Vec begin/end
+        // aV2P::Vec begin/end
         STATIC_REQUIRE(
             []
             {
-                auto v = alpaka::Vec<Dim, int>::ones();
+                auto v = aV2P::Vec<Dim, int>::ones();
                 for(auto& e : v)
                 {
                     int i = e; // read
                     e += i; // write
                 }
-                return v == alpaka::Vec<Dim, int>::all(2);
+                return v == aV2P::Vec<Dim, int>::all(2);
             }());
 
-        // const alpaka::Vec begin/end
+        // const aV2P::Vec begin/end
         STATIC_REQUIRE(
             []
             {
-                const auto v = alpaka::Vec<Dim, int>::ones();
+                const auto v = aV2P::Vec<Dim, int>::ones();
                 int sum = 0;
                 for(const auto& e : v)
                     sum += e; // read
@@ -325,9 +324,9 @@ TEST_CASE("basicVecTraits", "[vec]")
 template<typename TDim, typename TIdx>
 struct NonAlpakaVec
 {
-    operator ::alpaka::Vec<TDim, TIdx>() const
+    operator ::aV2P::Vec<TDim, TIdx>() const
     {
-        using AlpakaVector = ::alpaka::Vec<TDim, TIdx>;
+        using AlpakaVector = ::aV2P::Vec<TDim, TIdx>;
         AlpakaVector result = AlpakaVector::zeros();
 
         if constexpr(TDim::value > 0)
@@ -347,14 +346,14 @@ struct NonAlpakaVec
     }
 };
 
-TEMPLATE_LIST_TEST_CASE("vecNDConstructionFromNonAlpakaVec", "[vec]", alpaka::test::TestDims)
+TEMPLATE_LIST_TEST_CASE("vecNDConstructionFromNonAlpakaVec", "[vec]", aV2P::test::TestDims)
 {
     using Dim = TestType;
     if constexpr(Dim::value > 0)
     {
         using Idx = std::size_t;
         auto const nonAlpakaVec = NonAlpakaVec<Dim, Idx>{};
-        auto const alpakaVec = static_cast<alpaka::Vec<Dim, Idx>>(nonAlpakaVec);
+        auto const alpakaVec = static_cast<aV2P::Vec<Dim, Idx>>(nonAlpakaVec);
 
         for(Idx d(0); d < Dim::value; ++d)
         {
@@ -365,9 +364,9 @@ TEMPLATE_LIST_TEST_CASE("vecNDConstructionFromNonAlpakaVec", "[vec]", alpaka::te
 
 TEST_CASE("structuredBindings", "[vec]")
 {
-    using Dim = alpaka::DimInt<2u>;
+    using Dim = aV2P::DimInt<2u>;
     using Idx = std::size_t;
-    using Vec = alpaka::Vec<Dim, Idx>;
+    using Vec = aV2P::Vec<Dim, Idx>;
 
     Vec vec{Idx{1}, Idx{2}};
 
@@ -384,30 +383,30 @@ TEST_CASE("structuredBindings", "[vec]")
 
 TEST_CASE("deductionGuide", "[vec]")
 {
-    [[maybe_unused]] auto v1 = alpaka::Vec{1};
-    STATIC_REQUIRE(std::is_same_v<decltype(v1), alpaka::Vec<alpaka::DimInt<1>, int>>);
+    [[maybe_unused]] auto v1 = aV2P::Vec{1};
+    STATIC_REQUIRE(std::is_same_v<decltype(v1), aV2P::Vec<aV2P::DimInt<1>, int>>);
 
-    [[maybe_unused]] auto v2 = alpaka::Vec{1, 2};
-    STATIC_REQUIRE(std::is_same_v<decltype(v2), alpaka::Vec<alpaka::DimInt<2>, int>>);
+    [[maybe_unused]] auto v2 = aV2P::Vec{1, 2};
+    STATIC_REQUIRE(std::is_same_v<decltype(v2), aV2P::Vec<aV2P::DimInt<2>, int>>);
 
-    [[maybe_unused]] auto v3 = alpaka::Vec{1, 2, 3};
-    STATIC_REQUIRE(std::is_same_v<decltype(v3), alpaka::Vec<alpaka::DimInt<3>, int>>);
+    [[maybe_unused]] auto v3 = aV2P::Vec{1, 2, 3};
+    STATIC_REQUIRE(std::is_same_v<decltype(v3), aV2P::Vec<aV2P::DimInt<3>, int>>);
 
-    [[maybe_unused]] auto v3l = alpaka::Vec{1L, 2L, 3L};
-    STATIC_REQUIRE(std::is_same_v<decltype(v3l), alpaka::Vec<alpaka::DimInt<3>, long>>);
+    [[maybe_unused]] auto v3l = aV2P::Vec{1L, 2L, 3L};
+    STATIC_REQUIRE(std::is_same_v<decltype(v3l), aV2P::Vec<aV2P::DimInt<3>, long>>);
 }
 
 TEST_CASE("accessByName", "[vec]")
 {
     // dim == 1
-    auto v1 = alpaka::Vec{1};
+    auto v1 = aV2P::Vec{1};
     CHECK(v1.x() == 1); // non-const overload
     CHECK(std::as_const(v1).x() == 1); // const overload
     v1.x() += 42;
     CHECK(v1.x() == 43); // check if value is changes correctly
 
     // dim == 2
-    auto v2 = alpaka::Vec{2, 1};
+    auto v2 = aV2P::Vec{2, 1};
     CHECK(v2.x() == 1); // non-const overload
     CHECK(v2.y() == 2); // non-const overload
     CHECK(std::as_const(v2).x() == 1); // const overload
@@ -418,7 +417,7 @@ TEST_CASE("accessByName", "[vec]")
     CHECK(v2.y() == 45); // check if value is changes correctly
 
     // dim == 3
-    auto v3 = alpaka::Vec{3, 2, 1};
+    auto v3 = aV2P::Vec{3, 2, 1};
     CHECK(v3.x() == 1); // non-const overload
     CHECK(v3.y() == 2); // non-const overload
     CHECK(v3.z() == 3); // non-const overload
@@ -433,7 +432,7 @@ TEST_CASE("accessByName", "[vec]")
     CHECK(v3.z() == 47); // check if value is changes correctly
 
     // dim == 4
-    auto v4 = alpaka::Vec{4, 3, 2, 1};
+    auto v4 = aV2P::Vec{4, 3, 2, 1};
     CHECK(v4.x() == 1); // non-const overload
     CHECK(v4.y() == 2); // non-const overload
     CHECK(v4.z() == 3); // non-const overload
@@ -455,22 +454,22 @@ TEST_CASE("accessByName", "[vec]")
 TEST_CASE("accessByNameConstexpr", "[vec]")
 {
     // dim == 1
-    constexpr auto v1 = alpaka::Vec{1};
+    constexpr auto v1 = aV2P::Vec{1};
     STATIC_REQUIRE(v1.x() == 1);
 
     // dim == 2
-    constexpr auto v2 = alpaka::Vec{2, 1};
+    constexpr auto v2 = aV2P::Vec{2, 1};
     STATIC_REQUIRE(v2.x() == 1);
     STATIC_REQUIRE(v2.y() == 2);
 
     // dim == 3
-    constexpr auto v3 = alpaka::Vec{3, 2, 1};
+    constexpr auto v3 = aV2P::Vec{3, 2, 1};
     STATIC_REQUIRE(v3.x() == 1);
     STATIC_REQUIRE(v3.y() == 2);
     STATIC_REQUIRE(v3.z() == 3);
 
     // dim == 4
-    constexpr auto v4 = alpaka::Vec{4, 3, 2, 1};
+    constexpr auto v4 = aV2P::Vec{4, 3, 2, 1};
     STATIC_REQUIRE(v4.x() == 1);
     STATIC_REQUIRE(v4.y() == 2);
     STATIC_REQUIRE(v4.z() == 3);
@@ -489,7 +488,7 @@ TEMPLATE_LIST_TEST_CASE("Vec generator constructor", "[vec]", VecGeneratorTestTy
     auto generator = [](auto index) { return static_cast<TestType>(index.value + 1); };
 
     // Create a Vec object using the generator function
-    alpaka::Vec<alpaka::DimInt<5>, TestType> vec(generator);
+    aV2P::Vec<aV2P::DimInt<5>, TestType> vec(generator);
 
     // Check that the values in the Vec object are as expected
     for(std::size_t i = 0; i < 5; ++i)

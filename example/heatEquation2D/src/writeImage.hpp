@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <alpaka/extent/Traits.hpp>
-
+#include <aV2P/extent/Traits.hpp>
 #include <pngwriter.h>
 
 #include <cmath>
@@ -23,7 +22,7 @@ auto writeImage(uint32_t const currentStep, T_Buffer const& buffer) -> void
     std::stringstream step;
     step << std::setw(6) << std::setfill('0') << currentStep;
     std::string filename("heat_" + step.str() + ".png");
-    auto extents = alpaka::getExtents(buffer);
+    auto extents = aV2P::getExtents(buffer);
     pngwriter png{static_cast<int>(extents[1]), static_cast<int>(extents[0]), 0, filename.c_str()};
     png.setcompressionlevel(9);
 
