@@ -28,7 +28,7 @@ namespace aV2P::math
         struct Abs<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_signed_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -49,7 +49,7 @@ namespace aV2P::math
         struct Acos<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -70,7 +70,7 @@ namespace aV2P::math
         struct Acosh<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -91,7 +91,7 @@ namespace aV2P::math
         struct Asin<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -112,7 +112,7 @@ namespace aV2P::math
         struct Asinh<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -133,7 +133,7 @@ namespace aV2P::math
         struct Atan<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -154,7 +154,7 @@ namespace aV2P::math
         struct Atanh<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -175,7 +175,7 @@ namespace aV2P::math
         struct Cbrt<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_arithmetic_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -196,7 +196,7 @@ namespace aV2P::math
         struct Ceil<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -217,7 +217,7 @@ namespace aV2P::math
         struct Conj<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -238,7 +238,7 @@ namespace aV2P::math
         struct Cos<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -259,7 +259,7 @@ namespace aV2P::math
         struct Cosh<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -280,7 +280,7 @@ namespace aV2P::math
         struct Erf<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -301,7 +301,7 @@ namespace aV2P::math
         struct Exp<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -322,7 +322,7 @@ namespace aV2P::math
         struct Floor<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -343,7 +343,7 @@ namespace aV2P::math
         struct Isfinite<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -364,7 +364,7 @@ namespace aV2P::math
         struct Isinf<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -385,7 +385,7 @@ namespace aV2P::math
         struct Isnan<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -406,7 +406,7 @@ namespace aV2P::math
         struct Log<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -427,7 +427,7 @@ namespace aV2P::math
         struct Log2<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -448,7 +448,7 @@ namespace aV2P::math
         struct Log10<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -469,7 +469,7 @@ namespace aV2P::math
         struct Round<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -490,7 +490,7 @@ namespace aV2P::math
         struct Lround<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -511,7 +511,7 @@ namespace aV2P::math
         struct Llround<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -532,7 +532,7 @@ namespace aV2P::math
         struct Rsqrt<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_arithmetic_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -553,7 +553,7 @@ namespace aV2P::math
         struct Sin<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -574,7 +574,7 @@ namespace aV2P::math
         struct Sinh<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -595,7 +595,7 @@ namespace aV2P::math
         struct Sqrt<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_arithmetic_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -616,7 +616,7 @@ namespace aV2P::math
         struct Tan<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -637,7 +637,7 @@ namespace aV2P::math
         struct Tanh<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -658,7 +658,7 @@ namespace aV2P::math
         struct Trunc<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -679,7 +679,7 @@ namespace aV2P::math
         struct Arg<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -702,7 +702,7 @@ namespace aV2P::math
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             Ty,
             Tx,
-            std::enable_if_t<!aV2P::internal::IsComplex<Ty>::value && !aV2P::internal::IsComplex<Tx>::value>>
+            std::enable_if_t<std::is_floating_point_v<Ty> && std::is_floating_point_v<Tx>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -726,7 +726,7 @@ namespace aV2P::math
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TMag,
             TSgn,
-            std::enable_if_t<!aV2P::internal::IsComplex<TMag>::value && !aV2P::internal::IsComplex<TSgn>::value>>
+            std::enable_if_t<std::is_floating_point_v<TMag> && std::is_floating_point_v<TSgn>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -812,7 +812,7 @@ namespace aV2P::math
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             Tx,
             Ty,
-            std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value>>
+            std::enable_if_t<std::is_floating_point_v<Tx> && std::is_floating_point_v<Ty>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -836,7 +836,7 @@ namespace aV2P::math
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             Tx,
             Ty,
-            std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value>>
+            std::enable_if_t<std::is_floating_point_v<Tx> && std::is_floating_point_v<Ty>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -860,7 +860,7 @@ namespace aV2P::math
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TBase,
             TExp,
-            std::enable_if_t<!aV2P::internal::IsComplex<TBase>::value && !aV2P::internal::IsComplex<TExp>::value>>
+            std::enable_if_t<std::is_floating_point_v<TBase> && std::is_floating_point_v<TExp>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -887,8 +887,7 @@ namespace aV2P::math
             Ty,
             Tz,
             std::enable_if_t<
-                !aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value
-                && !aV2P::internal::IsComplex<Tz>::value>>
+                std::is_floating_point_v<Tx> && std::is_floating_point_v<Ty> && std::is_floating_point_v<Tz>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
@@ -911,7 +910,7 @@ namespace aV2P::math
         struct SinCos<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
             TArg,
-            std::enable_if_t<!aV2P::internal::IsComplex<TArg>::value>>
+            std::enable_if_t<std::is_floating_point_v<TArg>>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,

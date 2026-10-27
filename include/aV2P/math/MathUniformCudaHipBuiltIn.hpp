@@ -324,6 +324,144 @@ namespace aV2P::math
         AV2P_CUDAHIP_MATH_TRAIT_BINARY(PowUniformCudaHipBuiltIn, pow)
         AV2P_CUDAHIP_MATH_TRAIT_BINARY(RemainderUniformCudaHipBuiltIn, remainder)
 
+        /* The 2.2 `trait::<Fn>` customization entry points for the CUDA/HIP built in math marker.
+         *
+         * 2.2 dispatched every math call straight through `trait::<Fn>`; aV2P expresses the CUDA/HIP
+         * built in behavior as `alpakaMathTrait`.  Restoring the `trait::<Fn>` names for the marker
+         * keeps contexts that carry it (for example a client vector specialization that computes its
+         * scalar result type) on the 2.2 path and with the 2.2 return type.  The enable conditions
+         * and forwarded return types match the corresponding 2.2 specializations.
+         */
+#define AV2P_CUDAHIP_MARKER_TRAIT_UNARY(TMarker, TTrait, ...)                                                         \
+    template<typename TArg>                                                                                           \
+    struct TTrait<TMarker, TArg, std::enable_if_t<__VA_ARGS__>>                                                       \
+    {                                                                                                                 \
+        AV2P_FN_HOST_ACC auto operator()(TMarker const& ctx, TArg const& arg) const                                   \
+        {                                                                                                             \
+            return alpakaMathTrait<TMarker, TArg>{}(ctx, arg);                                                        \
+        }                                                                                                             \
+    };
+
+#define AV2P_CUDAHIP_MARKER_TRAIT_BINARY(TMarker, TTrait, ...)                                                        \
+    template<typename Tx, typename Ty>                                                                                \
+    struct TTrait<TMarker, Tx, Ty, std::enable_if_t<__VA_ARGS__>>                                                     \
+    {                                                                                                                 \
+        AV2P_FN_HOST_ACC auto operator()(TMarker const& ctx, Tx const& x, Ty const& y) const                          \
+        {                                                                                                             \
+            return alpakaMathTrait<TMarker, Tx, Ty>{}(ctx, x, y);                                                     \
+        }                                                                                                             \
+    };
+
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(AbsUniformCudaHipBuiltIn, Abs, std::is_signed_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(AcosUniformCudaHipBuiltIn, Acos, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(AcoshUniformCudaHipBuiltIn, Acosh, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(ArgUniformCudaHipBuiltIn, Arg, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(AsinUniformCudaHipBuiltIn, Asin, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(AsinhUniformCudaHipBuiltIn, Asinh, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(AtanUniformCudaHipBuiltIn, Atan, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(AtanhUniformCudaHipBuiltIn, Atanh, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(CbrtUniformCudaHipBuiltIn, Cbrt, std::is_arithmetic_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(CeilUniformCudaHipBuiltIn, Ceil, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(ConjUniformCudaHipBuiltIn, Conj, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(CosUniformCudaHipBuiltIn, Cos, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(CoshUniformCudaHipBuiltIn, Cosh, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(ErfUniformCudaHipBuiltIn, Erf, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(ExpUniformCudaHipBuiltIn, Exp, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(FloorUniformCudaHipBuiltIn, Floor, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(IsfiniteUniformCudaHipBuiltIn, Isfinite, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(IsinfUniformCudaHipBuiltIn, Isinf, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(IsnanUniformCudaHipBuiltIn, Isnan, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(LogUniformCudaHipBuiltIn, Log, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(Log2UniformCudaHipBuiltIn, Log2, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(Log10UniformCudaHipBuiltIn, Log10, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(RoundUniformCudaHipBuiltIn, Round, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(RsqrtUniformCudaHipBuiltIn, Rsqrt, std::is_arithmetic_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(SinUniformCudaHipBuiltIn, Sin, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(SinhUniformCudaHipBuiltIn, Sinh, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(SqrtUniformCudaHipBuiltIn, Sqrt, std::is_arithmetic_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(TanUniformCudaHipBuiltIn, Tan, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(TanhUniformCudaHipBuiltIn, Tanh, std::is_floating_point_v<TArg>)
+        AV2P_CUDAHIP_MARKER_TRAIT_UNARY(TruncUniformCudaHipBuiltIn, Trunc, std::is_floating_point_v<TArg>)
+
+        AV2P_CUDAHIP_MARKER_TRAIT_BINARY(
+            Atan2UniformCudaHipBuiltIn,
+            Atan2,
+            std::is_floating_point_v<Tx>&& std::is_floating_point_v<Ty>)
+        AV2P_CUDAHIP_MARKER_TRAIT_BINARY(
+            CopysignUniformCudaHipBuiltIn,
+            Copysign,
+            std::is_floating_point_v<Tx>&& std::is_floating_point_v<Ty>)
+        AV2P_CUDAHIP_MARKER_TRAIT_BINARY(
+            FmodUniformCudaHipBuiltIn,
+            Fmod,
+            std::is_floating_point_v<Tx>&& std::is_floating_point_v<Ty>)
+        AV2P_CUDAHIP_MARKER_TRAIT_BINARY(
+            PowUniformCudaHipBuiltIn,
+            Pow,
+            std::is_floating_point_v<Tx>&& std::is_floating_point_v<Ty>)
+        AV2P_CUDAHIP_MARKER_TRAIT_BINARY(
+            RemainderUniformCudaHipBuiltIn,
+            Remainder,
+            std::is_floating_point_v<Tx>&& std::is_floating_point_v<Ty>)
+
+        //! The 2.2 `trait::Fma` entry point for the CUDA/HIP built in math implementation.
+        template<typename Tx, typename Ty, typename Tz>
+        struct Fma<
+            FmaUniformCudaHipBuiltIn,
+            Tx,
+            Ty,
+            Tz,
+            std::enable_if_t<
+                std::is_floating_point_v<Tx> && std::is_floating_point_v<Ty> && std::is_floating_point_v<Tz>>>
+        {
+            AV2P_FN_HOST_ACC auto operator()(
+                FmaUniformCudaHipBuiltIn const& ctx,
+                Tx const& x,
+                Ty const& y,
+                Tz const& z) const
+            {
+                return alpakaMathTrait<FmaUniformCudaHipBuiltIn, Tx, Ty, Tz>{}(ctx, x, y, z);
+            }
+        };
+
+        //! The 2.2 `trait::SinCos` entry point for the CUDA/HIP built in math implementation.
+        template<typename TArg>
+        struct SinCos<SinCosUniformCudaHipBuiltIn, TArg, std::enable_if_t<std::is_floating_point_v<TArg>>>
+        {
+            AV2P_FN_HOST_ACC auto operator()(
+                SinCosUniformCudaHipBuiltIn const& ctx,
+                TArg const& arg,
+                TArg& result_sin,
+                TArg& result_cos) const -> void
+            {
+                alpakaMathTrait<SinCosUniformCudaHipBuiltIn, TArg>{}(ctx, arg, result_sin, result_cos);
+            }
+        };
+
+        //! The 2.2 `trait::Lround`/`trait::Llround` entry points use the round marker.
+        template<typename TArg>
+        struct Lround<RoundUniformCudaHipBuiltIn, TArg, std::enable_if_t<std::is_floating_point_v<TArg>>>
+        {
+            AV2P_FN_HOST_ACC auto operator()(RoundUniformCudaHipBuiltIn const& /* ctx */, TArg const& arg) const
+                -> long int
+            {
+                return alpaka::math::lround(arg);
+            }
+        };
+
+        template<typename TArg>
+        struct Llround<RoundUniformCudaHipBuiltIn, TArg, std::enable_if_t<std::is_floating_point_v<TArg>>>
+        {
+            AV2P_FN_HOST_ACC auto operator()(RoundUniformCudaHipBuiltIn const& /* ctx */, TArg const& arg) const
+                -> long long int
+            {
+                return alpaka::math::llround(arg);
+            }
+        };
+
+#undef AV2P_CUDAHIP_MARKER_TRAIT_UNARY
+#undef AV2P_CUDAHIP_MARKER_TRAIT_BINARY
+
         //! The 2.2 `trait::Max` entry point for the CUDA/HIP built in math implementation.
         //!
         //! 2.2 dispatched `max(ctx, x, y)` straight through `trait::Max`; aV2P expresses the
