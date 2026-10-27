@@ -13,6 +13,12 @@
 
 #include <cstdint>
 
+// The 2.2 AtomicAtomicRef interface only exists for the CPU accelerators.  A GPU-only build has
+// no CPU backend macro, so these symbols are intentionally absent; do not compile the body.
+#if defined(AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED) || defined(AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED)        \
+    || defined(AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED) || defined(AV2P_ACC_CPU_B_SEQ_T_OMP2_ENABLED)       \
+    || defined(AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED)
+
 TEST_CASE("atomicAtomicRef", "[atomic]")
 {
     aV2P::AtomicAtomicRef atomic;
@@ -69,3 +75,5 @@ TEST_CASE("intrinsicFallback", "[intrinsic]")
     CHECK(aV2P::ffs(intrinsic, std::int64_t{1} << 40) == 41);
     CHECK(aV2P::ffs(intrinsic, std::int32_t{-1}) == 1);
 }
+
+#endif // CPU backend enabled
