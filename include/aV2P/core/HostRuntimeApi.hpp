@@ -107,16 +107,63 @@ T atomicCAS(T*, U, V);
 #    endif
 
 // ---------------------------------------------------------------------------------------------
-// HIP (the HIP headers are host-compilable by design and already provide the builtins)
+// HIP
 // ---------------------------------------------------------------------------------------------
 #    if defined(AV2P_ACC_GPU_HIP_ENABLED) && !defined(AV2P_LANG_HIP)
 #        if !defined(__has_include) || __has_include(<hip/hip_runtime.h>)
+// The runtime header requires exactly one platform macro.  ROCm is the only HIP platform aV2P is
+// validated against, and no host compiler defines it, so default it here.  A CUDA-platform HIP
+// build can still set `__HIP_PLATFORM_NVIDIA__` before including aV2P.
+#            if !defined(__HIP_PLATFORM_AMD__) && !defined(__HIP_PLATFORM_NVIDIA__)
+#                define __HIP_PLATFORM_AMD__
+#            endif
 #            include <hip/hip_runtime.h>
 #            define AV2P_LANG_HIP AV2P_HOST_RT_VERSION(HIP_VERSION_MAJOR * 1000 + HIP_VERSION_MINOR)
 #            if !defined(ALPAKA_LANG_HIP)
 #                define ALPAKA_LANG_HIP AV2P_LANG_HIP
 #            endif
 #            define AV2P_HOST_HIP_RT_API 1
+
+// The HIP runtime headers declare the grid builtins and the warp/math intrinsics only for the HIP
+// compiler (`__HIP_CLANG_ONLY__`); the `hipBlockIdx_*`-style spellings are macros that never exist
+// for a plain host compiler.  alpaka 3's HIP backend headers reference them in non-dependent
+// contexts, so they must be declared before those headers are parsed.  As on the CUDA path the
+// declarations are enough: a host-only translation unit never instantiates the device code that
+// calls them, and nothing here is ever linked.
+extern "C"
+{
+    extern unsigned hipBlockIdx_x;
+    extern unsigned hipBlockIdx_y;
+    extern unsigned hipBlockIdx_z;
+    extern unsigned hipThreadIdx_x;
+    extern unsigned hipThreadIdx_y;
+    extern unsigned hipThreadIdx_z;
+    extern unsigned hipBlockDim_x;
+    extern unsigned hipBlockDim_y;
+    extern unsigned hipBlockDim_z;
+    extern unsigned hipGridDim_x;
+    extern unsigned hipGridDim_y;
+    extern unsigned hipGridDim_z;
+    unsigned long long __ballot(int);
+    unsigned __lane_id();
+    int __all(int);
+    int __any(int);
+    void __syncthreads();
+}
+// HIP math intrinsics, mirroring the overload set that clang's HIP headers provide.  They overload
+// on floating-point types, so they cannot live in the `extern "C"` block above.
+float rsqrtf(float);
+double rsqrt(double);
+template<typename T>
+T min(T, T);
+template<typename T>
+T max(T, T);
+int min(int, int);
+int max(int, int);
+float min(float, float);
+float max(float, float);
+double min(double, double);
+double max(double, double);
 #        endif
 #    endif
 
