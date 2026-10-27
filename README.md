@@ -106,7 +106,7 @@ Usage
 -----
 
 The library is header only so nothing has to be built.
-CMake 3.22+ is required to provide the correct defines and include paths.
+CMake 3.25+ is required to provide the correct defines and include paths.
 Just call `alpaka_add_executable` instead of `add_executable` and the difficulties of the CUDA nvcc compiler in handling `.cu` and `.cpp` files are automatically taken care of.
 Source files do not need any special file ending.
 Examples of how to utilize alpaka within CMake can be found in the `example` folder.
@@ -159,20 +159,26 @@ Options:
 - `--self-test` runs the built-in fixture test.
 - `-h`, `--help` shows the full usage.
 
-The script does not convert device lambdas. Detection is best effort; confirm
+The script does not convert device lambdas. Detection, including the
+split-form `[captures]` + `ALPAKA_FN_ACC(...)` layout, is best effort; confirm
 with a build. It reports candidate locations as `manual` lines; convert each
 one to a named functor as described in
 [docs/aV2P/migration.md](docs/aV2P/migration.md). That guide also contains the
-complete substitution table this script implements.
+core substitution table this script implements.
 
 The script also renames the package in `find_package`,
-`FetchContent_Declare`, `CPMDeclarePackage`, `ExternalProject_Add`, and
-`add_controlled` declarations to `aV2P`. These declarations keep their original
-version, tag, and URL, so a `manual` line asks you to repoint them at aV2P.
-`add_subdirectory(.../alpaka...)` is never renamed; the `manual` line asks you
-to point that dependency at aV2P and update its version, tag, or repository.
-aV2P requires CMake 3.25 or newer, so every lower
+`FetchContent_Declare`, `CPMDeclarePackage`, `CPMAddPackage`,
+`ExternalProject_Add`, and `add_controlled` declarations to `aV2P`. These
+declarations keep their original version, tag, and URL, so a `manual` line asks
+you to repoint them at aV2P. A `NAME alpaka` value is renamed to `NAME aV2P` as
+well, and every such rewrite gets its own `manual` line, because the same
+pattern can appear in an `add_test` or `add_custom_target`. `NAME alpaka-tools`
+is left untouched. `add_subdirectory(.../alpaka...)` is never renamed; the
+`manual` line asks you to point that dependency at aV2P and update its version,
+tag, or repository. aV2P requires CMake 3.25 or newer, so every lower
 `cmake_minimum_required` is reported for a manual bump.
+
+Symlinks and files named `CMakeLists.txt.in` are skipped; migrate those by hand.
 
 aV2P's backend selection is fixed when aV2P itself is built and installed, so a
 migrated consumer inherits the backends of the install it finds; use one install

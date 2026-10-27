@@ -12,7 +12,8 @@
 #   - C/C++ macro           alpaka_ -> aV2P_
 #   - CMake target          alpaka::alpaka -> aV2P::aV2P, alpaka:: -> aV2P::
 #   - CMake dependency      find_package/FetchContent_Declare/CPMDeclarePackage/
-#                           ExternalProject_Add/add_controlled package names
+#                           CPMAddPackage/ExternalProject_Add/add_controlled
+#                           package names
 #   - CMake macro           ALPAKA_ -> aV2P_, alpaka_ -> aV2P_
 #
 # Device lambdas cannot be converted automatically. They are reported as
@@ -226,6 +227,7 @@ process_cmake()
     local display="$2"
     local tmp subs c ln mode
     local -a dep_sites=()
+    local -a name_sites=()
     tmp=$(mktemp "$(dirname -- "$path")/.av2p-migrate.XXXXXX") || return 1
     mode=$(stat -c '%a' -- "$path")
     cp -- "$path" "$tmp"
@@ -243,7 +245,17 @@ process_cmake()
         [ -n "$ln" ] || continue
         dep_sites+=("${ln}")
     done < <(grep -n -E \
-        'find_package\([[:space:]]*alpaka\b|FetchContent_Declare\([[:space:]]*alpaka\b|CPMDeclarePackage\([[:space:]]*alpaka\b|ExternalProject_Add\([[:space:]]*alpaka\b|add_controlled\([[:space:]]*"alpaka"|add_controlled\([[:space:]]*alpaka\b' \
+        'find_package\([[:space:]]*alpaka\b|FetchContent_Declare\([[:space:]]*alpaka\b|CPMDeclarePackage\([[:space:]]*alpaka\b|CPMAddPackage\([[:space:]]*alpaka\b|ExternalProject_Add\([[:space:]]*alpaka\b|add_controlled\([[:space:]]*"alpaka"|add_controlled\([[:space:]]*alpaka\b' \
+        "$tmp" 2>/dev/null | cut -d: -f1 || true)
+
+    # Record NAME alpaka rewrites so every one of them gets a manual line.
+    # NAME alpaka-tools is deliberately excluded: the trailing character must
+    # not be another identifier character or a hyphen.
+    while IFS= read -r ln; do
+        [ -n "$ln" ] || continue
+        name_sites+=("${ln}")
+    done < <(grep -n -E \
+        '(^|[[:space:]])NAME[[:space:]]+alpaka([^[:alnum:]_-]|$)' \
         "$tmp" 2>/dev/null | cut -d: -f1 || true)
 
     # Directories are never renamed; only report the declaration.
@@ -294,6 +306,14 @@ process_cmake()
         subs=$((subs + c))
     fi
 
+    # CPMAddPackage is the common one-line CPM form; only the first argument
+    # is the package name, the rest of the call is left untouched.
+    c=$(count_matches 'CPMAddPackage\([[:space:]]*alpaka\b' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's|(CPMAddPackage\([[:space:]]*)alpaka\b|\1aV2P|g' "$tmp"
+        subs=$((subs + c))
+    fi
+
     c=$(count_matches 'ExternalProject_Add\([[:space:]]*alpaka\b' "$tmp")
     if [ "${c}" -gt 0 ]; then
         sed -i -E 's|(ExternalProject_Add\([[:space:]]*)alpaka\b|\1aV2P|g' "$tmp"
@@ -312,10 +332,13 @@ process_cmake()
         subs=$((subs + c))
     fi
 
-    # CPM/FetchContent declaration bodies may repeat the package name.
-    c=$(count_matches '(^|[[:space:]])NAME[[:space:]]+alpaka\b' "$tmp")
+    # CPM/FetchContent declaration bodies may repeat the package name. The
+    # trailing character must not be an identifier character or a hyphen, so
+    # `NAME alpaka-tools` is left alone. Every rewrite is reported below
+    # because the rule is file-wide and may also hit add_test/add_custom_target.
+    c=$(count_matches '(^|[[:space:]])NAME[[:space:]]+alpaka([^[:alnum:]_-]|$)' "$tmp")
     if [ "${c}" -gt 0 ]; then
-        sed -i -E 's#(^|[[:space:]])NAME([[:space:]]+)alpaka\b#\1NAME\2aV2P#g' "$tmp"
+        sed -i -E 's#(^|[[:space:]])NAME([[:space:]]+)alpaka([^[:alnum:]_-]|$)#\1NAME\2aV2P\3#g' "$tmp"
         subs=$((subs + c))
     fi
 
@@ -352,6 +375,12 @@ process_cmake()
     if [ ${#dep_sites[@]} -gt 0 ]; then
         for ln in "${dep_sites[@]}"; do
             warn_manual "${display}:${ln}" "dependency now named aV2P: update its version/tag/URL to aV2P"
+        done
+    fi
+
+    if [ ${#name_sites[@]} -gt 0 ]; then
+        for ln in "${name_sites[@]}"; do
+            warn_manual "${display}:${ln}" "NAME alpaka renamed to aV2P: confirm this is a package declaration, not a test, target, or property name"
         done
     fi
 
@@ -484,11 +513,18 @@ CPMDeclarePackage(alpaka
   GIT_TAG deadbeef
   GITHUB_REPOSITORY alpaka-group/alpaka
 )
+CPMAddPackage(alpaka GITHUB_REPOSITORY alpaka-group/alpaka VERSION 2.2)
 FetchContent_Declare(alpaka GIT_REPOSITORY https://example/alpaka)
 ExternalProject_Add(alpaka SOURCE_DIR alpaka)
 add_controlled("alpaka" REQUIRED PREFIX foo)
 add_controlled(alpaka REQUIRED)
 add_subdirectory(third_party/alpaka)
+add_test(
+  NAME alpaka
+  COMMAND app)
+add_test(
+  NAME alpaka-tools
+  COMMAND app)
 cmake_minimum_required(VERSION 3.14)
 cmake_minimum_required(VERSION 3.25)
 EOF
@@ -505,11 +541,18 @@ CPMDeclarePackage(aV2P
   GIT_TAG deadbeef
   GITHUB_REPOSITORY alpaka-group/alpaka
 )
+CPMAddPackage(aV2P GITHUB_REPOSITORY alpaka-group/alpaka VERSION 2.2)
 FetchContent_Declare(aV2P GIT_REPOSITORY https://example/alpaka)
 ExternalProject_Add(aV2P SOURCE_DIR alpaka)
 add_controlled("aV2P" REQUIRED PREFIX foo)
 add_controlled(aV2P REQUIRED)
 add_subdirectory(third_party/alpaka)
+add_test(
+  NAME aV2P
+  COMMAND app)
+add_test(
+  NAME alpaka-tools
+  COMMAND app)
 cmake_minimum_required(VERSION 3.14)
 cmake_minimum_required(VERSION 3.25)
 EOF
@@ -544,8 +587,23 @@ EOF
         echo "${out}" >&2
         return 1
     fi
-    if [ "$(grep -c 'dependency now named aV2P' <<<"${out}")" -ne 6 ]; then
-        echo "FAIL: expected 6 dependency declaration TODOs" >&2
+    if [ "$(grep -c 'dependency now named aV2P' <<<"${out}")" -ne 7 ]; then
+        echo "FAIL: expected 7 dependency declaration TODOs" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if [ "$(grep -c 'NAME alpaka renamed to aV2P' <<<"${out}")" -ne 2 ]; then
+        echo "FAIL: expected 2 NAME alpaka manual lines" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if ! grep -q 'NAME alpaka renamed to aV2P' <<<"${out}"; then
+        echo "FAIL: NAME alpaka manual line missing" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if grep -q 'CMakeLists.txt:22  NAME alpaka' <<<"${out}"; then
+        echo "FAIL: NAME alpaka-tools was incorrectly reported" >&2
         echo "${out}" >&2
         return 1
     fi
@@ -587,6 +645,11 @@ EOF
     esac
     if grep -q 'dependency now named aV2P' <<<"${out}"; then
         echo "FAIL: second run still reports dependency declarations" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if grep -q 'NAME alpaka renamed to aV2P' <<<"${out}"; then
+        echo "FAIL: second run still reports NAME alpaka rewrites" >&2
         echo "${out}" >&2
         return 1
     fi
