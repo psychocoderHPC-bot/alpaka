@@ -17,3 +17,22 @@ list(APPEND _aV2P_TEST_OPTIONS --colour-mode default)
 add_subdirectory(analysis)
 add_subdirectory(integ)
 add_subdirectory(unit)
+
+# Installed-package regression test: install this build into a scratch prefix and configure the
+# consumer with find_package(aV2P CONFIG REQUIRED) without alpaka_DIR.
+string(REPLACE ";" "|" _aV2P_PACKAGE_TEST_EXTRA_PREFIX "${CMAKE_PREFIX_PATH}")
+add_test(
+    NAME packageConsumer
+    COMMAND ${CMAKE_COMMAND}
+            "-DAV2P_BINARY_DIR=${PROJECT_BINARY_DIR}"
+            "-DAV2P_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/aV2P-package-test-prefix"
+            "-DCONSUMER_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/package/consumer"
+            "-DCMAKE_GENERATOR=${CMAKE_GENERATOR}"
+            "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+            "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DCMAKE_CUDA_COMPILER=${CMAKE_CUDA_COMPILER}"
+            "-DCMAKE_HIP_COMPILER=${CMAKE_HIP_COMPILER}"
+            "-DCMAKE_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}"
+            "-DCMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES}"
+            "-DEXTRA_PREFIX_PATH=${_aV2P_PACKAGE_TEST_EXTRA_PREFIX}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/RunPackageConsumerTest.cmake")

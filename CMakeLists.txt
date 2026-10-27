@@ -94,6 +94,19 @@ set(_aV2P_SUFFIXED_INCLUDE_DIR "${_aV2P_INCLUDE_DIRECTORY}/aV2P")
 # Native alpaka 3 owns all backend/dependency configuration. Translate the aV2P
 # options first and acquire the pinned native dependency exactly once.
 set(aV2P_USE_NATIVE_ALPAKA3 ON)
+
+# A standalone aV2P install must be usable on its own, so the native alpaka headers and CMake
+# package are installed into the same prefix.  When aV2P is added to another project that project
+# owns its alpaka dependency and the install must not add a second copy.
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    set(_aV2P_NATIVE_ALPAKA_INSTALL_DEFAULT ON)
+else()
+    set(_aV2P_NATIVE_ALPAKA_INSTALL_DEFAULT OFF)
+endif()
+option(
+    aV2P_INSTALL_NATIVE_ALPAKA
+    "Install the native alpaka 3 headers and CMake package into the aV2P install prefix"
+    ${_aV2P_NATIVE_ALPAKA_INSTALL_DEFAULT})
 include(${_aV2P_ROOT_DIR}/cmake/aV2PDependencies.cmake)
 include(${_aV2P_ROOT_DIR}/cmake/aV2PCommon.cmake)
 
@@ -172,6 +185,21 @@ include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
 set(_aV2P_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/aV2P")
+
+# A fetched / add_subdirectory native alpaka installs itself through its own install rules, which
+# are enabled for aV2P_INSTALL_NATIVE_ALPAKA.  An already installed or parent-provided alpaka has no
+# install rules in this tree, so copy its headers and CMake package explicitly.
+if(aV2P_INSTALL_NATIVE_ALPAKA AND NOT aV2P_ALPAKA3_IS_SUBPROJECT)
+    if(aV2P_ALPAKA3_BUNDLED_INCLUDE_DIR AND EXISTS "${aV2P_ALPAKA3_BUNDLED_INCLUDE_DIR}")
+        install(DIRECTORY "${aV2P_ALPAKA3_BUNDLED_INCLUDE_DIR}/"
+                DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+    endif()
+    if(aV2P_ALPAKA3_PACKAGE_DIR AND EXISTS "${aV2P_ALPAKA3_PACKAGE_DIR}/alpakaConfig.cmake")
+        get_filename_component(_aV2P_ALPAKA3_PACKAGE_NAME "${aV2P_ALPAKA3_PACKAGE_DIR}" NAME)
+        install(DIRECTORY "${aV2P_ALPAKA3_PACKAGE_DIR}/"
+                DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${_aV2P_ALPAKA3_PACKAGE_NAME}")
+    endif()
+endif()
 
 install(TARGETS aV2P
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
