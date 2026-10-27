@@ -22,7 +22,40 @@ See [limitations.md](limitations.md) for what aV2P does not support and why.
 No other rename is required. Function names, signatures, template arguments
 and behavior stay identical to 2.2.
 
+### Automated migration
+
+[`script/av2p-migrate-2x.sh`](../../script/av2p-migrate-2x.sh) applies the
+substitutions in the table above. Run it in dry-run mode first and review the
+diff:
+
+```bash
+/path/to/av2p/script/av2p-migrate-2x.sh --dry-run /path/to/legacy-2.x-project
+/path/to/av2p/script/av2p-migrate-2x.sh /path/to/legacy-2.x-project
+```
+
+The migration is idempotent, so a second run reports no changes and re-running
+after pulling upstream code is safe. The script also renames the CMake package
+and target options and the identifiers in `find_package`, `FetchContent`,
+`CPMAddPackage`, `ExternalProject_Add` and `add_controlled` declarations.
+
+These steps remain manual:
+
+- Bump `cmake_minimum_required` to 3.25 (see Section 2).
+- Repoint dependency declarations at aV2P and update their version, tag or URL.
+  The script renames the identifier and prints a TODO for each declaration.
+- Convert capturing device lambdas to named functors (Section 3). Captureless
+  lambdas are accepted on the legacy kernel path, so only captures need work.
+- Template kernels that use HIP device primitives on the accelerator type
+  (Section 4).
+- Use one aV2P install per backend set (Section 4).
+
 ## 2. CMake integration
+
+aV2P requires CMake 3.25 or newer. 2.x projects often declare 3.14, so raise
+the minimum. Dependency acquisition (`add_subdirectory`, `FetchContent`,
+`CPMAddPackage`, `ExternalProject_Add`, `add_controlled`) must be repointed at
+aV2P and its version, tag or URL updated. The migration script renames the
+identifier and prints TODOs only; it does not edit the location.
 
 ### a. add_subdirectory (source tree in the consumer build)
 
@@ -159,3 +192,29 @@ scope decision, not an alpaka 3 capability gap: `aV2P_SYCL_ONEAPI_FPGA` and its
 `_MODE`, `_BOARD` and `_BSP` companions, the FPGA types and the FPGA headers
 no longer exist, and configuring with a removed option fails with a fatal
 error.
+
+### Backend notes
+
+**HIP kernels and device primitives.** A kernel that uses device primitives
+(atomics, warp operations, shared memory, memory fences) must take the
+accelerator as a template parameter. A concrete `AccGpuHipRt` parameter works
+for index and work-division code, but it provides no device-primitive facade
+on HIP. Concrete CUDA accelerators do expose the primitives. Prefer the
+templated form for portable kernels:
+
+```cpp
+template<typename TAcc>
+AV2P_FN_ACC void kernel(TAcc const& acc, ...) { ... }
+```
+
+**One install per backend set.** aV2P fixes its backend set when it is built
+and installed: the install bakes `AV2P_ACC_*_ENABLED` into its exported
+interface, and a consumer inherits that set. Passing `-DaV2P_ACC_*_ENABLE` at
+the consumer's configure step does not deselect an installed backend, so build
+one aV2P install per backend set and select it through `CMAKE_PREFIX_PATH`.
+
+An install that enables OpenMP 2.0 and HIP together does not compile
+HIP-language translation units that enumerate host accelerators, because the
+native OpenMP flags are applied to CXX sources only. Build a separate OpenMP
+install and a HIP install as the workaround. This is not fixed; see
+[limitations.md](limitations.md) Section 9.

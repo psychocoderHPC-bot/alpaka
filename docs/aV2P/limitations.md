@@ -310,3 +310,59 @@ passes; the unsupported outer layout is kept in the source but guarded with
 Restoration condition: restore the guarded `CHECK_THROWS_AS` case once alpaka
 exposes per-kernel sub-group/warp size selection (a kernel trait or a launch
 attribute) and aV2P forwards it to the oneAPI launch.
+
+## 9. Backend build and install
+
+### a. HIP concrete accelerator has no device-primitive facade
+
+A kernel that uses device primitives (atomics, warp operations, shared memory,
+memory fences) must take the accelerator as a template parameter. A concrete
+`AccGpuHipRt` parameter works for index and work-division code, but aV2P
+provides no device-primitive facade for that concrete HIP accelerator type. A
+concrete CUDA accelerator does expose the primitives.
+
+Cause: the device-primitive facade is reached through the templated
+accelerator concept, and the concrete HIP accelerator type does not forward
+it.
+
+Workaround: template the kernel on the accelerator (`template<typename TAcc>
+AV2P_FN_ACC void kernel(TAcc const& acc, ...)`) before calling any device
+primitive.
+
+Restoration condition: provide a device-primitive facade for the concrete
+`AccGpuHipRt` type, so a non-templated HIP kernel compiles again.
+
+### b. OpenMP 2.0 and HIP in one install
+
+An aV2P install that enables `aV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLE` and
+`aV2P_ACC_GPU_HIP_ENABLE` together cannot compile HIP-language translation
+units that enumerate host accelerators. The native OpenMP flags are applied to
+CXX sources only, so the HIP compiler sees no OpenMP flags during that
+enumeration and compilation fails.
+
+Cause: the CMake wiring does not apply the native OpenMP flags to HIP-language
+sources.
+
+Workaround: build aV2P per backend set, with one OpenMP install and one HIP
+install, and select the needed install through `CMAKE_PREFIX_PATH`. This
+workaround is verified; the combined build is not fixed.
+
+Restoration condition: apply the native OpenMP flags to HIP-language sources
+that include host accelerators, so one install can serve both backend sets.
+
+### c. Installed backend set is fixed
+
+An aV2P install bakes `AV2P_ACC_*_ENABLED` into its exported interface at
+build time. A consumer inherits that backend set. Passing
+`-DaV2P_ACC_*_ENABLE` at the consumer's configure step does not deselect an
+installed backend.
+
+Cause: backend selection is resolved when aV2P itself is built and installed,
+not when a consumer configures.
+
+Workaround: use one aV2P install per backend set and select the matching
+install through `CMAKE_PREFIX_PATH`.
+
+Restoration condition: resolve `AV2P_ACC_*_ENABLE` at consumer configure time
+and export only the selected backends, so one install can serve several
+backend sets.
