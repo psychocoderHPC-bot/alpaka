@@ -11,16 +11,23 @@
 #   - C/C++ macro           ALPAKA_ -> AV2P_
 #   - C/C++ macro           alpaka_ -> aV2P_
 #   - CMake target          alpaka::alpaka -> aV2P::aV2P, alpaka:: -> aV2P::
-#   - CMake package         find_package(alpaka ...) -> find_package(aV2P ...)
+#   - CMake dependency      find_package/FetchContent_Declare/CPMDeclarePackage/
+#                           ExternalProject_Add/add_controlled package names
 #   - CMake macro           ALPAKA_ -> aV2P_, alpaka_ -> aV2P_
 #
 # Device lambdas cannot be converted automatically. They are reported as
 # manual work and never rewritten.
 #
+# Dependency declarations are renamed but keep their version/tag/URL, and
+# CMake files that require less than 3.25 are reported; both need manual work.
+#
 # Running the script twice is a no-op on the second run.
 #
+# Never run this on the aV2P tree itself: its adapter contains native alpaka::
+# and ALPAKA_ names on purpose.
+#
 # Examples:
-#   script/av2p-migrate-2x.sh --dry-run .
+#   /path/to/alpaka/script/av2p-migrate-2x.sh --dry-run /path/to/legacy-2.x-project
 #   script/av2p-migrate-2x.sh --exclude 'external/*' /path/to/project
 #   script/av2p-migrate-2x.sh --self-test
 #
@@ -36,6 +43,7 @@ ROOTS=()
 
 FILES_CHANGED=0
 TOTAL_SUBS=0
+WRITE_ERRORS=0
 
 CMAKE_SENTINEL="__AV2P_MIGRATE_CMAKE_TARGET__"
 
@@ -111,10 +119,21 @@ report_device_lambdas()
         { line[NR] = $0 }
         END {
             for (i = 1; i <= NR; ++i) {
-                if (line[i] ~ /__global__|AV2P_FN_ACC/) {
-                    if (line[i] ~ /\[[^]]*\]\(/ || line[i + 1] ~ /\[[^]]*\]\(/) {
-                        print i
-                    }
+                cur = line[i]
+                nxt = line[i + 1]
+                # Only lines near a device annotation are candidates.
+                if (!(cur ~ /__global__|AV2P_FN_ACC|ALPAKA_FN_ACC/ \
+                      || nxt ~ /__global__|AV2P_FN_ACC|ALPAKA_FN_ACC/)) {
+                    continue
+                }
+                # ](          same line
+                # ] AV2P_FN_ACC(   same line (common 2.x form)
+                # ]\n(...)    annotation starts the next line
+                if (cur ~ /\[[^]]*\][[:space:]]*\(/ \
+                    || cur ~ /\[[^]]*\][[:space:]]*(AV2P_FN_ACC|ALPAKA_FN_ACC)/ \
+                    || (cur ~ /\[[^]]*\][[:space:]]*$/ \
+                        && nxt ~ /^[[:space:]]*\((AV2P_FN_ACC|ALPAKA_FN_ACC)/)) {
+                    print i
                 }
             }
         }
@@ -127,6 +146,7 @@ finish_file()
     local display="$2"
     local tmp="$3"
     local subs="$4"
+    local mode="$5"
 
     if cmp -s -- "$path" "$tmp"; then
         rm -f -- "$tmp"
@@ -135,10 +155,19 @@ finish_file()
 
     if [ "${DRY_RUN}" -eq 1 ]; then
         diff -u --label "${display}" --label "${display}" "$path" "$tmp" || true
+        rm -f -- "$tmp"
     else
-        cp -- "$tmp" "$path"
+        if [ ! -w "${path}" ]; then
+            echo "error: cannot update ${display}: file is read-only" >&2
+            rm -f -- "$tmp"
+            WRITE_ERRORS=$((WRITE_ERRORS + 1))
+            return 0
+        fi
+        # The temp file lives in the target directory, so the rename below is
+        # atomic. Restore the original permission bits before replacing it.
+        chmod -- "${mode}" "$tmp"
+        mv -f -- "$tmp" "$path"
     fi
-    rm -f -- "$tmp"
 
     if [ "${QUIET}" -eq 0 ]; then
         printf 'changed  %s  (%s substitutions)\n' "${display}" "${subs}"
@@ -152,8 +181,9 @@ process_cxx()
 {
     local path="$1"
     local display="$2"
-    local tmp subs c
-    tmp=$(mktemp "${TMPDIR:-/tmp}/av2p-migrate.XXXXXX")
+    local tmp subs c mode
+    tmp=$(mktemp "$(dirname -- "$path")/.av2p-migrate.XXXXXX") || return 1
+    mode=$(stat -c '%a' -- "$path")
     cp -- "$path" "$tmp"
     subs=0
 
@@ -187,15 +217,17 @@ process_cxx()
     fi
 
     report_device_lambdas "$tmp" "$display"
-    finish_file "$path" "$display" "$tmp" "$subs"
+    finish_file "$path" "$display" "$tmp" "$subs" "$mode"
 }
 
 process_cmake()
 {
     local path="$1"
     local display="$2"
-    local tmp subs c ln
-    tmp=$(mktemp "${TMPDIR:-/tmp}/av2p-migrate.XXXXXX")
+    local tmp subs c ln mode
+    local -a dep_sites=()
+    tmp=$(mktemp "$(dirname -- "$path")/.av2p-migrate.XXXXXX") || return 1
+    mode=$(stat -c '%a' -- "$path")
     cp -- "$path" "$tmp"
     subs=0
 
@@ -205,27 +237,99 @@ process_cmake()
         warn_manual "${display}:${ln}" "ALPAKA_CMAKE_TARGET_ requires manual review"
     done < <(grep -n -o 'ALPAKA_CMAKE_TARGET_' "$tmp" 2>/dev/null | cut -d: -f1 || true)
 
+    # Record dependency declarations before renaming them, so the TODO keeps
+    # the original line number.
+    while IFS= read -r ln; do
+        [ -n "$ln" ] || continue
+        dep_sites+=("${ln}")
+    done < <(grep -n -E \
+        'find_package\([[:space:]]*alpaka\b|FetchContent_Declare\([[:space:]]*alpaka\b|CPMDeclarePackage\([[:space:]]*alpaka\b|ExternalProject_Add\([[:space:]]*alpaka\b|add_controlled\([[:space:]]*"alpaka"|add_controlled\([[:space:]]*alpaka\b' \
+        "$tmp" 2>/dev/null | cut -d: -f1 || true)
+
+    # Directories are never renamed; only report the declaration.
+    while IFS= read -r ln; do
+        [ -n "$ln" ] || continue
+        warn_manual "${display}:${ln}" "add_subdirectory points at an alpaka directory: point the dependency at aV2P and update version/tag/repository"
+    done < <(grep -n -E 'add_subdirectory\([^)]*\balpaka\b' "$tmp" 2>/dev/null | cut -d: -f1 || true)
+
+    # aV2P requires CMake 3.25 or newer; report too-low minimums without editing.
+    while IFS=: read -r ln ver; do
+        [ -n "$ln" ] || continue
+        warn_manual "${display}:${ln}" "cmake_minimum_required ${ver} < 3.25 required by aV2P"
+    done < <(awk '
+        {
+            if (match($0, /cmake_minimum_required\([[:space:]]*VERSION[[:space:]]+[0-9]+(\.[0-9]+)*/)) {
+                v = substr($0, RSTART, RLENGTH)
+                sub(/.*VERSION[[:space:]]+/, "", v)
+                n = split(v, p, ".")
+                maj = p[1] + 0
+                min = (n >= 2) ? p[2] + 0 : 0
+                if (maj < 3 || (maj == 3 && min < 25)) {
+                    print NR ":" v
+                }
+            }
+        }
+    ' "$tmp")
+
     # Protect the literal prefix from the generic ALPAKA_ rename below.
     sed -i "s|ALPAKA_CMAKE_TARGET_|${CMAKE_SENTINEL}|g" "$tmp"
 
-    # Rule 1: target pair before the generic target rule.
+    # Rule 1: dependency declarations. The package name becomes aV2P; the
+    # version, tag, URL, and repository stay project-specific.
+    c=$(count_matches 'find_package\([[:space:]]*alpaka\b' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's|(find_package\([[:space:]]*)alpaka\b|\1aV2P|g' "$tmp"
+        subs=$((subs + c))
+    fi
+
+    c=$(count_matches 'FetchContent_Declare\([[:space:]]*alpaka\b' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's|(FetchContent_Declare\([[:space:]]*)alpaka\b|\1aV2P|g' "$tmp"
+        subs=$((subs + c))
+    fi
+
+    c=$(count_matches 'CPMDeclarePackage\([[:space:]]*alpaka\b' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's|(CPMDeclarePackage\([[:space:]]*)alpaka\b|\1aV2P|g' "$tmp"
+        subs=$((subs + c))
+    fi
+
+    c=$(count_matches 'ExternalProject_Add\([[:space:]]*alpaka\b' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's|(ExternalProject_Add\([[:space:]]*)alpaka\b|\1aV2P|g' "$tmp"
+        subs=$((subs + c))
+    fi
+
+    c=$(count_matches 'add_controlled\([[:space:]]*"alpaka"' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's|(add_controlled\([[:space:]]*)"alpaka"|\1"aV2P"|g' "$tmp"
+        subs=$((subs + c))
+    fi
+
+    c=$(count_matches 'add_controlled\([[:space:]]*alpaka\b' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's|(add_controlled\([[:space:]]*)alpaka\b|\1aV2P|g' "$tmp"
+        subs=$((subs + c))
+    fi
+
+    # CPM/FetchContent declaration bodies may repeat the package name.
+    c=$(count_matches '(^|[[:space:]])NAME[[:space:]]+alpaka\b' "$tmp")
+    if [ "${c}" -gt 0 ]; then
+        sed -i -E 's#(^|[[:space:]])NAME([[:space:]]+)alpaka\b#\1NAME\2aV2P#g' "$tmp"
+        subs=$((subs + c))
+    fi
+
+    # Rule 2: target pair before the generic target rule.
     c=$(count_matches '\balpaka::alpaka\b' "$tmp")
     if [ "${c}" -gt 0 ]; then
         sed -i -E 's|\balpaka::alpaka\b|aV2P::aV2P|g' "$tmp"
         subs=$((subs + c))
     fi
 
-    # Rule 2: any remaining target namespace.
+    # Rule 3: any remaining target namespace.
     c=$(count_matches '\balpaka::' "$tmp")
     if [ "${c}" -gt 0 ]; then
         sed -i -E 's|\balpaka::|aV2P::|g' "$tmp"
-        subs=$((subs + c))
-    fi
-
-    # Rule 3: package lookup, keeping CONFIG/REQUIRED/version.
-    c=$(count_matches 'find_package\([[:space:]]*alpaka\b' "$tmp")
-    if [ "${c}" -gt 0 ]; then
-        sed -i -E 's|find_package\([[:space:]]*alpaka\b|find_package(aV2P|g' "$tmp"
         subs=$((subs + c))
     fi
 
@@ -245,7 +349,13 @@ process_cmake()
 
     sed -i "s|${CMAKE_SENTINEL}|ALPAKA_CMAKE_TARGET_|g" "$tmp"
 
-    finish_file "$path" "$display" "$tmp" "$subs"
+    if [ ${#dep_sites[@]} -gt 0 ]; then
+        for ln in "${dep_sites[@]}"; do
+            warn_manual "${display}:${ln}" "dependency now named aV2P: update its version/tag/URL to aV2P"
+        done
+    fi
+
+    finish_file "$path" "$display" "$tmp" "$subs" "$mode"
 }
 
 process_root()
@@ -280,12 +390,15 @@ process_root()
         base="${f##*/}"
         case "${base}" in
             CMakeLists.txt|*.cmake|*.cmake.in)
-                process_cmake "${f}" "${display}"
+                process_cmake "${f}" "${display}" || WRITE_ERRORS=$((WRITE_ERRORS + 1))
+                ;;
+            *.hpp.in|*.h.in|*.cpp.in|*.c.in|*.cu.in)
+                process_cxx "${f}" "${display}" || WRITE_ERRORS=$((WRITE_ERRORS + 1))
                 ;;
             *)
                 case "${base##*.}" in
                     hpp|h|hxx|hh|cpp|cxx|cc|cu|cuh|hip|ipp|inl|tpp)
-                        process_cxx "${f}" "${display}"
+                        process_cxx "${f}" "${display}" || WRITE_ERRORS=$((WRITE_ERRORS + 1))
                         ;;
                 esac
                 ;;
@@ -333,6 +446,11 @@ int myalpaka::x;
 #define MY_ALPAKA_X 1
 int xalpaka_y;
 int alpaka_foo;
+int device_lambda()
+{
+    auto k = [=] ALPAKA_FN_ACC(int x) { return x; };
+    return k(1);
+}
 EOF
 
     cat > "${dir}/expected/fixture.hpp" <<'EOF'
@@ -347,6 +465,11 @@ int myalpaka::x;
 #define MY_ALPAKA_X 1
 int xalpaka_y;
 int aV2P_foo;
+int device_lambda()
+{
+    auto k = [=] AV2P_FN_ACC(int x) { return x; };
+    return k(1);
+}
 EOF
 
     cat > "${dir}/work/CMakeLists.txt" <<'EOF'
@@ -356,6 +479,18 @@ alpaka_add_executable(app src/main.cpp)
 set(ALPAKA_ACC_GPU_CUDA_ENABLE ON)
 set(alpaka_ACC_CPU_B_SEQ_T_SEQ_ENABLE ON)
 set(ALPAKA_CMAKE_TARGET_foo_bar ON)
+CPMDeclarePackage(alpaka
+  NAME alpaka
+  GIT_TAG deadbeef
+  GITHUB_REPOSITORY alpaka-group/alpaka
+)
+FetchContent_Declare(alpaka GIT_REPOSITORY https://example/alpaka)
+ExternalProject_Add(alpaka SOURCE_DIR alpaka)
+add_controlled("alpaka" REQUIRED PREFIX foo)
+add_controlled(alpaka REQUIRED)
+add_subdirectory(third_party/alpaka)
+cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.25)
 EOF
 
     cat > "${dir}/expected/CMakeLists.txt" <<'EOF'
@@ -365,6 +500,18 @@ aV2P_add_executable(app src/main.cpp)
 set(aV2P_ACC_GPU_CUDA_ENABLE ON)
 set(aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE ON)
 set(ALPAKA_CMAKE_TARGET_foo_bar ON)
+CPMDeclarePackage(aV2P
+  NAME aV2P
+  GIT_TAG deadbeef
+  GITHUB_REPOSITORY alpaka-group/alpaka
+)
+FetchContent_Declare(aV2P GIT_REPOSITORY https://example/alpaka)
+ExternalProject_Add(aV2P SOURCE_DIR alpaka)
+add_controlled("aV2P" REQUIRED PREFIX foo)
+add_controlled(aV2P REQUIRED)
+add_subdirectory(third_party/alpaka)
+cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.25)
 EOF
 
     cp -- "${dir}/work/fixture.hpp" "${dir}/pre.hpp"
@@ -382,8 +529,34 @@ EOF
         return 1
     fi
 
-    if ! bash "${SELF}" "${dir}/work" >/dev/null 2>&1; then
+    if ! out=$(bash "${SELF}" "${dir}/work" 2>/dev/null); then
         echo "FAIL: migration run failed" >&2
+        return 1
+    fi
+
+    if ! grep -q 'fixture.hpp:14  device lambda' <<<"${out}"; then
+        echo "FAIL: [=] AV2P_FN_ACC( device lambda was not reported" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if ! grep -q 'dependency now named aV2P' <<<"${out}"; then
+        echo "FAIL: dependency declaration TODO missing" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if [ "$(grep -c 'dependency now named aV2P' <<<"${out}")" -ne 6 ]; then
+        echo "FAIL: expected 6 dependency declaration TODOs" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if ! grep -q 'cmake_minimum_required 3.14 < 3.25 required by aV2P' <<<"${out}"; then
+        echo "FAIL: CMake 3.25 warning missing" >&2
+        echo "${out}" >&2
+        return 1
+    fi
+    if ! grep -q 'add_subdirectory points at an alpaka directory' <<<"${out}"; then
+        echo "FAIL: add_subdirectory warning missing" >&2
+        echo "${out}" >&2
         return 1
     fi
 
@@ -412,6 +585,11 @@ EOF
             return 1
             ;;
     esac
+    if grep -q 'dependency now named aV2P' <<<"${out}"; then
+        echo "FAIL: second run still reports dependency declarations" >&2
+        echo "${out}" >&2
+        return 1
+    fi
     if ! cmp -s -- "${dir}/first.hpp" "${dir}/work/fixture.hpp"; then
         echo "FAIL: second run changed the C/C++ fixture" >&2
         return 1
@@ -496,6 +674,11 @@ done
 
 if [ "${QUIET}" -eq 0 ]; then
     printf '%s files changed, %s substitutions\n' "${FILES_CHANGED}" "${TOTAL_SUBS}"
+fi
+
+if [ "${WRITE_ERRORS}" -gt 0 ]; then
+    echo "error: ${WRITE_ERRORS} file(s) could not be written" >&2
+    exit 1
 fi
 
 if [ "${DRY_RUN}" -eq 1 ] && [ "${FILES_CHANGED}" -gt 0 ]; then

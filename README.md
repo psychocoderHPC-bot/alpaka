@@ -132,31 +132,51 @@ and enable the desired backend on the compiler's command line using the correspo
 ### Migrating from alpaka 2.x
 
 `script/av2p-migrate-2x.sh` applies the mechanical alpaka 2.x to aV2P
-renames to a source tree. Run it from the repository root:
+renames to a legacy alpaka 2.x source tree. Name the consumer project
+explicitly and invoke the script from anywhere:
 
 ```bash
-script/av2p-migrate-2x.sh --dry-run .
-script/av2p-migrate-2x.sh .
+/path/to/alpaka/script/av2p-migrate-2x.sh --dry-run /path/to/legacy-2.x-project
+/path/to/alpaka/script/av2p-migrate-2x.sh /path/to/legacy-2.x-project
 ```
 
+**Never run the script on the aV2P tree itself.** Its adapter layer
+intentionally contains native `alpaka::` and `ALPAKA_` names, which the
+migrator would rewrite.
+
 The dry run prints a unified diff and exits with status 2 when it would change
-anything, so it can gate a pre-migration review. A real run writes the files
-in place. The migration is idempotent: a second run reports no changes, so it
-is safe to re-run after pulling upstream code.
+anything, so it can gate a pre-migration review. A real run replaces each file
+through a temporary file in the same directory and an atomic rename. The
+migration is idempotent: a second run reports no changes, so it is safe to
+re-run after pulling upstream code.
 
 Options:
 
 - `--dry-run` prints the diff and writes nothing.
 - `--exclude GLOB` skips paths relative to `ROOT`; repeatable.
 - `--quiet`, `-q` suppress progress and the summary.
-- `--no-backup` is accepted; no backups are created by default.
+- `--no-backup` is accepted; the script never creates backups.
 - `--self-test` runs the built-in fixture test.
 - `-h`, `--help` shows the full usage.
 
-The script does not convert device lambdas. It reports their locations as
-`manual` lines; convert each one to a named functor as described in
+The script does not convert device lambdas. Detection is best effort; confirm
+with a build. It reports candidate locations as `manual` lines; convert each
+one to a named functor as described in
 [docs/aV2P/migration.md](docs/aV2P/migration.md). That guide also contains the
 complete substitution table this script implements.
+
+The script also renames the package in `find_package`,
+`FetchContent_Declare`, `CPMDeclarePackage`, `ExternalProject_Add`, and
+`add_controlled` declarations to `aV2P`. These declarations keep their original
+version, tag, and URL, so a `manual` line asks you to repoint them at aV2P.
+`add_subdirectory(.../alpaka...)` is never renamed; the `manual` line asks you
+to point that dependency at aV2P and update its version, tag, or repository.
+aV2P requires CMake 3.25 or newer, so every lower
+`cmake_minimum_required` is reported for a manual bump.
+
+aV2P's backend selection is fixed when aV2P itself is built and installed, so a
+migrated consumer inherits the backends of the install it finds; use one install
+per backend set.
 
 ```diff
 -#include <alpaka/alpaka.hpp>
