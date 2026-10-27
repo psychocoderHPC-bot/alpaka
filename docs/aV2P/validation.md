@@ -9,7 +9,8 @@ run logs; UNVERIFIED marks a cell that was not checked in that configuration.
 
 | Role | SHA | Verified |
 |---|---|---|
-| aV2P branch tip (test subject) | `3eceff07f71aaa472b34733684b22f0e74b006a` | exists in fork; `av2p/develop` |
+| aV2P branch tip for matrix runs (Sections 2-7) | `3eceff07f71aaa472b34733684b22f0e74b006a` | exists in fork |
+| aV2P code tip for the port run (Section 8) | `9c161ed4d68753026ec4e85cfaa398c6d715da37` | exists in fork; restored 2.2 headers and captureless lambdas |
 | Base: fork `develop` | `61c5a7113a1b4b3ac2648ceaed88874635d05c7d` | exists; source identical to 2.2.0 apart from version and changelog |
 | Legacy release 2.2.0 | `4dc5ea558defeab95427e114a2dd9da83cc4d215` | exists; tag `2.2.0` resolves to this commit |
 | Dependency: native alpaka 3.0.0 | `eb677e8d7f70d79b35df25d9002f94ba669b6f44` | exists |
@@ -34,7 +35,10 @@ export alpaka_DEP_HWLOC=OFF
 
 The commands in this section were validated against
 `3eceff07f71aaa472b34733684b22f0e74b006a` on the named machines (fwk394 for the
-CPU and CUDA configurations, hal for HIP and oneAPI).
+CPU and CUDA configurations, hal for HIP and oneAPI). The tip moved after that
+to `9c161ed4d` (restored 2.2 headers, captureless-lambda kernel path). The
+end-to-end port in Section 8 re-validated those changes on CPU, CUDA and HIP;
+the full matrix in Sections 2-7 was not re-run at the new tip.
 
 CPU serial + OpenMP (fwk394, g++ 13.3; nvcc 12.5 present but not used):
 
@@ -200,3 +204,46 @@ removed scope.
 Any timings observed during these runs are indicative only: the machines are
 shared systems, clocks and co-tenants vary between runs, and no
 benchmarking protocol was applied. No timing is validated by this report.
+
+## 8. End-to-end 2.x to aV2P port
+
+The migration ran end to end on alpaka-group/mallocMC at `e4084149dee2dc0904c1febc378b0ce05bf6004f`
+(pins alpaka 2.2.0), with migrator `27359c779` (integrated here as `e9d16eef4`) against aV2P
+`9c161ed4d`.
+
+The script guarantees:
+
+- `--dry-run` exits 2 when changes are pending. The apply run changes 39 files and makes 1104
+  substitutions; a second run changes 0 files and makes 0 substitutions, so the migration is
+  idempotent.
+- It renames the public API, CMake package and target names, and dependency identifiers;
+  dependency declarations get a printed TODO, not an edit.
+
+Manual steps the run needed (the script's own TODO list):
+
+- Repoint the CPM dependency at aV2P (version, tag, repository), raise
+  `cmake_minimum_required` to 3.25, and build one aV2P install per backend set.
+- Rewrite capturing device lambdas as named functors; captureless lambdas use the legacy path.
+- Template HIP kernels that use device primitives (atomics, warp, shared memory, fences) on the
+  accelerator.
+
+All builds used native alpaka 3.0.0 `eb677e8d7` and a per-backend aV2P install under
+`CMAKE_PREFIX_PATH`:
+
+| Config (machine) | Build | ctest | Result |
+|---|---|---|---|
+| CPU, g++ 13.3 (fwk394, hal) | 123/123 | 4/4 | PASS on both hosts; unit tests 16 cases, 9,470,994 assertions |
+| CUDA 12.5 sm_75 (fwk394) | 122/125 | 2/5 | 3 targets fail; a captureless-lambda consumer runs on the GPU |
+| HIP ROCm 7.2 gfx1100 (hal) | tests pass | 2/4 | both examples not built; GPU execution proven |
+
+On CUDA, the two aV2P examples fail on a capturing lambda at
+`include/mallocMC/creationPolicies/FlatterScatter.hpp:457`; `mallocMCUnitTests` hits an nvcc 12.5
+internal error at `test/unit/source/PageInterpretation.cpp:62` (brace-init works around it).
+`mallocMCMultithreadedTests` and `mallocMCExampleNativeCuda` build and run, so ctest reports 2/5.
+
+On HIP, the examples use a concrete `aV2P::AccGpuHipRt` with atomics, warp, shared-memory and fence
+operations, which needs a templated accelerator (`migration.md` Section 4). Tests pass: unit 16
+cases and 9,470,994 assertions, multithreaded 62 plus 1 expected failure. An empty
+`HIP_VISIBLE_DEVICES` fails with "0 devices", so the gfx1100 run proves GPU execution.
+
+No SYCL or oneAPI (Arc) run was done for this port.
