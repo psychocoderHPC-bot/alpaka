@@ -438,9 +438,15 @@ namespace aV2P
 #if AV2P_COMP_NVCC
         static_assert(
             isKernelTriviallyCopyable<TKernelFnObj>,
-            "Kernels must be trivially copyable or an extended CUDA lambda expression!");
+            "aV2P: the legacy kernel functor must be trivially copyable, a captureless (empty) device "
+            "lambda, or an extended CUDA lambda. A lambda that captures state cannot survive the device "
+            "pass; convert it to a named functor.");
 #else
-        static_assert(isKernelTriviallyCopyable<TKernelFnObj>, "Kernels must be trivially copyable!");
+        static_assert(
+            isKernelTriviallyCopyable<TKernelFnObj>,
+            "aV2P: the legacy kernel functor must be trivially copyable or a captureless (empty) device "
+            "lambda. A lambda that captures state cannot survive the device pass; convert it to a named "
+            "functor.");
 #endif
         (detail::assertKernelArgIsTriviallyCopyable<std::decay_t<TArgs>>(), ...);
         static_assert(
@@ -485,9 +491,15 @@ namespace aV2P
 #if AV2P_COMP_NVCC
         static_assert(
             isKernelTriviallyCopyable<TKernelFnObj>,
-            "Kernels must be trivially copyable or an extended CUDA lambda expression!");
+            "aV2P: the legacy kernel functor must be trivially copyable, a captureless (empty) device "
+            "lambda, or an extended CUDA lambda. A lambda that captures state cannot survive the device "
+            "pass; convert it to a named functor.");
 #else
-        static_assert(isKernelTriviallyCopyable<TKernelFnObj>, "Kernels must be trivially copyable!");
+        static_assert(
+            isKernelTriviallyCopyable<TKernelFnObj>,
+            "aV2P: the legacy kernel functor must be trivially copyable or a captureless (empty) device "
+            "lambda. A lambda that captures state cannot survive the device pass; convert it to a named "
+            "functor.");
 #endif
         (detail::assertKernelArgIsTriviallyCopyable<std::decay_t<TArgs>>(), ...);
         static_assert(

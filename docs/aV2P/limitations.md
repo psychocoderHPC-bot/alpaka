@@ -29,10 +29,10 @@ aV2P keeps the 2.2 host layout and exposes the native alpaka 3 device layout:
 | Legacy accelerator | Native alpaka 3 executor | Adapter state |
 |--------------------|--------------------------|---------------|
 | `AccCpuSerial` (`aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE`) | `api::Host` / `deviceKind::Cpu` / `exec::CpuSerial` | implemented and tested |
-| `AccCpuOmp2Blocks` | `api::Host` / `deviceKind::Cpu` / `exec::CpuOmpBlocks` | PENDING VALIDATION, adapter in progress |
-| `AccGpuCudaRt` | `api::Cuda` / `deviceKind::NvidiaGpu` / `exec::GpuCuda` | PENDING VALIDATION, adapter in progress |
-| `AccGpuHipRt` | `api::Hip` / `deviceKind::AmdGpu` / `exec::GpuHip` | PENDING VALIDATION, adapter in progress |
-| `AccCpuSycl`, `AccGpuSyclIntel` | `api::OneApi` / `exec::OneApi` | PENDING VALIDATION, adapter in progress |
+| `AccCpuOmp2Blocks` | `api::Host` / `deviceKind::Cpu` / `exec::CpuOmpBlocks` | implemented and tested ([validation.md](validation.md)) |
+| `AccGpuCudaRt` | `api::Cuda` / `deviceKind::NvidiaGpu` / `exec::GpuCuda` | implemented and tested ([validation.md](validation.md)) |
+| `AccGpuHipRt` | `api::Hip` / `deviceKind::AmdGpu` / `exec::GpuHip` | implemented and tested ([validation.md](validation.md)) |
+| `AccCpuSycl`, `AccGpuSyclIntel` | `api::OneApi` / `exec::OneApi` | implemented and tested; Intel GPU with the FP64 caveat ([validation.md](validation.md)) |
 | `AccCpuTbbBlocks` (`aV2P_ACC_CPU_B_TBB_T_SEQ_ENABLE`) | `api::Host` / `deviceKind::Cpu` / `exec::CpuTbbBlocks` | implemented and tested |
 | `AccCpuThreads` | none | no faithful alpaka 3 executor |
 | `AccCpuOmp2Threads` | none | no faithful alpaka 3 executor |
@@ -43,13 +43,13 @@ aV2P scope decision, not an alpaka 3 capability gap. The FPGA accelerator,
 device, platform, event, queue and buffer types, their headers and their CMake
 options no longer exist.
 
-Passing evidence exists for the serial CPU path (host serial build of the
-ported examples and the kernel, math and memview unit tests) and for the
-TBB blocks accelerator (`accTest`, `devTest`, `kernelTest`,
-`blockSharedTest`, `blockSyncTest` and `workDivTest`, plus a 52/52 full
-`ctest` on the serial configuration). The other backends are PENDING
-VALIDATION because the adapter is in progress and no test evidence exists
-yet.
+Passing evidence for each backend is recorded in
+[validation.md](validation.md), the single source of truth: serial CPU,
+OpenMP blocks, TBB blocks, CUDA, HIP and oneAPI CPU pass the full `ctest`
+suite; oneAPI on the Arc A770 passes except for the FP64 cases, which the
+device emulates. No other SYCL device is validated. The TBB blocks
+accelerator additionally runs `accTest`, `devTest`, `kernelTest`,
+`blockSharedTest`, `blockSyncTest` and `workDivTest`.
 
 `AccCpuThreads` and `AccCpuOmp2Threads` remain deliberate stubs: the
 pinned alpaka 3 `exec::allExecutors` contains only `GpuCuda`, `GpuHip`,
@@ -145,7 +145,7 @@ named kernel functor, and aV2P inherits that convention.
 
 ## 5. Public option mapping (2.2 legacy to native alpaka 3)
 
-Source of truth is `develop/cmake/aV2POptionMapping.csv` (44 rows).
+Source of truth is `../../cmake/aV2POptionMapping.csv` (44 rows).
 Mode `on` turns the native option ON when the legacy is ON. Mode
 `forward` copies the value unless the consumer set the native option
 explicitly. `unsupported`, `cuda_unsupported` and `sycl_unsupported` are
@@ -194,7 +194,7 @@ SYCL is enabled. `local` has no native equivalent.
 | `aV2P_SYCL_ONEAPI_CPU_ISA` | (see `alpaka_ONEAPI_Cpu_ARCH`) | STRING | sycl_warn | avx2 | native uses `alpaka_ONEAPI_Cpu_ARCH` |
 | `aV2P_SYCL_ONEAPI_GPU_DEVICES` | (vendor arch variables) | STRING | sycl_warn | intel_gpu_pvc | native uses vendor specific arch variables |
 
-Row count: 44 legacy options, matching the source table.
+Row count: 44 rows, 38 distinct legacy options.
 
 ## 6. Compatibility matrix
 
@@ -216,10 +216,12 @@ feature in pinned alpaka 3.0.0 that aV2P cannot bridge), `blocked`
 | installed-package consumer | supported | consumer CMakeLists builds and runs against the installed package |
 | coexistence of aV2P and alpaka 3 in one target | supported | coexist CMakeLists builds with both targets linked |
 | Conflict fixture, `aV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLE=ON` | supported | configuration is rejected with a fatal error |
-| OpenMP 2.0 blocks backend | unvalidated | adapter in progress |
-| CUDA backend | unvalidated | adapter in progress, no GPU in the current environment |
-| HIP backend | unvalidated | adapter in progress, no AMD GPU or HIP toolchain verified |
-| SYCL CPU, Intel and AMD GPU backends | unvalidated | adapter in progress, no oneAPI toolchain verified |
+| OpenMP 2.0 blocks backend | supported | full `ctest` suite green in the OpenMP configuration ([validation.md](validation.md) Section 6) |
+| CUDA backend | supported | ctest 51/51 on sm_70 (GV100) and sm_75 (RTX 2080 Ti); end-to-end mallocMC port in Section 8 of [validation.md](validation.md) |
+| HIP backend | supported | ctest 51/51 on gfx1100 (RX 7900 XTX), interop PASS; end-to-end mallocMC port proves GPU execution (Section 8 of [validation.md](validation.md)) |
+| SYCL CPU backend (oneAPI) | supported | ctest 51/51 on EPYC 7452, interop PASS ([validation.md](validation.md) Section 6) |
+| SYCL Intel GPU backend (oneAPI) | supported | ctest 46/51 on Arc A770; all five failures are FP64 device-capability cases, not adapter defects |
+| SYCL AMD and NVIDIA GPU backends | unvalidated | no run on those devices |
 | TBB blocks backend | supported | serial+TBB build: `accTest` 480 assertions, `devTest` 128, `kernelTest` 1058, `blockSharedTest` 96, `blockSyncTest` 96, `workDivTest` 151; probe reports enabled tags `TagCpuSerial,TagCpuTbbBlocks`, mapped executor `CpuTbbBlocks`, and 28 TBB worker threads on a 10000-block kernel |
 | std::thread backend | limitation | no faithful alpaka 3 executor exists |
 | OpenMP block-thread backend | limitation | no faithful alpaka 3 executor exists |

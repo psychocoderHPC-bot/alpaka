@@ -19,7 +19,7 @@
 // algo
 #include "aV2P/algo/Transform.hpp"
 // atomic
-// In alpaka 2.2 this header was reached through atomic/AtomicCpu.hpp, which the 2.2 umbrella included.
+// In alpaka 2.2 AtomicAtomicRef was exposed transitively through its CPU atomic path, so the umbrella made it visible.
 #include "aV2P/atomic/AtomicAtomicRef.hpp"
 #include "aV2P/atomic/Op.hpp"
 #include "aV2P/atomic/Traits.hpp"

@@ -182,10 +182,14 @@ MdSpan unit tests is already in the aV2P branch and uses this pattern.
 
 Legacy `aV2P_ACC_*_ENABLE` options select backends. The complete option
 table with the native alpaka 3 effect and the diagnostic for each value
-lives in Section 5 of [limitations.md](limitations.md). Only
-`aV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLE` (serial CPU) has passing test evidence
-for end-to-end execution so far; the other backends are tracked in the
-compatibility matrix in [limitations.md](limitations.md).
+lives in Section 5 of [limitations.md](limitations.md). Test evidence for
+each backend lives in [validation.md](validation.md), which is the single
+source of truth. CPU, CUDA and HIP pass the full `ctest` suite, oneAPI
+passes on CPU and partially on the Arc A770 because that device lacks
+hardware FP64, and no other SYCL device is validated. Section 8 of
+[validation.md](validation.md) records the end-to-end mallocMC port on
+CPU, CUDA and HIP. The compatibility matrix in
+[limitations.md](limitations.md) points at the same results.
 
 FPGA SYCL support is intentionally removed from aV2P. This is a deliberate
 scope decision, not an alpaka 3 capability gap: `aV2P_SYCL_ONEAPI_FPGA` and its
