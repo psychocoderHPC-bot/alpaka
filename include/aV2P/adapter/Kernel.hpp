@@ -57,8 +57,10 @@ namespace aV2P::adapter
     struct LegacyKernel
     {
         static_assert(
-            std::is_trivially_copyable_v<TKernelFnObj>,
-            "The legacy kernel functor must be trivially copyable to survive the device pass.");
+            aV2P::isKernelTriviallyCopyable<TKernelFnObj>,
+            "aV2P: the legacy kernel functor must be trivially copyable or a captureless (empty) device "
+            "lambda. A lambda that captures state cannot survive the device pass; convert it to a named "
+            "functor.");
         static_assert(
             isTriviallyCopyableWorkDivPayload<TDim, TIdx>,
             "WorkDivPayload must be trivially copyable to survive the device pass.");

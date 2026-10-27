@@ -387,14 +387,27 @@ namespace aV2P
     //!
     //! @tparam T type to check
     //! @{
+    namespace detail
+    {
+        //! True for an empty, non-polymorphic, trivially destructible type.
+        //!
+        //! The closure type of a captureless device lambda has no state and can be copied to the device like a
+        //! plain value even when the standard does not classify the closure type as trivially copyable.  Such a
+        //! functor is accepted as a kernel.  A closure type that captures state does not satisfy this check, so
+        //! the kernel diagnostic keeps pointing the user at a named functor.
+        template<typename T>
+        inline constexpr bool isCapturelessClosure
+            = std::is_empty_v<T> && !std::is_polymorphic_v<T> && std::is_trivially_destructible_v<T>;
+    } // namespace detail
+
     template<typename T, typename = void>
     struct IsKernelTriviallyCopyable
 #if AV2P_COMP_NVCC
         : std::bool_constant<
-              std::is_trivially_copyable_v<T> || __nv_is_extended_device_lambda_closure_type(T)
-              || __nv_is_extended_host_device_lambda_closure_type(T)>
+              std::is_trivially_copyable_v<T> || detail::isCapturelessClosure<T>
+              || __nv_is_extended_device_lambda_closure_type(T) || __nv_is_extended_host_device_lambda_closure_type(T)>
 #else
-        : std::is_trivially_copyable<T>
+        : std::bool_constant<std::is_trivially_copyable_v<T> || detail::isCapturelessClosure<T>>
 #endif
     {
     };
