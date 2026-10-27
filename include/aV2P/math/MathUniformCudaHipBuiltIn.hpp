@@ -344,6 +344,26 @@ namespace aV2P::math
             }
         };
 
+        //! The 2.2 `trait::Min` entry point for the CUDA/HIP built in math implementation.
+        //!
+        //! 2.2 dispatched `min(ctx, x, y)` straight through `trait::Min`; aV2P expresses the
+        //! CUDA/HIP built in behavior as `alpakaMathTrait`.  Restoring the `trait::Min` name for
+        //! the marker keeps contexts that carry `MinUniformCudaHipBuiltIn` (for example a client
+        //! vector specialization that computes its scalar result type) on the 2.2 path.  The
+        //! arithmetic-only condition and the forwarded return type match the 2.2 specialization.
+        template<typename Tx, typename Ty>
+        struct Min<
+            MinUniformCudaHipBuiltIn,
+            Tx,
+            Ty,
+            std::enable_if_t<std::is_arithmetic_v<Tx> && std::is_arithmetic_v<Ty>>>
+        {
+            AV2P_FN_HOST_ACC auto operator()(MinUniformCudaHipBuiltIn const& ctx, Tx const& x, Ty const& y) const
+            {
+                return alpakaMathTrait<MinUniformCudaHipBuiltIn, Tx, Ty>{}(ctx, x, y);
+            }
+        };
+
         //! The CUDA fma trait specialization.
         template<typename Tx, typename Ty, typename Tz>
         struct alpakaMathTrait<FmaUniformCudaHipBuiltIn, Tx, Ty, Tz>
