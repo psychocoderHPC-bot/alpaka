@@ -113,15 +113,12 @@ namespace aV2P::adapter
     //! an unrelated executor.
     template<typename TExecutor>
     inline constexpr bool isImplementedExecutor
-        = std::is_same_v<TExecutor, alpaka::exec::CpuSerial>
-          || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>
-          || std::is_same_v<TExecutor, alpaka::exec::CpuTbbBlocks>
-          || std::is_same_v<TExecutor, alpaka::exec::GpuCuda>
-          || std::is_same_v<TExecutor, alpaka::exec::GpuHip>
-          || std::is_same_v<TExecutor, alpaka::exec::OneApi>;
+        = std::is_same_v<TExecutor, alpaka::exec::CpuSerial> || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>
+          || std::is_same_v<TExecutor, alpaka::exec::CpuTbbBlocks> || std::is_same_v<TExecutor, alpaka::exec::GpuCuda>
+          || std::is_same_v<TExecutor, alpaka::exec::GpuHip> || std::is_same_v<TExecutor, alpaka::exec::OneApi>;
 
     template<typename TExecutor>
-    inline constexpr bool isHostExecutor = std::is_same_v<TExecutor, alpaka::exec::CpuSerial>
-                                           || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>
-                                           || std::is_same_v<TExecutor, alpaka::exec::CpuTbbBlocks>;
+    inline constexpr bool isHostExecutor
+        = std::is_same_v<TExecutor, alpaka::exec::CpuSerial> || std::is_same_v<TExecutor, alpaka::exec::CpuOmpBlocks>
+          || std::is_same_v<TExecutor, alpaka::exec::CpuTbbBlocks>;
 } // namespace aV2P::adapter

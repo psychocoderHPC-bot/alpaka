@@ -9,7 +9,6 @@
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/mem/view/ViewTest.hpp>
 #include <aV2P/test/queue/Queue.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 
 #include <algorithm>
@@ -35,11 +34,7 @@ namespace aV2P::test
 
         auto const viewExtent = bufExtent;
         auto const viewOffset = aV2P::Vec<Dim, Idx>::all(static_cast<Idx>(0));
-        View view(
-            aV2P::getPtrNative(buf),
-            aV2P::getDev(buf),
-            aV2P::getExtents(buf),
-            aV2P::getPitchesInBytes(buf));
+        View view(aV2P::getPtrNative(buf), aV2P::getDev(buf), aV2P::getExtents(buf), aV2P::getPitchesInBytes(buf));
 
         aV2P::test::testViewImmutable<TElem>(std::as_const(view), dev, viewExtent, viewOffset);
         if constexpr(!Const)
@@ -146,14 +141,12 @@ TEMPLATE_LIST_TEST_CASE("createView", "[memView]", CreateViewTestTypes)
     // container overload
     {
         auto view = aV2P::createView(dev, a);
-        STATIC_REQUIRE(
-            std::is_same_v<decltype(view), aV2P::ViewPlainPtr<Dev, float, aV2P::DimInt<1>, std::size_t>>);
+        STATIC_REQUIRE(std::is_same_v<decltype(view), aV2P::ViewPlainPtr<Dev, float, aV2P::DimInt<1>, std::size_t>>);
         STATIC_REQUIRE(aV2P::Dim<decltype(view)>::value == 1);
         CHECK(aV2P::getExtents(view)[0] == 4);
 
         auto view_from_queue = aV2P::createView(queue, a);
-        STATIC_REQUIRE(
-            std::is_same_v<decltype(view), aV2P::ViewPlainPtr<Dev, float, aV2P::DimInt<1>, std::size_t>>);
+        STATIC_REQUIRE(std::is_same_v<decltype(view), aV2P::ViewPlainPtr<Dev, float, aV2P::DimInt<1>, std::size_t>>);
         STATIC_REQUIRE(aV2P::Dim<decltype(view)>::value == 1);
         CHECK(aV2P::getExtents(view)[0] == 4);
     }

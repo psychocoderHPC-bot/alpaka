@@ -4,19 +4,19 @@
 
 #pragma once
 
-#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/acc/AccDevProps.hpp"
 #include "aV2P/acc/Traits.hpp"
 #include "aV2P/adapter/Acc.hpp"
 #include "aV2P/adapter/Dev.hpp"
+#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Kernel.hpp"
 #include "aV2P/adapter/Platform.hpp"
 #include "aV2P/adapter/Queue.hpp"
 #include "aV2P/adapter/WorkDiv.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/idx/Traits.hpp"
-#include "aV2P/vec/Traits.hpp"
 #include "aV2P/kernel/Traits.hpp"
+#include "aV2P/vec/Traits.hpp"
 
 #include <alpaka/alpaka.hpp>
 
@@ -243,8 +243,8 @@ namespace aV2P
                 TIdx blockThreadCountMax = static_cast<TIdx>(1);
                 if constexpr(!alpaka::exec::isSeqExecutor_v<TExecutor>)
                 {
-                    blockThreadExtentMax = aV2P::castVec<TIdx>(
-                        adapter::fromAlpaka(prop.template getMaxThreadsPerBlock<TDim::value>()));
+                    blockThreadExtentMax
+                        = aV2P::castVec<TIdx>(adapter::fromAlpaka(prop.template getMaxThreadsPerBlock<TDim::value>()));
                     blockThreadCountMax = static_cast<TIdx>(prop.maxThreadsPerBlock);
                 }
 
@@ -365,13 +365,13 @@ namespace aV2P
                 [[maybe_unused]] TArgs&&... args) -> aV2P::KernelFunctionAttributes
             {
                 aV2P::KernelFunctionAttributes attributes;
-                auto const& props = aV2P::getAccDevProps<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>(dev);
+                auto const& props
+                    = aV2P::getAccDevProps<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>(dev);
                 attributes.maxThreadsPerBlock = static_cast<int>(props.m_blockThreadCountMax);
                 if constexpr(adapter::isHostExecutor<TExecutor>)
                 {
                     // Legacy CPU backends report the host dynamic shared-memory member allocation here.
-                    attributes.maxDynamicSharedSizeBytes
-                        = static_cast<int>(aV2P::BlockSharedDynMemberAllocKiB * 1024);
+                    attributes.maxDynamicSharedSizeBytes = static_cast<int>(aV2P::BlockSharedDynMemberAllocKiB * 1024);
                 }
                 return attributes;
             }

@@ -12,9 +12,9 @@
 //! A single message keeps the CUDA/HIP, oneAPI and accelerator-facade diagnostics identical.  The
 //! implementations in this directory are diagnostic-only: alpaka 3.0.0 has no cooperative launch
 //! and therefore cannot provide a grid-wide barrier on a GPU back-end.
-#define AV2P_GRID_SYNC_COOPERATIVE_MESSAGE                                                                           \
-    "aV2P: grid-wide synchronization requires a cooperative kernel launch. The pinned alpaka 3.0.0 "                 \
-    "does not provide cooperative launch, so grid synchronization is not supported on this back-end. "              \
+#define AV2P_GRID_SYNC_COOPERATIVE_MESSAGE                                                                            \
+    "aV2P: grid-wide synchronization requires a cooperative kernel launch. The pinned alpaka 3.0.0 "                  \
+    "does not provide cooperative launch, so grid synchronization is not supported on this back-end. "                \
     "Use a CPU back-end (CpuSerial or CpuOmp2Blocks) for grid synchronization."
 
 namespace aV2P
@@ -54,4 +54,3 @@ namespace aV2P
     }
 
 } // namespace aV2P
-

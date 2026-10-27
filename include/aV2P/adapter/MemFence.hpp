@@ -86,10 +86,7 @@ namespace aV2P
             alpaka::concepts::DeviceKind TDeviceKind,
             alpaka::concepts::Executor TExecutor,
             typename TAccView>
-        struct MemFence<
-            AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            TMemOrder,
-            TMemScope>
+        struct MemFence<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>, TMemOrder, TMemScope>
         {
             AV2P_FN_ACC static auto mem_fence(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc,

@@ -91,8 +91,7 @@ namespace aV2P::trait
     struct GetExtents<FooVec<TVal, N>>
     {
         AV2P_NO_HOST_ACC_WARNING
-        AV2P_FN_HOST_ACC constexpr auto operator()(FooVec<TVal, N> const& extent) const
-            -> aV2P::Vec<DimInt<N>, TVal>
+        AV2P_FN_HOST_ACC constexpr auto operator()(FooVec<TVal, N> const& extent) const -> aV2P::Vec<DimInt<N>, TVal>
         {
             aV2P::Vec<DimInt<N>, TVal> v{};
             if constexpr(DimInt<N>::value > 0)

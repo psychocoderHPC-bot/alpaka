@@ -62,13 +62,10 @@ namespace aV2P
         , public interface::Implements<ConceptGetDev, QueueAlpaka3<TDev, TQueueKind>>
     {
     public:
-        using QueueType
-            = alpaka::onHost::Queue<typename TDev::DevType, alpaka::onHost::QueuePolicyList<TQueueKind>>;
+        using QueueType = alpaka::onHost::Queue<typename TDev::DevType, alpaka::onHost::QueuePolicyList<TQueueKind>>;
         using NativeHandleType = decltype(std::declval<QueueType const&>().getNativeHandle());
 
-        explicit QueueAlpaka3(TDev const& dev)
-            : m_dev{dev}
-            , m_queueImpl{createQueue(dev)}
+        explicit QueueAlpaka3(TDev const& dev) : m_dev{dev}, m_queueImpl{createQueue(dev)}
         {
         }
 
@@ -164,14 +161,14 @@ namespace aV2P
                     callbackThread->submit([task = std::move(localTask)]() mutable { task(); }).wait();
                 };
 
-#    if defined(AV2P_ACC_GPU_CUDA_ENABLED)
+#if defined(AV2P_ACC_GPU_CUDA_ENABLED)
                 if constexpr(std::is_same_v<TDev, DevCudaRt>)
                     cudaLaunchHostFunc(*m_nativeStream, hostFunc, data);
-#    endif
-#    if defined(AV2P_ACC_GPU_HIP_ENABLED)
+#endif
+#if defined(AV2P_ACC_GPU_HIP_ENABLED)
                 if constexpr(std::is_same_v<TDev, DevHipRt>)
                     hipLaunchHostFunc(*m_nativeStream, hostFunc, data);
-#    endif
+#endif
 
                 if constexpr(std::is_same_v<TQueueKind, alpaka::queueKind::Blocking>)
                     nativeWait();
@@ -298,8 +295,7 @@ namespace aV2P
     using QueueUniformCudaHipRtBlocking = QueueAlpaka3<DevUniformCudaHipRt<TApi>, alpaka::queueKind::Blocking>;
 
     template<typename TApi>
-    using QueueUniformCudaHipRtNonBlocking
-        = QueueAlpaka3<DevUniformCudaHipRt<TApi>, alpaka::queueKind::NonBlocking>;
+    using QueueUniformCudaHipRtNonBlocking = QueueAlpaka3<DevUniformCudaHipRt<TApi>, alpaka::queueKind::NonBlocking>;
 
     namespace trait
     {

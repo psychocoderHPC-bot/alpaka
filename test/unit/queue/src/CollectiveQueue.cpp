@@ -12,7 +12,6 @@
 #    include <aV2P/test/queue/Queue.hpp>
 #    include <aV2P/test/queue/QueueCpuOmp2Collective.hpp>
 #    include <aV2P/test/queue/QueueTestFixture.hpp>
-
 #    include <catch2/catch_test_macros.hpp>
 
 #    include <vector>
@@ -36,7 +35,7 @@ struct QueueCollectiveTestKernel
 // such a call as a collective workspace-sharing construct that every thread of the team must enter,
 // which the delegated blocking queue cannot provide. The queue/event assertions remain covered by
 // `TestCollectiveMemcpy` and the generic queue/event cases in QueueTest.cpp/EventTest.cpp.
-#if 0
+#    if 0
 TEST_CASE("queueCollective", "[queue]")
 {
     // Define the index domain
@@ -64,7 +63,7 @@ TEST_CASE("queueCollective", "[queue]")
     using WorkDiv = aV2P::WorkDivMembers<Dim, Idx>;
     WorkDiv const workDiv(blocksPerGrid, threadsPerBlock, elementsPerThread);
 
-#    pragma omp parallel num_threads(static_cast<int>(results.size()))
+#        pragma omp parallel num_threads(static_cast<int>(results.size()))
     {
         // The kernel will be performed collectively.
         // OpenMP will distribute the work between the threads from the parallel region
@@ -75,7 +74,7 @@ TEST_CASE("queueCollective", "[queue]")
 
     CHECK(results == std::vector<int>{0, 1, 2, 3});
 }
-#endif
+#    endif
 
 TEST_CASE("TestCollectiveMemcpy", "[queue]")
 {

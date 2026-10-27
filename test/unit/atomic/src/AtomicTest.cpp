@@ -7,7 +7,6 @@
 #include <aV2P/math/FloatEqualExact.hpp>
 #include <aV2P/test/KernelExecutionFixture.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -362,17 +361,12 @@ public:
 #if defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA
 
 template<typename TDim, typename TIdx, typename T>
-class AtomicTestKernel<
-    aV2P::AccGpuCudaRt<TDim, TIdx>,
-    T,
-    std::enable_if_t<sizeof(T) != 4u && sizeof(T) != 8u>>
+class AtomicTestKernel<aV2P::AccGpuCudaRt<TDim, TIdx>, T, std::enable_if_t<sizeof(T) != 4u && sizeof(T) != 8u>>
 {
 public:
     AV2P_NO_HOST_ACC_WARNING
-    AV2P_FN_ACC auto operator()(
-        aV2P::AccGpuCudaRt<TDim, TIdx> const& /* acc */,
-        bool* success,
-        T /* operandOrig */) const -> void
+    AV2P_FN_ACC auto operator()(aV2P::AccGpuCudaRt<TDim, TIdx> const& /* acc */, bool* success, T /* operandOrig */)
+        const -> void
     {
         // All other types are not supported by CUDA/HIP atomic operations.
         AV2P_CHECK(*success, true);
@@ -382,17 +376,12 @@ public:
 #elif defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP
 
 template<typename TDim, typename TIdx, typename T>
-class AtomicTestKernel<
-    aV2P::AccGpuHipRt<TDim, TIdx>,
-    T,
-    std::enable_if_t<sizeof(T) != 4u && sizeof(T) != 8u>>
+class AtomicTestKernel<aV2P::AccGpuHipRt<TDim, TIdx>, T, std::enable_if_t<sizeof(T) != 4u && sizeof(T) != 8u>>
 {
 public:
     AV2P_NO_HOST_ACC_WARNING
-    AV2P_FN_ACC auto operator()(
-        aV2P::AccGpuHipRt<TDim, TIdx> const& /* acc */,
-        bool* success,
-        T /* operandOrig */) const -> void
+    AV2P_FN_ACC auto operator()(aV2P::AccGpuHipRt<TDim, TIdx> const& /* acc */, bool* success, T /* operandOrig */)
+        const -> void
     {
         // All other types are not supported by CUDA/HIP atomic operations.
         AV2P_CHECK(*success, true);

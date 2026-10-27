@@ -4,7 +4,6 @@
 
 #include <aV2P/alpaka.hpp>
 #include <aV2P/test/KernelExecutionFixture.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 #if defined(AV2P_ACC_GPU_CUDA_ONLY_MODE) && defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA

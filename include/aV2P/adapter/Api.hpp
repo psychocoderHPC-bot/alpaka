@@ -182,14 +182,14 @@ namespace aV2P::uniform_cuda_hip::detail
     }
 } // namespace aV2P::uniform_cuda_hip::detail
 
-#    define AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IMPL(cmd, throw, ...)                                                    \
+#    define AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IMPL(cmd, throw, ...)                                                      \
         do                                                                                                            \
         {                                                                                                             \
-            ::aV2P::uniform_cuda_hip::detail::rtCheckLastError<TApi, throw>(                                        \
+            ::aV2P::uniform_cuda_hip::detail::rtCheckLastError<TApi, throw>(                                          \
                 "'" #cmd "' A previous API call (not this one) set the error ",                                       \
                 __FILE__,                                                                                             \
                 __LINE__);                                                                                            \
-            ::aV2P::uniform_cuda_hip::detail::rtCheckIgnore<TApi, throw>(                                           \
+            ::aV2P::uniform_cuda_hip::detail::rtCheckIgnore<TApi, throw>(                                             \
                 cmd,                                                                                                  \
                 #cmd,                                                                                                 \
                 __FILE__,                                                                                             \
@@ -198,14 +198,13 @@ namespace aV2P::uniform_cuda_hip::detail
         } while(0)
 
 //! CUDA/HIP runtime error checking with log and exception, ignoring specific error values
-#    define AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IGNORE(cmd, ...)                                                         \
-        AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IMPL(cmd, true, __VA_ARGS__)
+#    define AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IGNORE(cmd, ...) AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IMPL(cmd, true, __VA_ARGS__)
 
 //! CUDA/HIP runtime error checking with log and exception.
 #    define AV2P_UNIFORM_CUDA_HIP_RT_CHECK(cmd) AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IMPL(cmd, true, )
 
 //! CUDA/HIP runtime error checking with log and exception, ignoring specific error values
-#    define AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IGNORE_NOEXCEPT(cmd, ...)                                                \
+#    define AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IGNORE_NOEXCEPT(cmd, ...)                                                  \
         AV2P_UNIFORM_CUDA_HIP_RT_CHECK_IMPL(cmd, false, __VA_ARGS__)
 
 //! CUDA/HIP runtime error checking with log.

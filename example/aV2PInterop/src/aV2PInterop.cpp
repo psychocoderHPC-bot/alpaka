@@ -213,8 +213,9 @@ namespace
         nativeQueue.enqueue(frameSpec, MultiplyValueKernel{}, nativeBuf, nativeBuf.getExtents(), factor);
         alpaka::onHost::wait(nativeQueue);
 
-        auto expected = [&](Idx x, Idx y) -> Data
-        { return static_cast<Data>((hostSrc[aV2P::Vec<Dim2, Idx>{x, y}] + addend) * factor); };
+        auto expected = [&](Idx x, Idx y) -> Data {
+            return static_cast<Data>((hostSrc[aV2P::Vec<Dim2, Idx>{x, y}] + addend) * factor);
+        };
 
         auto nativeHost = alpaka::onHost::allocHost<Data>(nativeBuf.getExtents());
         alpaka::onHost::memcpy(nativeQueue, nativeHost, nativeBuf);

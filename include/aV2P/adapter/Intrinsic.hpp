@@ -44,9 +44,8 @@ namespace aV2P
         struct Ffs<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             template<typename T>
-            AV2P_FN_ACC static auto ffs(
-                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,
-                T value) -> std::int32_t
+            AV2P_FN_ACC static auto ffs(AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&, T value)
+                -> std::int32_t
             {
                 return alpaka::ffs(value);
             }

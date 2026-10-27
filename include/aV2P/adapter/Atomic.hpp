@@ -30,60 +30,70 @@ namespace aV2P::adapter
         using type = alpaka::operation::Add;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicSub>
     {
         using type = alpaka::operation::Sub;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicMin>
     {
         using type = alpaka::operation::Min;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicMax>
     {
         using type = alpaka::operation::Max;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicExch>
     {
         using type = alpaka::operation::Exch;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicInc>
     {
         using type = alpaka::operation::Inc;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicDec>
     {
         using type = alpaka::operation::Dec;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicAnd>
     {
         using type = alpaka::operation::And;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicOr>
     {
         using type = alpaka::operation::Or;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicXor>
     {
         using type = alpaka::operation::Xor;
         static constexpr bool mapped = true;
     };
+
     template<>
     struct ToAlpakaOperation<AtomicCas>
     {
@@ -125,11 +135,7 @@ namespace aV2P
             alpaka::concepts::DeviceKind TDeviceKind,
             alpaka::concepts::Executor TExecutor,
             typename TAccView>
-        struct AtomicOp<
-            TOp,
-            AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            T,
-            THierarchy>
+        struct AtomicOp<TOp, AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>, T, THierarchy>
         {
             using AlpakaOp = typename adapter::ToAlpakaOperation<TOp>::type;
 

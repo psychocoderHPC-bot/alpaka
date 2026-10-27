@@ -8,7 +8,6 @@
  */
 
 #include <aV2P/alpaka.hpp>
-
 #include <rocblas/rocblas.h>
 
 #include <cmath>

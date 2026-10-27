@@ -123,12 +123,8 @@ public:
     //! \param linearizedIndex The linearized index.
     //! \param gridSize The grid size.
     //! \param n The problem size.
-    AV2P_FN_HOST_ACC AV2P_FN_INLINE IteratorCpu(
-        TAcc const& acc,
-        TBuf const* data,
-        uint32_t linearizedIndex,
-        uint32_t gridSize,
-        uint64_t n)
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE
+    IteratorCpu(TAcc const& acc, TBuf const* data, uint32_t linearizedIndex, uint32_t gridSize, uint64_t n)
         : Iterator<T, TBuf>(
             data,
             static_cast<uint32_t>((n * linearizedIndex) / aV2P::math::min(acc, static_cast<uint64_t>(gridSize), n)),
@@ -248,12 +244,8 @@ public:
     //! \param linearizedIndex The linearized index.
     //! \param gridSize The grid size.
     //! \param n The problem size.
-    AV2P_FN_HOST_ACC AV2P_FN_INLINE IteratorGpu(
-        TAcc const&,
-        TBuf const* data,
-        uint32_t linearizedIndex,
-        uint32_t gridSize,
-        uint64_t n)
+    AV2P_FN_HOST_ACC AV2P_FN_INLINE
+    IteratorGpu(TAcc const&, TBuf const* data, uint32_t linearizedIndex, uint32_t gridSize, uint64_t n)
         : Iterator<T, TBuf>(data, linearizedIndex, n)
         , mGridSize(gridSize)
     {

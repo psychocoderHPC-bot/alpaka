@@ -6,7 +6,6 @@
 #include <aV2P/rand/RandPhiloxStateless.hpp>
 #include <aV2P/test/KernelExecutionFixture.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 

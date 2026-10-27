@@ -4,7 +4,6 @@
 
 #include <aV2P/test/KernelExecutionFixture.hpp>
 #include <aV2P/warp/Traits.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
@@ -50,10 +49,10 @@ void testSyclCpuWarpLayout()
     // the oneAPI queue derives the sub-group size from the device properties, so there is no trait for aV2P to
     // forward and the launch cannot be rejected. The kernel instead observes the device sub-group size, which
     // is 1 here because sub-groups form only along the innermost dimension.
-#if 0
+#    if 0
     auto bad = ExecutionFixture{typename ExecutionFixture::WorkDiv{Vec{2, 2}, Vec{TWarpSize, 1}, Vec{1, 1}}};
     CHECK_THROWS_AS(bad(SyclCpuWarpLayoutTestKernel<TWarpSize>{}), std::runtime_error);
-#endif
+#    endif
     // Restoration condition: restore this block once alpaka exposes per-kernel sub-group/warp size selection and
     // aV2P forwards it (see docs/aV2P/limitations.md, Section 8).
 }

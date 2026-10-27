@@ -8,7 +8,6 @@
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/queue/Queue.hpp>
 #include <aV2P/warp/Traits.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -58,9 +57,7 @@ struct BallotMultipleThreadWarpTestKernel
 
         for(auto idx = 0; idx < warpExtent / 2; idx++)
         {
-            AV2P_CHECK(
-                *success,
-                aV2P::warp::ballot(acc, threadIdxInWarp == idx ? 1 : 0) == std::uint64_t{1} << idx);
+            AV2P_CHECK(*success, aV2P::warp::ballot(acc, threadIdxInWarp == idx ? 1 : 0) == std::uint64_t{1} << idx);
             // First warpExtent / 2 bits are 1 except bit idx
             std::uint64_t const expected = ((std::uint64_t{1} << warpExtent / 2) - 1) & ~(std::uint64_t{1} << idx);
             AV2P_CHECK(*success, aV2P::warp::ballot(acc, threadIdxInWarp == idx ? 0 : 1) == expected);

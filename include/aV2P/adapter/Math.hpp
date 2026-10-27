@@ -5,9 +5,9 @@
 #pragma once
 
 #include "aV2P/adapter/Acc.hpp"
+#include "aV2P/core/Common.hpp"
 #include "aV2P/math/Complex.hpp"
 #include "aV2P/math/Traits.hpp"
-#include "aV2P/core/Common.hpp"
 
 #include <alpaka/alpaka.hpp>
 
@@ -700,7 +700,8 @@ namespace aV2P::math
             typename TAccView>
         struct Atan2<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            Ty, Tx,
+            Ty,
+            Tx,
             std::enable_if_t<!aV2P::internal::IsComplex<Ty>::value && !aV2P::internal::IsComplex<Tx>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
@@ -723,7 +724,8 @@ namespace aV2P::math
             typename TAccView>
         struct Copysign<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            TMag, TSgn,
+            TMag,
+            TSgn,
             std::enable_if_t<!aV2P::internal::IsComplex<TMag>::value && !aV2P::internal::IsComplex<TSgn>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
@@ -746,7 +748,8 @@ namespace aV2P::math
             typename TAccView>
         struct Min<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            Tx, Ty,
+            Tx,
+            Ty,
             std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
@@ -769,7 +772,8 @@ namespace aV2P::math
             typename TAccView>
         struct Max<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            Tx, Ty,
+            Tx,
+            Ty,
             std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
@@ -792,7 +796,8 @@ namespace aV2P::math
             typename TAccView>
         struct Fmod<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            Tx, Ty,
+            Tx,
+            Ty,
             std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
@@ -815,7 +820,8 @@ namespace aV2P::math
             typename TAccView>
         struct Remainder<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            Tx, Ty,
+            Tx,
+            Ty,
             std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
@@ -838,7 +844,8 @@ namespace aV2P::math
             typename TAccView>
         struct Pow<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            TBase, TExp,
+            TBase,
+            TExp,
             std::enable_if_t<!aV2P::internal::IsComplex<TBase>::value && !aV2P::internal::IsComplex<TExp>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
@@ -862,8 +869,12 @@ namespace aV2P::math
             typename TAccView>
         struct Fma<
             AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>,
-            Tx, Ty, Tz,
-            std::enable_if_t<!aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value && !aV2P::internal::IsComplex<Tz>::value>>
+            Tx,
+            Ty,
+            Tz,
+            std::enable_if_t<
+                !aV2P::internal::IsComplex<Tx>::value && !aV2P::internal::IsComplex<Ty>::value
+                && !aV2P::internal::IsComplex<Tz>::value>>
         {
             AV2P_FN_HOST_ACC auto operator()(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&,

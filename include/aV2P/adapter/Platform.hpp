@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Dev.hpp"
+#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/dev/Traits.hpp"
 #include "aV2P/platform/Traits.hpp"
@@ -20,8 +20,7 @@ namespace aV2P
     //!
     //! `getAlpaka3()` returns a reference into the wrapper and is bound to the wrapper's lifetime.
     template<typename TDevSpec>
-    class PlatformAlpaka3
-        : public interface::Implements<ConceptPlatform, PlatformAlpaka3<TDevSpec>>
+    class PlatformAlpaka3 : public interface::Implements<ConceptPlatform, PlatformAlpaka3<TDevSpec>>
     {
     public:
         using DevSpec = TDevSpec;
@@ -76,9 +75,8 @@ namespace aV2P
         template<typename TTag>
         struct GenericSyclPlatformType<TTag, std::void_t<typename LegacyAccMapping<TTag>::Api>>
         {
-            using type = PlatformAlpaka3<DeviceSpec<
-                typename LegacyAccMapping<TTag>::Api,
-                typename LegacyAccMapping<TTag>::DeviceKind>>;
+            using type = PlatformAlpaka3<
+                DeviceSpec<typename LegacyAccMapping<TTag>::Api, typename LegacyAccMapping<TTag>::DeviceKind>>;
         };
 #endif
 

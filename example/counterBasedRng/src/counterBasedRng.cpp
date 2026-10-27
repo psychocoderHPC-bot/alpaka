@@ -160,11 +160,8 @@ auto example(TAccTag const&) -> int
         key);
 
     // Create the kernel execution task.
-    auto const taskKernelAcc = aV2P::createTaskKernel<Acc>(
-        workDivAcc,
-        CounterBasedRngKernel(),
-        aV2P::experimental::getMdSpan(bufAcc),
-        key);
+    auto const taskKernelAcc
+        = aV2P::createTaskKernel<Acc>(workDivAcc, CounterBasedRngKernel(), aV2P::experimental::getMdSpan(bufAcc), key);
 
     aV2P::KernelCfg<AccHost> kernerlCfgAccHost = {extent, elementsPerThreadHost};
     auto const workDivHost = aV2P::getValidWorkDiv(

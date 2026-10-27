@@ -129,9 +129,8 @@ namespace aV2P
         template<typename TDev, alpaka::concepts::QueueKind TQueueKind>
         struct Enqueue<QueueAlpaka3<TDev, TQueueKind>, EventAlpaka3<TDev>>
         {
-            AV2P_FN_HOST static auto enqueue(
-                QueueAlpaka3<TDev, TQueueKind>& queue,
-                EventAlpaka3<TDev> const& event) -> void
+            AV2P_FN_HOST static auto enqueue(QueueAlpaka3<TDev, TQueueKind>& queue, EventAlpaka3<TDev> const& event)
+                -> void
             {
                 queue.getAlpaka3().enqueue(event.getAlpaka3());
             }

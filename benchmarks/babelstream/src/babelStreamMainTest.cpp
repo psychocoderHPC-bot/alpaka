@@ -2,7 +2,6 @@
 
 #include <aV2P/alpaka.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
-
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_session.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -308,20 +307,13 @@ void testKernels()
         static_cast<DataType>(initA),
         static_cast<DataType>(initB),
         static_cast<DataType>(initC));
-    auto const workDivCopy
-        = aV2P::getValidWorkDiv(kernelCfg, devAcc, CopyKernel(), bufAccInputAPtr, bufAccInputBPtr);
-    auto const workDivMult
-        = aV2P::getValidWorkDiv(kernelCfg, devAcc, MultKernel(), bufAccInputAPtr, bufAccInputBPtr);
+    auto const workDivCopy = aV2P::getValidWorkDiv(kernelCfg, devAcc, CopyKernel(), bufAccInputAPtr, bufAccInputBPtr);
+    auto const workDivMult = aV2P::getValidWorkDiv(kernelCfg, devAcc, MultKernel(), bufAccInputAPtr, bufAccInputBPtr);
     auto const workDivAdd
         = aV2P::getValidWorkDiv(kernelCfg, devAcc, AddKernel(), bufAccInputAPtr, bufAccInputBPtr, bufAccOutputCPtr);
 
-    auto const workDivTriad = aV2P::getValidWorkDiv(
-        kernelCfg,
-        devAcc,
-        TriadKernel(),
-        bufAccInputAPtr,
-        bufAccInputBPtr,
-        bufAccOutputCPtr);
+    auto const workDivTriad
+        = aV2P::getValidWorkDiv(kernelCfg, devAcc, TriadKernel(), bufAccInputAPtr, bufAccInputBPtr, bufAccOutputCPtr);
 
     auto const workDivNStream = aV2P::getValidWorkDiv(
         kernelCfg,

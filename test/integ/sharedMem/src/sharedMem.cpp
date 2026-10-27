@@ -7,7 +7,6 @@
 #include <aV2P/test/MeasureKernelRunTime.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/queue/Queue.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -142,9 +141,8 @@ TEMPLATE_LIST_TEST_CASE("sharedMem", "[sharedMem]", TestAccs)
     auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, kernel, std::data(blockRetValuesDummy));
 
     std::cout << "SharedMemKernel("
-              << " accelerator: " << aV2P::getAccName<Acc>()
-              << ", kernel: " << aV2P::core::demangled<decltype(kernel)> << ", workDiv: " << workDiv << ")"
-              << std::endl;
+              << " accelerator: " << aV2P::getAccName<Acc>() << ", kernel: " << aV2P::core::demangled<decltype(kernel)>
+              << ", workDiv: " << workDiv << ")" << std::endl;
 
     Idx const gridBlocksCount(aV2P::getWorkDiv<aV2P::Grid, aV2P::Blocks>(workDiv)[0u]);
     Idx const blockThreadCount(aV2P::getWorkDiv<aV2P::Block, aV2P::Threads>(workDiv)[0u]);

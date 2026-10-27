@@ -161,7 +161,7 @@ auto example(TAccTag const&) -> int
     auto const hostWorkDiv = aV2P::getValidWorkDiv(hostKernelCfg, devHost, fillBufferKernel, hostViewPlainPtrMdSpan);
 
     aV2P::exec<Host>(hostQueue, hostWorkDiv, fillBufferKernel,
-                       hostViewPlainPtrMdSpan); // 1st kernel argument
+                     hostViewPlainPtrMdSpan); // 1st kernel argument
 
     // Copy host to device Buffer
     //

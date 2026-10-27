@@ -38,7 +38,7 @@ namespace mathtest
 //! @param STD_OP Function used for the host side, e.g. std::abs
 //! @param AV2P_OP Function used for the device side, e.g. aV2P::math::abs.
 //! @param ... List of Ranges. Needs to match the arity.
-#define AV2P_TEST_MATH_OP_FUNCTOR(NAME, ARITY, STD_OP, AV2P_OP, ...)                                              \
+#define AV2P_TEST_MATH_OP_FUNCTOR(NAME, ARITY, STD_OP, AV2P_OP, ...)                                                  \
     struct NAME                                                                                                       \
     {                                                                                                                 \
         /* ranges is not a constexpr, so that it's accessible via for loop*/                                          \
@@ -46,45 +46,45 @@ namespace mathtest
         static constexpr size_t arity_nr = static_cast<size_t>(ARITY);                                                \
         Range ranges[arity_nr] = {__VA_ARGS__};                                                                       \
                                                                                                                       \
-        AV2P_NO_HOST_ACC_WARNING                                                                                    \
+        AV2P_NO_HOST_ACC_WARNING                                                                                      \
         template<                                                                                                     \
             typename TAcc,                                                                                            \
             typename... TArgs, /* SFINAE: Enables if called from device. */                                           \
             typename std::enable_if_t<!std::is_same_v<TAcc, std::nullptr_t>, int> = 0>                                \
-        AV2P_FN_ACC auto execute(TAcc const& acc, [[maybe_unused]] TArgs const&... args) const                      \
+        AV2P_FN_ACC auto execute(TAcc const& acc, [[maybe_unused]] TArgs const&... args) const                        \
         {                                                                                                             \
-            return AV2P_OP(acc, args...);                                                                           \
+            return AV2P_OP(acc, args...);                                                                             \
         }                                                                                                             \
                                                                                                                       \
-        AV2P_NO_HOST_ACC_WARNING                                                                                    \
+        AV2P_NO_HOST_ACC_WARNING                                                                                      \
         template<                                                                                                     \
             typename TAcc = std::nullptr_t,                                                                           \
             typename TArg1, /* SFINAE: Enables if called from host. */                                                \
             typename std::enable_if_t<std::is_same_v<TAcc, std::nullptr_t>, int> = 0>                                 \
-        AV2P_FN_HOST auto execute([[maybe_unused]] TAcc const& acc, TArg1 const& arg1) const                        \
+        AV2P_FN_HOST auto execute([[maybe_unused]] TAcc const& acc, TArg1 const& arg1) const                          \
         {                                                                                                             \
             return STD_OP(typename StdLibType<TArg1>::type(arg1));                                                    \
         }                                                                                                             \
                                                                                                                       \
-        AV2P_NO_HOST_ACC_WARNING                                                                                    \
+        AV2P_NO_HOST_ACC_WARNING                                                                                      \
         template<                                                                                                     \
             typename TAcc = std::nullptr_t,                                                                           \
             typename TArg1,                                                                                           \
             typename TArg2, /* SFINAE: Enables if called from host. */                                                \
             typename std::enable_if_t<std::is_same_v<TAcc, std::nullptr_t>, int> = 0>                                 \
-        AV2P_FN_HOST auto execute([[maybe_unused]] TAcc const& acc, TArg1 const& arg1, TArg2 const& arg2) const     \
+        AV2P_FN_HOST auto execute([[maybe_unused]] TAcc const& acc, TArg1 const& arg1, TArg2 const& arg2) const       \
         {                                                                                                             \
             return STD_OP(typename StdLibType<TArg1>::type(arg1), typename StdLibType<TArg2>::type(arg2));            \
         }                                                                                                             \
                                                                                                                       \
-        AV2P_NO_HOST_ACC_WARNING                                                                                    \
+        AV2P_NO_HOST_ACC_WARNING                                                                                      \
         template<                                                                                                     \
             typename TAcc = std::nullptr_t,                                                                           \
             typename TArg1,                                                                                           \
             typename TArg2,                                                                                           \
             typename TArg3, /* SFINAE: Enables if called from host. */                                                \
             typename std::enable_if_t<std::is_same_v<TAcc, std::nullptr_t>, int> = 0>                                 \
-        AV2P_FN_HOST auto execute(                                                                                  \
+        AV2P_FN_HOST auto execute(                                                                                    \
             [[maybe_unused]] TAcc const& acc,                                                                         \
             TArg1 const& arg1,                                                                                        \
             TArg2 const& arg2,                                                                                        \
@@ -97,25 +97,25 @@ namespace mathtest
         }                                                                                                             \
                                                                                                                       \
         /* assigns args by arity */                                                                                   \
-        AV2P_NO_HOST_ACC_WARNING                                                                                    \
+        AV2P_NO_HOST_ACC_WARNING                                                                                      \
         template<typename T, typename TAcc = std::nullptr_t>                                                          \
-        AV2P_FN_HOST_ACC auto operator()(ArgsItem<T, Arity::Unary> const& args, TAcc const& acc = nullptr) const    \
+        AV2P_FN_HOST_ACC auto operator()(ArgsItem<T, Arity::Unary> const& args, TAcc const& acc = nullptr) const      \
         {                                                                                                             \
             return execute(acc, args.arg[0]);                                                                         \
         }                                                                                                             \
                                                                                                                       \
         /* assigns args by arity */                                                                                   \
-        AV2P_NO_HOST_ACC_WARNING                                                                                    \
+        AV2P_NO_HOST_ACC_WARNING                                                                                      \
         template<typename T, typename TAcc = std::nullptr_t>                                                          \
-        AV2P_FN_HOST_ACC auto operator()(ArgsItem<T, Arity::Binary> const& args, TAcc const& acc = nullptr) const   \
+        AV2P_FN_HOST_ACC auto operator()(ArgsItem<T, Arity::Binary> const& args, TAcc const& acc = nullptr) const     \
         {                                                                                                             \
             return execute(acc, args.arg[0], args.arg[1]);                                                            \
         }                                                                                                             \
                                                                                                                       \
         /* assigns args by arity */                                                                                   \
-        AV2P_NO_HOST_ACC_WARNING                                                                                    \
+        AV2P_NO_HOST_ACC_WARNING                                                                                      \
         template<typename T, typename TAcc = std::nullptr_t>                                                          \
-        AV2P_FN_HOST_ACC auto operator()(ArgsItem<T, Arity::Ternary> const& args, TAcc const& acc = nullptr) const  \
+        AV2P_FN_HOST_ACC auto operator()(ArgsItem<T, Arity::Ternary> const& args, TAcc const& acc = nullptr) const    \
         {                                                                                                             \
             return execute(acc, args.arg[0], args.arg[1], args.arg[2]);                                               \
         }                                                                                                             \
@@ -188,13 +188,7 @@ namespace mathtest
     AV2P_TEST_MATH_OP_FUNCTOR(OpIsfinite, Arity::Unary, std::isfinite, aV2P::math::isfinite, Range::Anything)
 
     // All binary operators.
-    AV2P_TEST_MATH_OP_FUNCTOR(
-        OpAtan2,
-        Arity::Binary,
-        std::atan2,
-        aV2P::math::atan2,
-        Range::NotZero,
-        Range::NotZero)
+    AV2P_TEST_MATH_OP_FUNCTOR(OpAtan2, Arity::Binary, std::atan2, aV2P::math::atan2, Range::NotZero, Range::NotZero)
 
     AV2P_TEST_MATH_OP_FUNCTOR(
         OpCopysign,
@@ -204,13 +198,7 @@ namespace mathtest
         Range::Unrestricted,
         Range::Unrestricted)
 
-    AV2P_TEST_MATH_OP_FUNCTOR(
-        OpFmod,
-        Arity::Binary,
-        std::fmod,
-        aV2P::math::fmod,
-        Range::Unrestricted,
-        Range::NotZero)
+    AV2P_TEST_MATH_OP_FUNCTOR(OpFmod, Arity::Binary, std::fmod, aV2P::math::fmod, Range::Unrestricted, Range::NotZero)
 
     AV2P_TEST_MATH_OP_FUNCTOR(
         OpMax,
@@ -293,21 +281,9 @@ namespace mathtest
     using TernaryFunctorsReal = std::tuple<OpFma>;
 
     // For complex numbers also test arithmetic operations
-    AV2P_TEST_MATH_OP_FUNCTOR(
-        OpDivides,
-        Arity::Binary,
-        std::divides<>{},
-        divides,
-        Range::Unrestricted,
-        Range::NotZero)
+    AV2P_TEST_MATH_OP_FUNCTOR(OpDivides, Arity::Binary, std::divides<>{}, divides, Range::Unrestricted, Range::NotZero)
 
-    AV2P_TEST_MATH_OP_FUNCTOR(
-        OpMinus,
-        Arity::Binary,
-        std::minus<>{},
-        minus,
-        Range::Unrestricted,
-        Range::Unrestricted)
+    AV2P_TEST_MATH_OP_FUNCTOR(OpMinus, Arity::Binary, std::minus<>{}, minus, Range::Unrestricted, Range::Unrestricted)
 
     AV2P_TEST_MATH_OP_FUNCTOR(
         OpMultiplies,

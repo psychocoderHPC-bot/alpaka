@@ -4,11 +4,10 @@
 
 // make sure the CPU_B_SEQ_T_SEQ backend is always available
 #ifndef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
-#    define AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
+#define AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
 #endif // AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
 #include <aV2P/alpaka.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
-
 #include <catch2/catch_message.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>

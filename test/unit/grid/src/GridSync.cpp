@@ -6,7 +6,6 @@
 #include <aV2P/grid/Traits.hpp>
 #include <aV2P/test/KernelExecutionFixture.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -120,10 +119,7 @@ auto nativeCooperativeLaunchConfig(aV2P::Dev<TAcc> const& dev)
             == hipSuccess);
         int multiprocessors = 0;
         REQUIRE(
-            hipDeviceGetAttribute(
-                &multiprocessors,
-                hipDeviceAttributeMultiprocessorCount,
-                aV2P::getNativeHandle(dev))
+            hipDeviceGetAttribute(&multiprocessors, hipDeviceAttributeMultiprocessorCount, aV2P::getNativeHandle(dev))
             == hipSuccess);
         // use the maximum block size along the innermost dimension
         auto threadsPerBlock = aV2P::Vec<Dim, Idx>::all(1);
@@ -169,10 +165,9 @@ TEMPLATE_LIST_TEST_CASE("synchronize", "[gridSync]", aV2P::test::TestAccs)
     // team barrier) can run this test.  CUDA, HIP and oneAPI have no cooperative launch in alpaka
     // 3.0.0; `syncGridThreads` there is the documented dependent `static_assert` diagnostic
     // (docs/aV2P/limitations.md, Section 7), so the kernel must not be instantiated for them.
-    constexpr bool isCooperativeCapable =
-        std::is_same_v<typename Acc::Executor, alpaka::exec::CpuSerial>
+    constexpr bool isCooperativeCapable = std::is_same_v<typename Acc::Executor, alpaka::exec::CpuSerial>
 #if defined(_OPENMP)
-        || std::is_same_v<typename Acc::Executor, alpaka::exec::CpuOmpBlocks>
+                                          || std::is_same_v<typename Acc::Executor, alpaka::exec::CpuOmpBlocks>
 #endif
         ;
 

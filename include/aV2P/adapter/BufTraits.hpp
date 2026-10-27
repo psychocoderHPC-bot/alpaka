@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Buf.hpp"
+#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Platform.hpp"
 #include "aV2P/adapter/WorkDiv.hpp"
 #include "aV2P/dev/Traits.hpp"
@@ -79,8 +79,8 @@ namespace aV2P::adapter::detail
     {
         using Buffer = std::remove_cvref_t<TBuffer>;
         constexpr bool isOneDimensional = Buffer::dim() <= 1u;
-        using ContiguousBuffer
-            = typename aV2P::detail::NativeBufferWithMatchingAlignment<Buffer, isOneDimensional>::type;
+        using ContiguousBuffer =
+            typename aV2P::detail::NativeBufferWithMatchingAlignment<Buffer, isOneDimensional>::type;
         auto const extents = native.getExtents();
         auto const pitches = aV2P::adapter::toAlpaka(
             aV2P::detail::calculatePitchesFromExtents<TElem>(aV2P::adapter::fromAlpaka(extents)));
@@ -159,9 +159,8 @@ namespace aV2P::adapter::detail
             if constexpr(isHostApi)
                 return alpaka::calculatePitchesFromExtents<TElem>(extents);
             else
-                return std::get<1>(alpaka::api::util::emulatedAlignedMemDescription<TElem>(
-                    alignment.template get<TElem>(),
-                    extents));
+                return std::get<1>(
+                    alpaka::api::util::emulatedAlignedMemDescription<TElem>(alignment.template get<TElem>(), extents));
         }();
         std::size_t elements;
         if constexpr(isHostApi)
@@ -212,8 +211,7 @@ namespace aV2P::trait
     template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
     struct GetDev<BufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
     {
-        AV2P_FN_HOST static auto getDev(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf)
-            -> DevAlpaka3<TDevSpec>
+        AV2P_FN_HOST static auto getDev(BufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) -> DevAlpaka3<TDevSpec>
         {
             return buf.m_dev;
         }
@@ -327,8 +325,7 @@ namespace aV2P::trait
     template<typename TElem, typename TDim, typename TIdx, typename TDevSpec>
     struct GetPtrNative<ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
     {
-        AV2P_FN_HOST static auto getPtrNative(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf)
-            -> TElem const*
+        AV2P_FN_HOST static auto getPtrNative(ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx> const& buf) -> TElem const*
         {
             return buf.getAlpaka3().data();
         }
@@ -418,9 +415,7 @@ namespace aV2P::trait
                 if constexpr(std::is_integral_v<TExtent>)
                     return Buffer{alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), alpaka::Vec{extent}), dev};
                 else
-                    return Buffer{
-                        alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent)),
-                        dev};
+                    return Buffer{alpaka::onHost::alloc<TElem>(dev.getAlpaka3(), adapter::toAlpaka(extent)), dev};
             }
         }
     };
@@ -455,14 +450,10 @@ namespace aV2P::trait
             else
             {
                 if constexpr(std::is_integral_v<TExtent>)
-                    return Buffer{
-                        alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent}),
-                        dev};
+                    return Buffer{alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), alpaka::Vec{extent}), dev};
                 else
                     return Buffer{
-                        alpaka::onHost::allocDeferred<TElem>(
-                            queue.getAlpaka3(),
-                            adapter::toAlpaka(extent)),
+                        alpaka::onHost::allocDeferred<TElem>(queue.getAlpaka3(), adapter::toAlpaka(extent)),
                         dev};
             }
         }

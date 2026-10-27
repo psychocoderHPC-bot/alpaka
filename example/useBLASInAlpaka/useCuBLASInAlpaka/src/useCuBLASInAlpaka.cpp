@@ -7,7 +7,6 @@
  * set for alpaka.
  */
 #include <aV2P/alpaka.hpp>
-
 #include <cublas_v2.h>
 
 #include <cmath>

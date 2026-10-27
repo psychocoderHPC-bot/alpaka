@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Dev.hpp"
+#include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/WorkDiv.hpp"
 #include "aV2P/core/Common.hpp"
 #include "aV2P/dev/Traits.hpp"
@@ -32,9 +32,7 @@ namespace aV2P::detail
     };
 
     template<typename TApi, typename TType, typename TExtents, typename TAlignment>
-    struct NativeBufferWithMatchingAlignment<
-        alpaka::onHost::SharedBuffer<TApi, TType, TExtents, TAlignment>,
-        false>
+    struct NativeBufferWithMatchingAlignment<alpaka::onHost::SharedBuffer<TApi, TType, TExtents, TAlignment>, false>
     {
         using type = alpaka::onHost::SharedBuffer<TApi, TType, TExtents, alpaka::Alignment<>>;
     };
@@ -102,8 +100,7 @@ namespace aV2P
             Deleter deleter,
             TExtent const& extents,
             TPitch const& pitches)
-            : m_memImpl{
-                  AlpakaBufferType(alpaka::getApi(dev.getAlpaka3()), pMem, extents, pitches, std::move(deleter))}
+            : m_memImpl{AlpakaBufferType(alpaka::getApi(dev.getAlpaka3()), pMem, extents, pitches, std::move(deleter))}
             , m_dev{dev}
         {
         }
@@ -151,9 +148,7 @@ namespace aV2P
 
     template<typename TDevSpec, typename TElem, typename TDim, typename TIdx>
     class ConstBufAlpaka3
-        : public internal::ViewAccessorType<
-              DevAlpaka3<TDevSpec>,
-              ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
+        : public internal::ViewAccessorType<DevAlpaka3<TDevSpec>, ConstBufAlpaka3<TDevSpec, TElem, TDim, TIdx>>
     {
     public:
         using DevType = DevAlpaka3<TDevSpec>;
@@ -183,8 +178,7 @@ namespace aV2P
             Deleter deleter,
             TExtent const& extents,
             TPitch const& pitches)
-            : m_memImpl{
-                  AlpakaBufferType(alpaka::getApi(dev.getAlpaka3()), pMem, extents, pitches, std::move(deleter))}
+            : m_memImpl{AlpakaBufferType(alpaka::getApi(dev.getAlpaka3()), pMem, extents, pitches, std::move(deleter))}
             , m_dev{dev}
         {
         }
@@ -233,18 +227,11 @@ namespace aV2P
     };
 
     template<typename TElem, typename TDim, typename TIdx>
-    using BufCpu = BufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::Host, alpaka::deviceKind::Cpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using BufCpu = BufAlpaka3<adapter::DeviceSpec<alpaka::api::Host, alpaka::deviceKind::Cpu>, TElem, TDim, TIdx>;
 
     template<typename TElem, typename TDim, typename TIdx>
-    using ConstBufCpu = ConstBufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::Host, alpaka::deviceKind::Cpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using ConstBufCpu
+        = ConstBufAlpaka3<adapter::DeviceSpec<alpaka::api::Host, alpaka::deviceKind::Cpu>, TElem, TDim, TIdx>;
 
     //! 2.2 buffer names lost when the per-backend buffer implementations were removed.
     //!
@@ -252,67 +239,42 @@ namespace aV2P
     //! adapter buffer; the oneAPI device kinds without an executor keep a name-only placeholder.
 #ifdef AV2P_ACC_GPU_CUDA_ENABLED
     template<typename TElem, typename TDim, typename TIdx>
-    using BufCudaRt = BufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using BufCudaRt
+        = BufAlpaka3<adapter::DeviceSpec<alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu>, TElem, TDim, TIdx>;
 
     template<typename TElem, typename TDim, typename TIdx>
-    using ConstBufCudaRt = ConstBufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using ConstBufCudaRt
+        = ConstBufAlpaka3<adapter::DeviceSpec<alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu>, TElem, TDim, TIdx>;
 #endif
 
 #ifdef AV2P_ACC_GPU_HIP_ENABLED
     template<typename TElem, typename TDim, typename TIdx>
-    using BufHipRt = BufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::Hip, alpaka::deviceKind::AmdGpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using BufHipRt = BufAlpaka3<adapter::DeviceSpec<alpaka::api::Hip, alpaka::deviceKind::AmdGpu>, TElem, TDim, TIdx>;
 
     template<typename TElem, typename TDim, typename TIdx>
-    using ConstBufHipRt = ConstBufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::Hip, alpaka::deviceKind::AmdGpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using ConstBufHipRt
+        = ConstBufAlpaka3<adapter::DeviceSpec<alpaka::api::Hip, alpaka::deviceKind::AmdGpu>, TElem, TDim, TIdx>;
 #endif
 
 #ifdef AV2P_ACC_SYCL_ENABLED
 #    if defined(AV2P_SYCL_TARGET_CPU)
     template<typename TElem, typename TDim, typename TIdx>
-    using BufCpuSycl = BufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using BufCpuSycl
+        = BufAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>, TElem, TDim, TIdx>;
 
     template<typename TElem, typename TDim, typename TIdx>
-    using ConstBufCpuSycl = ConstBufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using ConstBufCpuSycl
+        = ConstBufAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::Cpu>, TElem, TDim, TIdx>;
 #    endif
 
 #    if defined(AV2P_SYCL_TARGET_GPU)
     template<typename TElem, typename TDim, typename TIdx>
-    using BufGpuSyclIntel = BufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using BufGpuSyclIntel
+        = BufAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>, TElem, TDim, TIdx>;
 
     template<typename TElem, typename TDim, typename TIdx>
-    using ConstBufGpuSyclIntel = ConstBufAlpaka3<
-        adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>,
-        TElem,
-        TDim,
-        TIdx>;
+    using ConstBufGpuSyclIntel
+        = ConstBufAlpaka3<adapter::DeviceSpec<alpaka::api::OneApi, alpaka::deviceKind::IntelGpu>, TElem, TDim, TIdx>;
 #    endif
 
     //! Name-only buffer placeholder for oneAPI device kinds without an alpaka 3 executor.

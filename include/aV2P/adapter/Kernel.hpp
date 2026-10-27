@@ -173,10 +173,8 @@ namespace aV2P
                 QueueAlpaka3<TDev, TQueueKind>& queue,
                 TaskKernelAlpaka3<TAcc, TDim, TIdx, TKernelFnObj, TArgs...> const& task) -> void
             {
-                auto const threadSpec = adapter::toThreadSpec(
-                    task.m_gridBlockExtent,
-                    task.m_blockThreadExtent,
-                    task.getExecutor());
+                auto const threadSpec
+                    = adapter::toThreadSpec(task.m_gridBlockExtent, task.m_blockThreadExtent, task.getExecutor());
                 queue.getAlpaka3().enqueue(threadSpec, task.m_kernelBundle);
             }
         };

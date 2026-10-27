@@ -11,7 +11,6 @@
 #include <aV2P/test/KernelExecutionFixture.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/queue/Queue.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -377,8 +376,7 @@ struct AdlKernel
             aV2P::math::atan2(acc, Custom::Arg1, Custom::Arg2) == (Custom::Atan2 | Custom::Arg1 | Custom::Arg2));
         AV2P_CHECK(
             *success,
-            aV2P::math::copysign(acc, Custom::Arg1, Custom::Arg2)
-                == (Custom::Copysign | Custom::Arg1 | Custom::Arg2));
+            aV2P::math::copysign(acc, Custom::Arg1, Custom::Arg2) == (Custom::Copysign | Custom::Arg1 | Custom::Arg2));
         AV2P_CHECK(
             *success,
             aV2P::math::fmod(acc, Custom::Arg1, Custom::Arg2) == (Custom::Fmod | Custom::Arg1 | Custom::Arg2));

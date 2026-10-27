@@ -10,8 +10,8 @@
 //! code can spell the three-parameter legacy name.  The second API tag path maps to the corresponding
 //! accelerator of the enabled GPU backend.
 
-#include "aV2P/adapter/Acc.hpp"
 #include "aV2P/acc/AccFacadeTraits.hpp"
+#include "aV2P/adapter/Acc.hpp"
 
 namespace aV2P
 {
@@ -49,8 +49,7 @@ namespace aV2P
         };
 
         template<typename TApi, typename TDim, typename TIdx>
-        struct PlatformType<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>
-            : PlatformType<AccGpuCudaRt<TDim, TIdx>>
+        struct PlatformType<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>> : PlatformType<AccGpuCudaRt<TDim, TIdx>>
         {
         };
 
@@ -66,18 +65,11 @@ namespace aV2P
         };
 
         template<typename TApi, typename TDim, typename TIdx>
-        struct IsMultiThreadAcc<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>
-            : IsMultiThreadAcc<AccGpuCudaRt<TDim, TIdx>>
+        struct IsMultiThreadAcc<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>> : IsMultiThreadAcc<AccGpuCudaRt<TDim, TIdx>>
         {
         };
 
-        template<
-            typename TApi,
-            typename TDim,
-            typename TIdx,
-            typename TDev,
-            typename TKernelFnObj,
-            typename... TArgs>
+        template<typename TApi, typename TDim, typename TIdx, typename TDev, typename TKernelFnObj, typename... TArgs>
         struct FunctionAttributes<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>, TDev, TKernelFnObj, TArgs...>
             : FunctionAttributes<AccGpuCudaRt<TDim, TIdx>, TDev, TKernelFnObj, TArgs...>
         {
@@ -135,8 +127,7 @@ namespace aV2P
         };
 
         template<typename TApi, typename TDim, typename TIdx>
-        struct PlatformType<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>
-            : PlatformType<AccGpuHipRt<TDim, TIdx>>
+        struct PlatformType<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>> : PlatformType<AccGpuHipRt<TDim, TIdx>>
         {
         };
 
@@ -146,24 +137,16 @@ namespace aV2P
         };
 
         template<typename TApi, typename TDim, typename TIdx>
-        struct IsSingleThreadAcc<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>
-            : IsSingleThreadAcc<AccGpuHipRt<TDim, TIdx>>
+        struct IsSingleThreadAcc<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>> : IsSingleThreadAcc<AccGpuHipRt<TDim, TIdx>>
         {
         };
 
         template<typename TApi, typename TDim, typename TIdx>
-        struct IsMultiThreadAcc<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>>
-            : IsMultiThreadAcc<AccGpuHipRt<TDim, TIdx>>
+        struct IsMultiThreadAcc<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>> : IsMultiThreadAcc<AccGpuHipRt<TDim, TIdx>>
         {
         };
 
-        template<
-            typename TApi,
-            typename TDim,
-            typename TIdx,
-            typename TDev,
-            typename TKernelFnObj,
-            typename... TArgs>
+        template<typename TApi, typename TDim, typename TIdx, typename TDev, typename TKernelFnObj, typename... TArgs>
         struct FunctionAttributes<AccGpuUniformCudaHipRt<TApi, TDim, TIdx>, TDev, TKernelFnObj, TArgs...>
             : FunctionAttributes<AccGpuHipRt<TDim, TIdx>, TDev, TKernelFnObj, TArgs...>
         {

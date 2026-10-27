@@ -8,7 +8,6 @@
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/mem/view/ViewTest.hpp>
 #include <aV2P/test/queue/Queue.hpp>
-
 #include <catch2/catch_message.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -319,8 +318,7 @@ static auto testBufferAccessorAdaptor(
     auto const expected = base + static_cast<uintptr_t>((pitch * index).sum());
     INFO("element " << index << " expected at offset " << expected - base);
     using Platform = aV2P::Platform<TAcc>;
-    if constexpr(
-        std::is_same_v<Platform, aV2P::PlatformCpu> or std::is_same_v<aV2P::AccToTag<TAcc>, aV2P::TagCpuSycl>)
+    if constexpr(std::is_same_v<Platform, aV2P::PlatformCpu> or std::is_same_v<aV2P::AccToTag<TAcc>, aV2P::TagCpuSycl>)
     {
         INFO("element " << index << " returned at offset " << reinterpret_cast<uintptr_t>(&buf[index]) - base);
 

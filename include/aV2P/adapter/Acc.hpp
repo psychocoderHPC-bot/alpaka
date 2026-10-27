@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "aV2P/acc/Traits.hpp"
 #include "aV2P/acc/AccFacadeBase.hpp"
+#include "aV2P/acc/Traits.hpp"
 #include "aV2P/adapter/AccType.hpp"
 #include "aV2P/adapter/DeviceSpec.hpp"
 #include "aV2P/adapter/Mapping.hpp"
@@ -34,7 +34,7 @@ namespace aV2P
          */
         template<typename TApi, typename TDeviceKind>
         inline constexpr std::uint32_t warpSizeForTags
-            = std::is_same_v<TApi, alpaka::api::Host> ? 1u
+            = std::is_same_v<TApi, alpaka::api::Host>                      ? 1u
               : std::is_same_v<TDeviceKind, alpaka::deviceKind::NvidiaGpu> ? 32u
               : std::is_same_v<TDeviceKind, alpaka::deviceKind::AmdGpu>    ? 64u
                                                                            : 32u;
@@ -69,9 +69,7 @@ namespace aV2P
         alpaka::concepts::Executor TExecutor,
         typename TAccView = typename adapter::AlpakaAccType<TDim, TIdx, TApi, TDeviceKind, TExecutor>::type>
     class AccAlpaka3
-        : public interface::Implements<
-              InterfaceAcc,
-              AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
+        : public interface::Implements<InterfaceAcc, AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
     {
         static_assert(
             sizeof(TIdx) >= sizeof(int),
@@ -316,14 +314,14 @@ namespace aV2P
             "to an unrelated executor; see aV2P/adapter/Mapping.hpp.");
     };
 
-#define AV2P_DEFINE_UNIMPLEMENTED_ACC(ACC, TAG)                                                                      \
-    template<typename TDim, typename TIdx>                                                                           \
-    class ACC : public UnimplementedAcc<TDim, TIdx, TAG>                                                            \
-    {                                                                                                                \
-        using Base = UnimplementedAcc<TDim, TIdx, TAG>;                                                             \
-                                                                                                                     \
-    public:                                                                                                          \
-        using Base::Base;                                                                                            \
+#define AV2P_DEFINE_UNIMPLEMENTED_ACC(ACC, TAG)                                                                       \
+    template<typename TDim, typename TIdx>                                                                            \
+    class ACC : public UnimplementedAcc<TDim, TIdx, TAG>                                                              \
+    {                                                                                                                 \
+        using Base = UnimplementedAcc<TDim, TIdx, TAG>;                                                               \
+                                                                                                                      \
+    public:                                                                                                           \
+        using Base::Base;                                                                                             \
     }
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED
@@ -350,8 +348,7 @@ namespace aV2P
     //! has no counterpart in alpaka 3 and is discarded.
 #ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED
     template<typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
-    using TaskKernelCpuSerial
-        = TaskKernelAlpaka3<AccCpuSerial<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+    using TaskKernelCpuSerial = TaskKernelAlpaka3<AccCpuSerial<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
 #endif
 
 #ifdef AV2P_ACC_CPU_B_OMP2_T_SEQ_ENABLED
@@ -368,14 +365,12 @@ namespace aV2P
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_THREADS_ENABLED
     template<typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
-    using TaskKernelCpuThreads
-        = TaskKernelAlpaka3<AccCpuThreads<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+    using TaskKernelCpuThreads = TaskKernelAlpaka3<AccCpuThreads<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
 #endif
 
 #ifdef AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED
     template<typename TDim, typename TIdx, typename TKernelFnObj, typename... TArgs>
-    using TaskKernelCpuTbbBlocks
-        = TaskKernelAlpaka3<AccCpuTbbBlocks<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
+    using TaskKernelCpuTbbBlocks = TaskKernelAlpaka3<AccCpuTbbBlocks<TDim, TIdx>, TDim, TIdx, TKernelFnObj, TArgs...>;
 #endif
 
 #ifdef AV2P_ACC_GPU_CUDA_ENABLED
@@ -389,7 +384,14 @@ namespace aV2P
 #endif
 
     //! 2.2 uniform CUDA/HIP task-kernel name.
-    template<typename TApi, typename TAcc, typename TDim, typename TIdx, typename TKernelFnObj, bool TCooperative, typename... TArgs>
+    template<
+        typename TApi,
+        typename TAcc,
+        typename TDim,
+        typename TIdx,
+        typename TKernelFnObj,
+        bool TCooperative,
+        typename... TArgs>
     using TaskKernelGpuUniformCudaHipRt = TaskKernelAlpaka3<TAcc, TDim, TIdx, TKernelFnObj, TArgs...>;
 
 #ifdef AV2P_ACC_SYCL_ENABLED

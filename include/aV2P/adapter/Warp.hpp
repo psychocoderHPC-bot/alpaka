@@ -33,10 +33,13 @@ namespace aV2P::warp
             typename TAccView>
         struct GetSize<AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
-            AV2P_FN_ACC static auto getSize(
-                AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&) -> std::int32_t
+            AV2P_FN_ACC static auto getSize(AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&)
+                -> std::int32_t
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return static_cast<std::int32_t>(TAccView::getWarpSize());
@@ -94,11 +97,13 @@ namespace aV2P::warp
 
             AV2P_FN_ACC static auto activemask(Acc const& acc) -> typename Acc::mask_type
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
-                    return static_cast<typename Acc::mask_type>(
-                        alpaka::onAcc::warp::activemask(acc.getAlpaka3Acc()));
+                    return static_cast<typename Acc::mask_type>(alpaka::onAcc::warp::activemask(acc.getAlpaka3Acc()));
                 else
                     return typename Acc::mask_type{};
             }
@@ -117,7 +122,10 @@ namespace aV2P::warp
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc,
                 std::int32_t predicate) -> std::int32_t
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return static_cast<std::int32_t>(alpaka::onAcc::warp::all(acc.getAlpaka3Acc(), predicate));
@@ -139,7 +147,10 @@ namespace aV2P::warp
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc,
                 std::int32_t predicate) -> std::int32_t
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return static_cast<std::int32_t>(alpaka::onAcc::warp::any(acc.getAlpaka3Acc(), predicate));
@@ -161,7 +172,10 @@ namespace aV2P::warp
 
             AV2P_FN_ACC static auto ballot(Acc const& acc, std::int32_t predicate) -> typename Acc::mask_type
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return static_cast<typename Acc::mask_type>(
@@ -187,7 +201,10 @@ namespace aV2P::warp
                 std::int32_t srcLane,
                 std::int32_t width)
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return alpaka::onAcc::warp::shfl(
@@ -216,7 +233,10 @@ namespace aV2P::warp
                 std::uint32_t offset,
                 std::int32_t width)
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return alpaka::onAcc::warp::shflUp(
@@ -245,7 +265,10 @@ namespace aV2P::warp
                 std::uint32_t offset,
                 std::int32_t width)
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return alpaka::onAcc::warp::shflDown(
@@ -274,7 +297,10 @@ namespace aV2P::warp
                 std::int32_t mask,
                 std::int32_t width)
             {
-                static_assert(detail::warpHasAccelerator<TAccView>, "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as a "
+                static_assert(
+                    detail::warpHasAccelerator<TAccView>,
+                    "aV2P: warp primitives require the in-kernel accelerator facade. Declare the kernel parameter as "
+                    "a "
                     "template parameter (`template<typename TAcc> ...`), not as a concrete aV2P accelerator type.");
                 if constexpr(detail::warpHasAccelerator<TAccView>)
                     return alpaka::onAcc::warp::shflXor(

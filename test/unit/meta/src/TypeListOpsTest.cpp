@@ -3,7 +3,6 @@
  */
 
 #include <aV2P/meta/TypeListOps.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 #include <tuple>
@@ -45,9 +44,8 @@ TEST_CASE("isList", "[meta]")
 TEST_CASE("ToList", "[meta]")
 {
     STATIC_REQUIRE(std::is_same_v<typename aV2P::meta::ToList<TypeList, int>::type, TypeList<int>>);
-    STATIC_REQUIRE(std::is_same_v<
-                   typename aV2P::meta::ToList<TypeList, float, double, int>::type,
-                   TypeList<float, double, int>>);
+    STATIC_REQUIRE(
+        std::is_same_v<typename aV2P::meta::ToList<TypeList, float, double, int>::type, TypeList<float, double, int>>);
     STATIC_REQUIRE(
         std::is_same_v<typename aV2P::meta::ToList<TypeList, TypeList<unsigned int>>::type, TypeList<unsigned int>>);
     STATIC_REQUIRE(std::is_same_v<

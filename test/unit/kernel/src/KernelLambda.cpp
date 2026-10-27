@@ -9,7 +9,6 @@
 #    include <aV2P/kernel/Traits.hpp>
 #    include <aV2P/test/KernelExecutionFixture.hpp>
 #    include <aV2P/test/acc/TestAccs.hpp>
-
 #    include <catch2/catch_test_macros.hpp>
 
 struct LambdaKernelWorkDiv

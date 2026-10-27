@@ -4,7 +4,6 @@
 
 #include <aV2P/meta/IsArrayOrVector.hpp>
 #include <aV2P/vec/Vec.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>

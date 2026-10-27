@@ -4,7 +4,6 @@
 
 #include <aV2P/kernel/Traits.hpp>
 #include <aV2P/test/KernelExecutionFixture.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 using Dim = aV2P::DimInt<2u>;
@@ -39,8 +38,7 @@ TEST_CASE("kernelNoTemplateCpu", "[kernel]")
 }
 #endif
 
-#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA)                                                         \
-    || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
+#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA) || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
 struct KernelNoTemplateGpu
 {
     AV2P_FN_ACC
@@ -84,8 +82,7 @@ TEST_CASE("kernelUnusedTemplateParamCpu", "[kernel]")
 }
 #endif
 
-#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA)                                                         \
-    || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
+#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA) || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
 struct KernelUnusedTemplateParamGpu
 {
     template<typename TNotUsed = void>

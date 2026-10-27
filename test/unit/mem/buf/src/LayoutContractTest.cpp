@@ -10,17 +10,16 @@
 //! alpaka 3 operations in both directions, and that aV2P operations never touch the padding bytes
 //! beyond the contiguous span.
 
+#include <alpaka/alpaka.hpp>
+#include <alpaka/api/util.hpp>
+
 #include <aV2P/alpaka.hpp>
 #include <aV2P/mem/buf/Traits.hpp>
 #include <aV2P/mem/view/Traits.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/queue/Queue.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
-
-#include <alpaka/alpaka.hpp>
-#include <alpaka/api/util.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -108,7 +107,7 @@ TEST_CASE("memBufAlpaka3Interop", "[memBuf][layout]")
     CHECK(nativePitches[1] == sizeof(Elem));
 
     // (b) Native alpaka 3 element access on getAlpaka3() writes the elements aV2P reads.
-    constexpr Elem nativeValue = 0x11223344u;
+    constexpr Elem nativeValue = 0x1122'3344u;
     auto& nativeView = buf.getAlpaka3();
     for(Idx y = 0; y < extent[0]; ++y)
         for(Idx x = 0; x < extent[1]; ++x)
@@ -118,7 +117,7 @@ TEST_CASE("memBufAlpaka3Interop", "[memBuf][layout]")
             CHECK(buf[aV2P::Vec{y, x}] == nativeValue);
 
     // (c) An aV2P fill is visible through the native alpaka 3 handle.
-    constexpr Elem av2pValue = 0x55667788u;
+    constexpr Elem av2pValue = 0x5566'7788u;
     aV2P::fill(queue, buf, av2pValue);
     for(Idx y = 0; y < extent[0]; ++y)
         for(Idx x = 0; x < extent[1]; ++x)
@@ -132,9 +131,8 @@ TEST_CASE("memBufNativeBulkFillUsesContiguousAlignment", "[memBuf][layout]")
     auto buf = aV2P::allocBuf<Elem, Idx>(dev, extent);
     aV2P::QueueCpuBlocking queue{dev};
 
-    constexpr auto allocationAlignment = alpaka::api::util::simdOptimizedAlignment<Elem>(
-        alpaka::api::Host{},
-        alpaka::deviceKind::Cpu{});
+    constexpr auto allocationAlignment
+        = alpaka::api::util::simdOptimizedAlignment<Elem>(alpaka::api::Host{}, alpaka::deviceKind::Cpu{});
     auto const rowBytes = static_cast<std::size_t>(extent[1]) * sizeof(Elem);
 
     // The regression is only observable when the contiguous row pitch is not a multiple of the
@@ -154,7 +152,7 @@ TEST_CASE("memBufNativeBulkFillUsesContiguousAlignment", "[memBuf][layout]")
     CHECK(NativeBuffer::getAlignment().template get<Elem>() == alignof(Elem));
 
     // A native alpaka 3 SIMD fill must not assume aligned interior rows of this re-view.
-    constexpr Elem fillValue = 0xA1B2C3D4u;
+    constexpr Elem fillValue = 0xA1B2'C3D4u;
     alpaka::onHost::fill(queue.getAlpaka3(), buf.getAlpaka3(), fillValue);
     aV2P::wait(queue);
 
@@ -190,12 +188,10 @@ TEST_CASE("memBufDoesNotTouchPadding", "[memBuf][layout]")
     aV2P::QueueCpuBlocking queue{dev};
 
     // Reconstruct the size and pitches of the padded alpaka 3 allocation that backs the re-view.
-    constexpr auto alignment = alpaka::api::util::simdOptimizedAlignment<Elem>(
-        alpaka::api::Host{},
-        alpaka::deviceKind::Cpu{});
-    auto const [paddedBytes, paddedPitches] = alpaka::api::util::emulatedAlignedMemDescription<Elem>(
-        alignment,
-        buf.getAlpaka3().getExtents());
+    constexpr auto alignment
+        = alpaka::api::util::simdOptimizedAlignment<Elem>(alpaka::api::Host{}, alpaka::deviceKind::Cpu{});
+    auto const [paddedBytes, paddedPitches]
+        = alpaka::api::util::emulatedAlignedMemDescription<Elem>(alignment, buf.getAlpaka3().getExtents());
 
     auto const contiguousBytes = static_cast<std::size_t>(extent[0]) * extent[1] * sizeof(Elem);
     REQUIRE(contiguousBytes <= paddedBytes);
@@ -209,7 +205,7 @@ TEST_CASE("memBufDoesNotTouchPadding", "[memBuf][layout]")
         raw[i] = poison;
 
     // aV2P operations must write the contiguous span only.
-    aV2P::fill(queue, buf, Elem{0x01020304u});
+    aV2P::fill(queue, buf, Elem{0x0102'0304u});
     aV2P::memset(queue, buf, std::uint8_t{0xFFu});
     aV2P::wait(queue);
 
@@ -290,8 +286,8 @@ namespace
             for(Idx r = 0; r < extent[0]; ++r)
                 for(Idx c = 0; c < extent[1]; ++c)
                 {
-                    auto const byteOffset = static_cast<std::size_t>(r) * pitches[0]
-                                            + static_cast<std::size_t>(c) * pitches[1];
+                    auto const byteOffset
+                        = static_cast<std::size_t>(r) * pitches[0] + static_cast<std::size_t>(c) * pitches[1];
                     auto const* expected = base + byteOffset / sizeof(Elem);
                     auto const* nativeElement = &src.getAlpaka3()[alpaka::Vec<Idx, 2u>{r, c}];
                     CHECK(nativeElement == expected);
@@ -300,7 +296,7 @@ namespace
 
         // A fill and a copy between two pitched buffers preserve every element.  The result is
         // read back through a contiguous host buffer, which exercises the pitched source view.
-        constexpr Elem value = 0xA1B2C3D4u;
+        constexpr Elem value = 0xA1B2'C3D4u;
         aV2P::fill(queue, src, value);
         aV2P::memcpy(queue, dst, src);
         aV2P::memcpy(queue, host, dst);

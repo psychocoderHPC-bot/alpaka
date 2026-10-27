@@ -55,7 +55,7 @@ namespace aV2P
 {
     namespace detail
     {
-#if (defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA) || (defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
+#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA) || (defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
         //! Remove const from the element type while keeping C array extents.
         template<typename T>
         struct RemoveConstElement
@@ -69,7 +69,7 @@ namespace aV2P
             using type = typename RemoveConstElement<T>::type[N];
         };
 
-#    if (defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
+#    if(defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
         //! Shared HIP device storage for one (tag, element type) pair.
         template<typename TTag, typename T>
         inline __device__ typename RemoveConstElement<T>::type deviceGlobalStorage;
@@ -81,7 +81,7 @@ namespace aV2P
         {
             using Type = typename RemoveConstElement<T>::type;
 
-#    if (defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)
+#    if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)
             // Host and kernel see the same public accelerator type, so the variable object can own
             // the device storage.  `AV2P_STATIC_ACC_MEM_GLOBAL` already places it in device memory.
             Type value;
@@ -109,7 +109,7 @@ namespace aV2P
 #    endif
         };
 
-#    if (defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)
+#    if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)
         //! Resolve the legacy device-global symbol on CUDA.
         template<typename TTag, typename T>
         AV2P_FN_HOST auto deviceGlobalPtr(DevGlobalGpu<TTag, T>& global) -> std::remove_all_extents_t<T>*
@@ -125,7 +125,7 @@ namespace aV2P
             return reinterpret_cast<std::remove_all_extents_t<T>*>(pMemAcc);
         }
 #    endif
-#    if (defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
+#    if(defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
         //! Resolve the shared HIP device-global symbol.
         template<typename TTag, typename T>
         AV2P_FN_HOST auto deviceGlobalPtr(DevGlobalGpu<TTag, T>& /* global */) -> std::remove_all_extents_t<T>*
@@ -145,14 +145,14 @@ namespace aV2P
 
     namespace detail
     {
-#if (defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)
+#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA)
         template<typename T>
         struct DevGlobalTrait<TagGpuCudaRt, T>
         {
             using Type = DevGlobalGpu<TagGpuCudaRt, T>;
         };
 #endif
-#if (defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
+#if(defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
         template<typename T>
         struct DevGlobalTrait<TagGpuHipRt, T>
         {
@@ -161,7 +161,7 @@ namespace aV2P
 #endif
     } // namespace detail
 
-#if (defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA) || (defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
+#if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && ALPAKA_LANG_CUDA) || (defined(AV2P_ACC_GPU_HIP_ENABLED) && ALPAKA_LANG_HIP)
     //! Copy from host-accessible memory to a CUDA/HIP device global.
     template<
         concepts::Tag TTag,

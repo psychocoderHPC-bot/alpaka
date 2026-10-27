@@ -12,7 +12,7 @@
  * 5 digits for patch version (max 99999)
  * example: version 1.2.3 -> 0001 002 00003
  */
-#define AV2P_VERSION_NUMBER(major, minor, patch)                                                                    \
+#define AV2P_VERSION_NUMBER(major, minor, patch)                                                                      \
     ((((major) % 10000llu) * 100'000'000llu) + (((minor) % 1000llu) * 100000llu) + ((patch) % 100000llu))
 
 #define AV2P_VERSION_NUMBER_NOT_AVAILABLE AV2P_VERSION_NUMBER(0llu, 0llu, 0llu)
@@ -22,10 +22,9 @@
 
 #define AV2P_YYYYMM_TO_VERSION(V) AV2P_VERSION_NUMBER(((V) / 100llu) % 10000llu, (V) % 100llu, 0llu)
 
-#define AV2P_VVRRP_TO_VERSION(V)                                                                                    \
-    AV2P_VERSION_NUMBER(((V) / 1000llu) % 10000llu, ((V) / 10llu) % 100llu, (V) % 10llu)
+#define AV2P_VVRRP_TO_VERSION(V) AV2P_VERSION_NUMBER(((V) / 1000llu) % 10000llu, ((V) / 10llu) % 100llu, (V) % 10llu)
 
 #define AV2P_VRP_TO_VERSION(V) AV2P_VERSION_NUMBER(((V) / 100llu) % 10000llu, ((V) / 10llu) % 10llu, (V) % 10llu)
 
-#define AV2P_VRRPP_TO_VERSION(V)                                                                                    \
+#define AV2P_VRRPP_TO_VERSION(V)                                                                                      \
     AV2P_VERSION_NUMBER(((V) / 10000llu) % 10000llu, ((V) / 100llu) % 100llu, (V) % 100llu)

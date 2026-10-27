@@ -112,8 +112,7 @@ namespace aV2P::adapter
     };
 
     template<typename TDim, typename TIdx>
-    inline constexpr bool isTriviallyCopyableWorkDivPayload
-        = std::is_trivially_copyable_v<WorkDivPayload<TDim, TIdx>>;
+    inline constexpr bool isTriviallyCopyableWorkDivPayload = std::is_trivially_copyable_v<WorkDivPayload<TDim, TIdx>>;
 
     /** Build the complete legacy work division for one launch.
      *
@@ -157,9 +156,6 @@ namespace aV2P::adapter
         Vec<TDim, TIdx> const& blockThreadExtent,
         TExecutor const& executor)
     {
-        return alpaka::onHost::ThreadSpec{
-            toAlpaka(gridBlockExtent),
-            toAlpaka(blockThreadExtent),
-            executor};
+        return alpaka::onHost::ThreadSpec{toAlpaka(gridBlockExtent), toAlpaka(blockThreadExtent), executor};
     }
 } // namespace aV2P::adapter

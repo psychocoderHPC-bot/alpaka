@@ -148,7 +148,7 @@
 
 // MSVC compiler
 #if defined(_MSC_VER)
-#    define AV2P_COMP_MSVC                                                                                          \
+#    define AV2P_COMP_MSVC                                                                                            \
         AV2P_VERSION_NUMBER((_MSC_FULL_VER) % 10'000'000, ((_MSC_FULL_VER) / 100000) % 100, (_MSC_FULL_VER) % 100000)
 #else
 #    define AV2P_COMP_MSVC AV2P_VERSION_NUMBER_NOT_AVAILABLE

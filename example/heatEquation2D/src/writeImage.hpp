@@ -5,7 +5,6 @@
 #pragma once
 
 #include <aV2P/extent/Traits.hpp>
-
 #include <pngwriter.h>
 
 #include <cmath>

@@ -137,8 +137,7 @@ auto example(TAccTag const&) -> int
     aV2P::KernelCfg<Acc> const kernelCfg = {extent, elemPerThread};
 
     // Let alpaka calculate good block and grid sizes given our full problem extent
-    auto const workDiv
-        = aV2P::getValidWorkDiv(kernelCfg, devAcc, heatEqKernel, pCurrAcc, pNextAcc, numNodesX, dx, dt);
+    auto const workDiv = aV2P::getValidWorkDiv(kernelCfg, devAcc, heatEqKernel, pCurrAcc, pNextAcc, numNodesX, dx, dt);
 
     // Copy host -> device
     aV2P::memcpy(queue, uCurrBufAcc, uCurrBufHost);

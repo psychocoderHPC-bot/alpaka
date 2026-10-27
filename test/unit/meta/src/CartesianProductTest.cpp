@@ -4,7 +4,6 @@
 
 #include <aV2P/dim/DimIntegralConst.hpp>
 #include <aV2P/meta/CartesianProduct.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 #include <tuple>

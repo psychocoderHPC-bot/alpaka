@@ -69,8 +69,7 @@ template<typename TAcc, typename TDev, typename TKernel, typename... TArgs>
 auto getMaxThreadsPerBlock(TDev const& dev, TKernel const& kernel, TArgs&&... args) -> uint64_t
 {
     auto const deviceProperties = aV2P::getAccDevProps<TAcc>(dev);
-    auto const kernelFunctionAttributes
-        = aV2P::getFunctionAttributes<TAcc>(dev, kernel, std::forward<TArgs>(args)...);
+    auto const kernelFunctionAttributes = aV2P::getFunctionAttributes<TAcc>(dev, kernel, std::forward<TArgs>(args)...);
     return std::min<uint64_t>(
         deviceProperties.m_blockThreadExtentMax[0],
         static_cast<uint64_t>(kernelFunctionAttributes.maxThreadsPerBlock));

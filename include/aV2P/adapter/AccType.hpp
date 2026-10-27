@@ -36,12 +36,7 @@ namespace aV2P::adapter
      * the concrete in-kernel accelerator type (see `AccAlpaka3::AccView`), so device primitives work for
      * oneAPI and HIP kernels whose accelerator parameter is a template parameter.
      */
-    template<
-        typename TDim,
-        typename TIdx,
-        typename TApi,
-        typename TDeviceKind,
-        typename TExecutor>
+    template<typename TDim, typename TIdx, typename TApi, typename TDeviceKind, typename TExecutor>
     struct AlpakaAccType
     {
         using type = void;
@@ -68,23 +63,17 @@ namespace aV2P::adapter
                         alpaka::onAcc::cpu::GenericLayer{
                             std::cref(std::declval<NumBlocksVec&>()),
                             std::cref(std::declval<NumBlocksVec&>())}),
-                    alpaka::DictEntry(
-                        alpaka::layer::thread,
-                        alpaka::onAcc::cpu::OneLayer<NumThreadsVec>{}),
+                    alpaka::DictEntry(alpaka::layer::thread, alpaka::onAcc::cpu::OneLayer<NumThreadsVec>{}),
                     alpaka::DictEntry(alpaka::layer::shared, std::ref(std::declval<Shared&>())),
                     alpaka::DictEntry(alpaka::action::threadBlockSync, alpaka::onAcc::cpu::NoOp{}),
-                    alpaka::DictEntry(
-                        alpaka::object::warpSize,
-                        std::integral_constant<std::uint32_t, 1u>{})},
+                    alpaka::DictEntry(alpaka::object::warpSize, std::integral_constant<std::uint32_t, 1u>{})},
                 alpaka::Dict{
                     alpaka::DictEntry(alpaka::object::launchedWidthFrameSpec, std::false_type{}),
                     alpaka::DictEntry(alpaka::object::api, alpaka::api::Host{}),
                     alpaka::DictEntry(alpaka::object::deviceKind, alpaka::deviceKind::Cpu{}),
                     alpaka::DictEntry(alpaka::object::exec, TExecutor{}),
                     alpaka::DictEntry(alpaka::layer::dynShared, std::ref(std::declval<Shared&>())),
-                    alpaka::DictEntry(
-                        alpaka::object::dynSharedMemBytes,
-                        std::ref(std::declval<std::uint32_t&>()))})});
+                    alpaka::DictEntry(alpaka::object::dynSharedMemBytes, std::ref(std::declval<std::uint32_t&>()))})});
         };
 
 #if defined(AV2P_ACC_CPU_B_TBB_T_SEQ_ENABLED)
@@ -113,23 +102,17 @@ namespace aV2P::adapter
                         alpaka::onAcc::cpu::GenericLayer{
                             std::cref(std::declval<NumBlocksVec const&>()),
                             std::declval<NumBlocksVec>()}),
-                    alpaka::DictEntry(
-                        alpaka::layer::thread,
-                        alpaka::onAcc::cpu::OneLayer<NumThreadsVec>{}),
+                    alpaka::DictEntry(alpaka::layer::thread, alpaka::onAcc::cpu::OneLayer<NumThreadsVec>{}),
                     alpaka::DictEntry(alpaka::layer::shared, std::ref(std::declval<Shared&>())),
                     alpaka::DictEntry(alpaka::action::threadBlockSync, alpaka::onAcc::cpu::NoOp{}),
-                    alpaka::DictEntry(
-                        alpaka::object::warpSize,
-                        std::integral_constant<std::uint32_t, 1u>{})},
+                    alpaka::DictEntry(alpaka::object::warpSize, std::integral_constant<std::uint32_t, 1u>{})},
                 alpaka::Dict{
                     alpaka::DictEntry(alpaka::object::launchedWidthFrameSpec, std::false_type{}),
                     alpaka::DictEntry(alpaka::object::api, alpaka::api::Host{}),
                     alpaka::DictEntry(alpaka::object::deviceKind, alpaka::deviceKind::Cpu{}),
                     alpaka::DictEntry(alpaka::object::exec, TExecutor{}),
                     alpaka::DictEntry(alpaka::layer::dynShared, std::ref(std::declval<Shared&>())),
-                    alpaka::DictEntry(
-                        alpaka::object::dynSharedMemBytes,
-                        std::ref(std::declval<std::uint32_t&>()))})});
+                    alpaka::DictEntry(alpaka::object::dynSharedMemBytes, std::ref(std::declval<std::uint32_t&>()))})});
         };
 #endif
 
@@ -143,22 +126,16 @@ namespace aV2P::adapter
             using Optimized = std::conditional_t<
                 (dim >= 4u),
                 Spec,
-                alpaka::onHost::unifiedCudaHip::CallKernel::OptimizedThreadSpec<
-                    typename Spec::NumBlocksVecType,
-                    typename Spec::NumThreadsVecType>>;
+                alpaka::onHost::unifiedCudaHip::CallKernel::
+                    OptimizedThreadSpec<typename Spec::NumBlocksVecType, typename Spec::NumThreadsVecType>>;
             using BlockLayer = alpaka::onAcc::unifiedCudaHip::BlockLayer<Optimized>;
             using ThreadLayer = alpaka::onAcc::unifiedCudaHip::ThreadLayer<Optimized>;
             using Sync = alpaka::onAcc::unifiedCudaHip::Sync;
-            using WarpSize
-                = decltype(alpaka::onAcc::unifiedCudaHip::internal::WarpSize::Get<TDeviceKind>{}());
+            using WarpSize = decltype(alpaka::onAcc::unifiedCudaHip::internal::WarpSize::Get<TDeviceKind>{}());
 
             using type = decltype(alpaka::onAcc::Acc{alpaka::Dict{
-                alpaka::DictEntry(
-                    alpaka::layer::block,
-                    BlockLayer{std::declval<Optimized const&>()}),
-                alpaka::DictEntry(
-                    alpaka::layer::thread,
-                    ThreadLayer{std::declval<Optimized const&>()}),
+                alpaka::DictEntry(alpaka::layer::block, BlockLayer{std::declval<Optimized const&>()}),
+                alpaka::DictEntry(alpaka::layer::thread, ThreadLayer{std::declval<Optimized const&>()}),
                 alpaka::DictEntry(alpaka::object::launchedWidthFrameSpec, std::false_type{}),
                 alpaka::DictEntry(alpaka::action::threadBlockSync, Sync{}),
                 alpaka::DictEntry(alpaka::object::api, TApi{}),
@@ -187,18 +164,14 @@ namespace aV2P::adapter
     template<typename TDim, typename TIdx, typename TExecutor>
     struct AlpakaAccType<TDim, TIdx, alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu, TExecutor>
     {
-        using type = typename detail::GpuAccType<
-            TDim,
-            TIdx,
-            alpaka::api::Cuda,
-            alpaka::deviceKind::NvidiaGpu,
-            TExecutor>::type;
+        using type =
+            typename detail::GpuAccType<TDim, TIdx, alpaka::api::Cuda, alpaka::deviceKind::NvidiaGpu, TExecutor>::type;
     };
 #endif
 
-// HIP is deliberately not specialized: AMD wavefront size is only known in device code (gfx9 is 64,
-// gfx10+ is 32), so a host-computed accelerator type would not match the type the device instantiates
-// and the kernel symbol would not resolve.  HIP therefore uses the same in-kernel re-instantiation as
-// oneAPI (`TAccView` is `void` at host time); templated accelerator parameters get the concrete
-// in-kernel view and device primitives work through it.
+    // HIP is deliberately not specialized: AMD wavefront size is only known in device code (gfx9 is 64,
+    // gfx10+ is 32), so a host-computed accelerator type would not match the type the device instantiates
+    // and the kernel symbol would not resolve.  HIP therefore uses the same in-kernel re-instantiation as
+    // oneAPI (`TAccView` is `void` at host time); templated accelerator parameters get the concrete
+    // in-kernel view and device primitives work through it.
 } // namespace aV2P::adapter

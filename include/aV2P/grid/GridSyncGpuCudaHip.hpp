@@ -57,7 +57,7 @@ namespace aV2P
 
     } // namespace trait
 
-#        if (defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA)                                             \
+#        if(defined(AV2P_ACC_GPU_CUDA_ENABLED) && AV2P_LANG_CUDA)                                                     \
             || (defined(AV2P_ACC_GPU_HIP_ENABLED) && AV2P_LANG_HIP)
 
     namespace detail
@@ -84,9 +84,8 @@ namespace aV2P
             using OptimizedThreadSpec = std::conditional_t<
                 (Dim::value >= 4u),
                 Spec,
-                alpaka::onHost::unifiedCudaHip::CallKernel::OptimizedThreadSpec<
-                    typename Spec::NumBlocksVecType,
-                    typename Spec::NumThreadsVecType>>;
+                alpaka::onHost::unifiedCudaHip::CallKernel::
+                    OptimizedThreadSpec<typename Spec::NumBlocksVecType, typename Spec::NumThreadsVecType>>;
 
             return &alpaka::onHost::unifiedCudaHip::gpuKernel<
                 typename TAcc::Api,

@@ -3,7 +3,6 @@
  */
 
 #include <aV2P/core/OmpSchedule.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 #include <tuple>

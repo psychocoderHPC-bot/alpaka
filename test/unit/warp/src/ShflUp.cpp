@@ -14,7 +14,6 @@
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/queue/Queue.hpp>
 #include <aV2P/warp/Traits.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -77,11 +76,8 @@ struct ShflUpMultipleThreadWarpTestKernel
                     *success,
                     aV2P::warp::shfl_up(acc, threadIdxInWarp, static_cast<std::uint32_t>(idx), width)
                         == ((threadIdxInWarp - idx >= off) ? threadIdxInWarp - idx : threadIdxInWarp));
-                float const ans = aV2P::warp::shfl_up(
-                    acc,
-                    4.0f - float(threadIdxInWarp),
-                    static_cast<std::uint32_t>(idx),
-                    width);
+                float const ans
+                    = aV2P::warp::shfl_up(acc, 4.0f - float(threadIdxInWarp), static_cast<std::uint32_t>(idx), width);
                 float const expect
                     = ((threadIdxInWarp - idx >= off) ? (4.0f - float(threadIdxInWarp - idx))
                                                       : (4.0f - float(threadIdxInWarp)));
@@ -100,8 +96,7 @@ struct ShflUpMultipleThreadWarpTestKernel
                 *success,
                 aV2P::warp::shfl_up(acc, threadIdxInWarp, static_cast<std::uint32_t>(idx))
                     == ((threadIdxInWarp - idx >= 0) ? (threadIdxInWarp - idx) : threadIdxInWarp));
-            float const ans
-                = aV2P::warp::shfl_up(acc, 4.0f - float(threadIdxInWarp), static_cast<std::uint32_t>(idx));
+            float const ans = aV2P::warp::shfl_up(acc, 4.0f - float(threadIdxInWarp), static_cast<std::uint32_t>(idx));
             float const expect
                 = ((threadIdxInWarp - idx >= 0) ? (4.0f - float(threadIdxInWarp - idx))
                                                 : (4.0f - float(threadIdxInWarp)));

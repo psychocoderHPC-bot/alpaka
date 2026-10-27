@@ -7,7 +7,6 @@
 #    include <aV2P/test/Extent.hpp>
 #    include <aV2P/test/acc/TestAccs.hpp>
 #    include <aV2P/test/mem/view/ViewTest.hpp>
-
 #    include <catch2/catch_template_test_macros.hpp>
 
 #    if defined(__NVCC__) && !defined(__CUDACC_EXTENDED_LAMBDA__)
@@ -117,10 +116,8 @@ namespace
             AV2P_CHECK(*success, col2(0) == 2);
             AV2P_CHECK(*success, col2(1) == 5);
 
-            auto matrix = aV2P::experimental::submdspan(
-                mds,
-                aV2P::experimental::full_extent,
-                aV2P::experimental::full_extent);
+            auto matrix
+                = aV2P::experimental::submdspan(mds, aV2P::experimental::full_extent, aV2P::experimental::full_extent);
             AV2P_CHECK(*success, matrix(0, 0) == 0);
             AV2P_CHECK(*success, matrix(0, 1) == 1);
             AV2P_CHECK(*success, matrix(0, 2) == 2);

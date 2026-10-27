@@ -6,7 +6,6 @@
 #include <aV2P/test/Extent.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/mem/view/Iterator.hpp>
-
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_message.hpp>
 #include <catch2/catch_template_test_macros.hpp>

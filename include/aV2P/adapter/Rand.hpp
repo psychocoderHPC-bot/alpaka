@@ -70,8 +70,8 @@ namespace aV2P
                 std::enable_if_t<std::is_floating_point_v<T>>>
             {
                 AV2P_FN_HOST_ACC static auto createNormalReal(
-                    AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&) ->
-                    alpaka::rand::distribution::NormalReal<T>
+                    AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&)
+                    -> alpaka::rand::distribution::NormalReal<T>
                 {
                     // The legacy contract is N(0, 1). alpaka 3's constructor is explicit, so it must be
                     // called with the legacy parameters instead of being value-initialized.
@@ -93,8 +93,8 @@ namespace aV2P
                 std::enable_if_t<std::is_floating_point_v<T>>>
             {
                 AV2P_FN_HOST_ACC static auto createUniformReal(
-                    AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&) ->
-                    alpaka::rand::distribution::UniformReal<T>
+                    AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&)
+                    -> alpaka::rand::distribution::UniformReal<T>
                 {
                     // interval::CO == [0, 1), the legacy contract of createUniformReal. The alpaka 3
                     // constructor is explicit, so construct it with the legacy range and interval.
@@ -124,8 +124,8 @@ namespace aV2P
                 std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>>>
             {
                 AV2P_FN_HOST_ACC static auto createUniformUint(
-                    AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&) ->
-                    aV2P::rand::distribution::gpu::UniformUint<T>
+                    AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const&)
+                    -> aV2P::rand::distribution::gpu::UniformUint<T>
                 {
                     return {};
                 }

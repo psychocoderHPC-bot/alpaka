@@ -77,97 +77,92 @@ namespace aV2P::adapter::detail
 // The mapping tags are single tokens, so they can be passed through the macro below.
 #define AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG) ::aV2P::adapter::LegacyAcc<TDim, TIdx, TAG>
 
-#define AV2P_DEFINE_PUBLIC_ACC_TRAITS(ACC, TAG)                                                                      \
-    namespace aV2P::trait                                                                                            \
-    {                                                                                                                \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct AccType<ACC<TDim, TIdx>>                                                                              \
-        {                                                                                                            \
-            using type = ACC<TDim, TIdx>;                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct DimType<ACC<TDim, TIdx>> : DimType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                             \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct IdxType<ACC<TDim, TIdx>> : IdxType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                             \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct DevType<ACC<TDim, TIdx>> : DevType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                             \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct PlatformType<ACC<TDim, TIdx>> : PlatformType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                   \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct GetAccName<ACC<TDim, TIdx>> : GetAccName<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                       \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
+#define AV2P_DEFINE_PUBLIC_ACC_TRAITS(ACC, TAG)                                                                       \
+    namespace aV2P::trait                                                                                             \
+    {                                                                                                                 \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct AccType<ACC<TDim, TIdx>>                                                                               \
+        {                                                                                                             \
+            using type = ACC<TDim, TIdx>;                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct DimType<ACC<TDim, TIdx>> : DimType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                              \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct IdxType<ACC<TDim, TIdx>> : IdxType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                              \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct DevType<ACC<TDim, TIdx>> : DevType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                              \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct PlatformType<ACC<TDim, TIdx>> : PlatformType<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                    \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct GetAccName<ACC<TDim, TIdx>> : GetAccName<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                        \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
         struct GetAccDevProps<ACC<TDim, TIdx>> : GetAccDevProps<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct IsSingleThreadAcc<ACC<TDim, TIdx>>                                                                    \
-            : IsSingleThreadAcc<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                                               \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx>                                                                       \
-        struct IsMultiThreadAcc<ACC<TDim, TIdx>>                                                                     \
-            : IsMultiThreadAcc<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>                                                \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx, typename TDev, typename TKernelFnObj, typename... TArgs>              \
-        struct FunctionAttributes<ACC<TDim, TIdx>, TDev, TKernelFnObj, TArgs...>                                     \
-            : FunctionAttributes<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG), TDev, TKernelFnObj, TArgs...>                \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx, typename TWorkDiv, typename TKernelFnObj, typename... TArgs>          \
-        struct CreateTaskKernel<ACC<TDim, TIdx>, TWorkDiv, TKernelFnObj, TArgs...>                                   \
-            : ::aV2P::adapter::detail::PublicAccCreateTaskKernel<                                                    \
-                  ACC<TDim, TIdx>,                                                                                   \
-                  TDim,                                                                                              \
-                  TIdx,                                                                                              \
-                  TWorkDiv,                                                                                          \
-                  TKernelFnObj,                                                                                      \
-                  TArgs...>                                                                                          \
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<                                                                                                    \
-            typename TDim,                                                                                           \
-            typename TIdx,                                                                                           \
-            typename TDev,                                                                                           \
-            typename TKernelFnObj,                                                                                   \
-            typename TWorkDim,                                                                                       \
-            typename TWorkIdx,                                                                                       \
-            typename... TArgs>                                                                                       \
-        struct MaxActiveBlocks<ACC<TDim, TIdx>, TDev, TKernelFnObj, TWorkDim, TWorkIdx, TArgs...>                    \
-            : MaxActiveBlocks<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG), TDev, TKernelFnObj, TWorkDim, TWorkIdx, TArgs...>\
-        {                                                                                                            \
-        };                                                                                                           \
-                                                                                                                     \
-        template<typename TDim, typename TIdx, typename TWorkDiv, typename TKernelFnObj, typename... TArgs>          \
-        struct CreateTaskCooperativeKernel<ACC<TDim, TIdx>, TWorkDiv, TKernelFnObj, TArgs...>                        \
-            : CreateTaskCooperativeKernel<                                                                           \
-                  AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG),                                                             \
-                  TWorkDiv,                                                                                          \
-                  TKernelFnObj,                                                                                      \
-                  TArgs...>                                                                                          \
-        {                                                                                                            \
-        };                                                                                                           \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct IsSingleThreadAcc<ACC<TDim, TIdx>> : IsSingleThreadAcc<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>          \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx>                                                                        \
+        struct IsMultiThreadAcc<ACC<TDim, TIdx>> : IsMultiThreadAcc<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG)>            \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx, typename TDev, typename TKernelFnObj, typename... TArgs>               \
+        struct FunctionAttributes<ACC<TDim, TIdx>, TDev, TKernelFnObj, TArgs...>                                      \
+            : FunctionAttributes<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG), TDev, TKernelFnObj, TArgs...>                 \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx, typename TWorkDiv, typename TKernelFnObj, typename... TArgs>           \
+        struct CreateTaskKernel<ACC<TDim, TIdx>, TWorkDiv, TKernelFnObj, TArgs...>                                    \
+            : ::aV2P::adapter::detail::                                                                               \
+                  PublicAccCreateTaskKernel<ACC<TDim, TIdx>, TDim, TIdx, TWorkDiv, TKernelFnObj, TArgs...>            \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<                                                                                                     \
+            typename TDim,                                                                                            \
+            typename TIdx,                                                                                            \
+            typename TDev,                                                                                            \
+            typename TKernelFnObj,                                                                                    \
+            typename TWorkDim,                                                                                        \
+            typename TWorkIdx,                                                                                        \
+            typename... TArgs>                                                                                        \
+        struct MaxActiveBlocks<ACC<TDim, TIdx>, TDev, TKernelFnObj, TWorkDim, TWorkIdx, TArgs...>                     \
+            : MaxActiveBlocks<                                                                                        \
+                  AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG),                                                              \
+                  TDev,                                                                                               \
+                  TKernelFnObj,                                                                                       \
+                  TWorkDim,                                                                                           \
+                  TWorkIdx,                                                                                           \
+                  TArgs...>                                                                                           \
+        {                                                                                                             \
+        };                                                                                                            \
+                                                                                                                      \
+        template<typename TDim, typename TIdx, typename TWorkDiv, typename TKernelFnObj, typename... TArgs>           \
+        struct CreateTaskCooperativeKernel<ACC<TDim, TIdx>, TWorkDiv, TKernelFnObj, TArgs...>                         \
+            : CreateTaskCooperativeKernel<AV2P_PUBLIC_ACC_BASE(TDim, TIdx, TAG), TWorkDiv, TKernelFnObj, TArgs...>    \
+        {                                                                                                             \
+        };                                                                                                            \
     }
 
 #ifdef AV2P_ACC_CPU_B_SEQ_T_SEQ_ENABLED

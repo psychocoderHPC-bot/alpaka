@@ -6,7 +6,6 @@
 #include <aV2P/meta/ForEachType.hpp>
 #include <aV2P/test/KernelExecutionFixture.hpp>
 #include <aV2P/test/acc/TestAccs.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -18,12 +17,8 @@ class KernelInvocationTemplateDeductionValueSemantics
 public:
     AV2P_NO_HOST_ACC_WARNING
     template<typename Acc, typename TByValue, typename TByConstValue, typename TByConstReference>
-    AV2P_FN_ACC auto operator()(
-        Acc const& acc,
-        bool* success,
-        TByValue,
-        TByConstValue const,
-        TByConstReference const&) const -> void
+    AV2P_FN_ACC auto operator()(Acc const& acc, bool* success, TByValue, TByConstValue const, TByConstReference const&)
+        const -> void
     {
         AV2P_CHECK(
             *success,

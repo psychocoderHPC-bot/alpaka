@@ -5,7 +5,6 @@
 #include <aV2P/meta/ForEachType.hpp>
 #include <aV2P/test/dim/TestDims.hpp>
 #include <aV2P/vec/Vec.hpp>
-
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 

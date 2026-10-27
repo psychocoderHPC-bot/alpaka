@@ -31,8 +31,9 @@ namespace aV2P
         using Vec = aV2P::Vec<Dim, Idx>;
 
         // 2.2 used the SYCL `nd_item` work division
-        // (`acc.m_item_workdiv.get_global_linear_id()`) as a workaround for a oneAPI 2024.x CPU bug.  The aV2P oneAPI accelerator facade stores no `nd_item`; the alpaka 3
-        // grid/thread index is the same global linear id and is what every other backend uses.
+        // (`acc.m_item_workdiv.get_global_linear_id()`) as a workaround for a oneAPI 2024.x CPU bug.  The aV2P oneAPI
+        // accelerator facade stores no `nd_item`; the alpaka 3 grid/thread index is the same global linear id and is
+        // what every other backend uses.
         return getIdx<Grid, Threads>(acc) == Vec::zeros();
     }
 

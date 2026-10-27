@@ -3,7 +3,6 @@
  */
 
 #include <aV2P/core/CallbackThread.hpp>
-
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("callbackthread", "[core]")

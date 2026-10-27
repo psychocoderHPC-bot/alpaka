@@ -54,8 +54,8 @@ namespace aV2P
 
     protected:
         explicit DevAlpaka3(std::size_t devIdx)
-            : m_devImpl{
-                  alpaka::onHost::makeDeviceSelector(DevSpec{}.toAlpaka()).makeDevice(static_cast<std::uint32_t>(devIdx))}
+            : m_devImpl{alpaka::onHost::makeDeviceSelector(DevSpec{}.toAlpaka())
+                            .makeDevice(static_cast<std::uint32_t>(devIdx))}
         {
         }
 
@@ -166,9 +166,8 @@ namespace aV2P
         template<typename TTag>
         struct GenericSyclDevType<TTag, std::void_t<typename LegacyAccMapping<TTag>::Api>>
         {
-            using type = DevAlpaka3<DeviceSpec<
-                typename LegacyAccMapping<TTag>::Api,
-                typename LegacyAccMapping<TTag>::DeviceKind>>;
+            using type = DevAlpaka3<
+                DeviceSpec<typename LegacyAccMapping<TTag>::Api, typename LegacyAccMapping<TTag>::DeviceKind>>;
         };
 #endif
 

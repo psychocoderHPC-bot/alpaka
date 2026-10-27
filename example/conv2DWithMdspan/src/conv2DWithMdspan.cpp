@@ -29,8 +29,7 @@ struct ConvolutionKernelMdspan2D
     //! \param filter Filter-matrix
 
     template<typename TAcc, typename MdSpan>
-    AV2P_FN_ACC auto operator()(TAcc const& acc, MdSpan const input, MdSpan output, MdSpan const filter) const
-        -> void
+    AV2P_FN_ACC auto operator()(TAcc const& acc, MdSpan const input, MdSpan output, MdSpan const filter) const -> void
     {
         static_assert(
             aV2P::Dim<TAcc>::value == 2u,

@@ -64,11 +64,11 @@ namespace aV2P
             constexpr std::size_t predicateSharedId()
             {
                 if constexpr(std::is_same_v<TOp, BlockCount>)
-                    return 0x9e3779b97f4a7c15ull;
+                    return 0x9e37'79b9'7f4a'7c15ull;
                 else if constexpr(std::is_same_v<TOp, BlockAnd>)
-                    return 0x9e3779b97f4a7c16ull;
+                    return 0x9e37'79b9'7f4a'7c16ull;
                 else
-                    return 0x9e3779b97f4a7c17ull;
+                    return 0x9e37'79b9'7f4a'7c17ull;
             }
 
             template<typename TOp>
@@ -114,9 +114,7 @@ namespace aV2P
             alpaka::concepts::DeviceKind TDeviceKind,
             alpaka::concepts::Executor TExecutor,
             typename TAccView>
-        struct SyncBlockThreadsPredicate<
-            TOp,
-            AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
+        struct SyncBlockThreadsPredicate<TOp, AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView>>
         {
             AV2P_PREDICATE_NOINLINE AV2P_FN_ACC static auto syncBlockThreadsPredicate(
                 AccAlpaka3<TDim, TIdx, TApi, TDeviceKind, TExecutor, TAccView> const& acc,

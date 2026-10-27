@@ -51,10 +51,7 @@ namespace aV2P
 
     namespace trait
     {
-        template<
-            typename TDim,
-            typename TDevSpecDst,
-            typename TDevSpecSrc>
+        template<typename TDim, typename TDevSpecDst, typename TDevSpecSrc>
         struct CreateTaskMemcpy<TDim, DevAlpaka3<TDevSpecDst>, DevAlpaka3<TDevSpecSrc>>
         {
             template<typename TExtent, typename TViewSrc, typename TViewDstFwd>
@@ -68,17 +65,17 @@ namespace aV2P
                 if constexpr(std::is_integral_v<TExtent>)
                     return aV2P::detail::TaskCopyAlpaka3{std::move(dst), std::move(src), alpaka::Vec{extent}};
                 else
-                    return aV2P::detail::TaskCopyAlpaka3{
-                        std::move(dst),
-                        std::move(src),
-                        adapter::toAlpaka(extent)};
+                    return aV2P::detail::TaskCopyAlpaka3{std::move(dst), std::move(src), adapter::toAlpaka(extent)};
             }
         };
 
-        template<typename TDev, alpaka::concepts::QueueKind TQueueKind, typename TViewDst, typename TViewSrc, typename TExtent>
-        struct Enqueue<
-            QueueAlpaka3<TDev, TQueueKind>,
-            aV2P::detail::TaskCopyAlpaka3<TViewDst, TViewSrc, TExtent>>
+        template<
+            typename TDev,
+            alpaka::concepts::QueueKind TQueueKind,
+            typename TViewDst,
+            typename TViewSrc,
+            typename TExtent>
+        struct Enqueue<QueueAlpaka3<TDev, TQueueKind>, aV2P::detail::TaskCopyAlpaka3<TViewDst, TViewSrc, TExtent>>
         {
             AV2P_FN_HOST static auto enqueue(
                 QueueAlpaka3<TDev, TQueueKind>& queue,
@@ -99,19 +96,19 @@ namespace aV2P
             {
                 auto dst = adapter::makeAlpakaView(viewDst);
                 if constexpr(std::is_integral_v<TExtent>)
-                    return aV2P::detail::TaskFillAlpaka3{
-                        std::move(dst),
-                        alpaka::Vec{extent},
-                        value};
+                    return aV2P::detail::TaskFillAlpaka3{std::move(dst), alpaka::Vec{extent}, value};
                 else
                     return aV2P::detail::TaskFillAlpaka3{std::move(dst), adapter::toAlpaka(extent), value};
             }
         };
 
-        template<typename TDev, alpaka::concepts::QueueKind TQueueKind, typename TView, typename TElem, typename TExtent>
-        struct Enqueue<
-            QueueAlpaka3<TDev, TQueueKind>,
-            aV2P::detail::TaskFillAlpaka3<TView, TElem, TExtent>>
+        template<
+            typename TDev,
+            alpaka::concepts::QueueKind TQueueKind,
+            typename TView,
+            typename TElem,
+            typename TExtent>
+        struct Enqueue<QueueAlpaka3<TDev, TQueueKind>, aV2P::detail::TaskFillAlpaka3<TView, TElem, TExtent>>
         {
             AV2P_FN_HOST static auto enqueue(
                 QueueAlpaka3<TDev, TQueueKind>& queue,
@@ -125,17 +122,11 @@ namespace aV2P
         struct CreateTaskMemset<TDim, DevAlpaka3<TDevSpec>>
         {
             template<typename TExtent, typename TView>
-            AV2P_FN_HOST static auto createTaskMemset(
-                TView&& viewDst,
-                std::uint8_t const& byte,
-                TExtent const& extent)
+            AV2P_FN_HOST static auto createTaskMemset(TView&& viewDst, std::uint8_t const& byte, TExtent const& extent)
             {
                 auto dst = adapter::makeAlpakaView(viewDst);
                 if constexpr(std::is_integral_v<TExtent>)
-                    return aV2P::detail::TaskSetAlpaka3{
-                        std::move(dst),
-                        alpaka::Vec{extent},
-                        byte};
+                    return aV2P::detail::TaskSetAlpaka3{std::move(dst), alpaka::Vec{extent}, byte};
                 else
                     return aV2P::detail::TaskSetAlpaka3{std::move(dst), adapter::toAlpaka(extent), byte};
             }

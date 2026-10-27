@@ -7,7 +7,6 @@
 #include <aV2P/test/acc/TestAccs.hpp>
 #include <aV2P/test/mem/view/ViewTest.hpp>
 #include <aV2P/test/queue/Queue.hpp>
-
 #include <catch2/catch_message.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -90,8 +89,7 @@ static auto testConstBuffer(aV2P::Vec<aV2P::Dim<TAcc>, aV2P::Idx<TAcc>> const& e
 
     // check return types of the buffers
     using Platform = aV2P::Platform<TAcc>;
-    if constexpr(
-        std::is_same_v<Platform, aV2P::PlatformCpu> or std::is_same_v<aV2P::AccToTag<TAcc>, aV2P::TagCpuSycl>)
+    if constexpr(std::is_same_v<Platform, aV2P::PlatformCpu> or std::is_same_v<aV2P::AccToTag<TAcc>, aV2P::TagCpuSycl>)
     {
         STATIC_REQUIRE(std::is_same_v<decltype(buf[0]), Elem&>);
         STATIC_REQUIRE(std::is_same_v<decltype(c_buf[0]), Elem const&>);

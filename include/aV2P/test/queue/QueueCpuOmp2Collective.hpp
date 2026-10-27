@@ -38,9 +38,7 @@ namespace aV2P
         //! State shared by all copies of the test queue.
         struct QueueCpuOmp2CollectiveImpl
         {
-            explicit QueueCpuOmp2CollectiveImpl(DevCpu const& dev) noexcept
-                : m_dev(dev)
-                , blockingQueue(dev)
+            explicit QueueCpuOmp2CollectiveImpl(DevCpu const& dev) noexcept : m_dev(dev), blockingQueue(dev)
             {
             }
 
