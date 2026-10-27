@@ -150,6 +150,17 @@ extern "C"
     int __any(int);
     void __syncthreads();
 }
+// Memory-scope constants used by alpaka 3's emulated HIP atomics.  The HIP headers only define
+// them for the HIP compiler.
+#            if !defined(__HIP_MEMORY_SCOPE_AGENT)
+#                define __HIP_MEMORY_SCOPE_AGENT 1
+#            endif
+#            if !defined(__HIP_MEMORY_SCOPE_WORKGROUP)
+#                define __HIP_MEMORY_SCOPE_WORKGROUP 0
+#            endif
+#            if !defined(__HIP_MEMORY_SCOPE_SYSTEM)
+#                define __HIP_MEMORY_SCOPE_SYSTEM 2
+#            endif
 // HIP math intrinsics, mirroring the overload set that clang's HIP headers provide.  They overload
 // on floating-point types, so they cannot live in the `extern "C"` block above.
 float rsqrtf(float);
