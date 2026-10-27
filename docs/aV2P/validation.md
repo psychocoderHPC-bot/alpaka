@@ -247,3 +247,46 @@ cases and 9,470,994 assertions, multithreaded 62 plus 1 expected failure. An emp
 `HIP_VISIBLE_DEVICES` fails with "0 devices", so the gfx1100 run proves GPU execution.
 
 No SYCL or oneAPI (Arc) run was done for this port.
+
+## 9. PIConGPU migration and KelvinHelmholtz run
+
+PIConGPU dev `93cba5b61b628659a6ec8181f5e2dd28b8006f29` vendors alpaka 2.2.0 under
+`thirdParty/alpaka` and builds through `pic-configure` and `pic-build`. The port used
+migrator `script/av2p-migrate-2x.sh` at PR head `7eb388a1`.
+
+The migrator is deterministic:
+
+- `--dry-run` exits 2 when changes are pending; it reported 159 files and 821
+  substitutions.
+- The apply run reported the same 159 files and 821 substitutions; a second run
+  changed 0 files.
+
+The port landed as one scripted commit (159 files, +667/-667) and eight manual
+commits (43 files, +216/-168). The manual work covered:
+
+- `namespace alpaka {}` blocks the script leaves untouched (3 files, a documented
+  limitation).
+- An external-provider CMake switch onto an installed aV2P 2.2.
+- A CUDA-only mode macro export.
+- One generic device lambda converted to a named functor.
+- nvcc 13.4 portability work in PIConGPU: a const-correct `MapTuple` accessor and a
+  project-relative include.
+- The CPU `pmacc::Acc` typedef `#if` chain.
+- mallocMC reused from an aV2P-migrated source (section 8).
+
+The port exposed two aV2P gaps, both fixed in this PR: device-wide `wait(device)` was
+missing for `DevAlpaka3`, and the three-argument `math::max` was ambiguous with client
+math specializations. Each fix carries a regression test (event and math).
+
+| Config (machine) | Build | KHI run | Result |
+|---|---|---|---|
+| CUDA sm_80, nvcc 13.4.92 (A30) | 107 s, 72 compile steps | `-d 1 1 1 -g 64 64 8 -s 2` | 2 steps, 32.9 s, 19 ms/step, 3 openPMD HDF5, 3 PNG; `fields/B/x` finite (-3.75e-7 to 3.84e-7) |
+| OpenMP2-blocks, 32 threads (CPU) | 54 s | `-g 32 32 8 -s 2` on a 32x32x24 grid | 2 steps, 2.1 s, 79 ms/step, 3 HDF5, 3 PNG; finite field |
+
+Both ran aV2P install `7eb388a1` with native alpaka 3.0.0; the CUDA host did a clean
+configure and build. The run used neither SYCL nor ADIOS2.
+
+Residual: `thirdParty/alpaka` remains on disk, but the internal provider is unsupported
+after migration. PIConGPU header-check tests were not ported. The symmetric
+`math::min` overlap with client specializations is a known follow-up; this run did not
+hit it.
