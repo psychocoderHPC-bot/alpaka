@@ -39,6 +39,10 @@ function(_aV2P_apply_alpaka3_patches source_dir)
             "aV2P: applying the native alpaka patches to '${source_dir}' failed.\n"
             "${_aV2P_patch_out}${_aV2P_patch_err}")
     endif()
+    string(STRIP "${_aV2P_patch_out}" _aV2P_patch_out)
+    if(NOT _aV2P_patch_out STREQUAL "")
+        message(STATUS "${_aV2P_patch_out}")
+    endif()
 endfunction()
 
 #! A pre-installed native alpaka cannot be patched.  Fail early with an actionable message instead
@@ -155,15 +159,19 @@ elseif(aV2P_ALPAKA3_SOURCE_DIR)
     message(STATUS "aV2P: adding native alpaka ${_aV2P_SOURCE_VERSION} from ${aV2P_ALPAKA3_SOURCE_DIR}")
     set(aV2P_ALPAKA3_IS_SUBPROJECT TRUE)
     set(_aV2P_SKIP_INSTALL_SAVED "${CMAKE_SKIP_INSTALL_RULES}")
+    set(_aV2P_ALPAKA3_ADD_ARGS)
     if(NOT aV2P_INSTALL_NATIVE_ALPAKA)
         # The source tree is shared with other builds; do not add its install rules to this project.
+        # An EXCLUDE_FROM_ALL subdirectory keeps its install rules out of the parent install script.
         set(CMAKE_SKIP_INSTALL_RULES ON)
+        set(_aV2P_ALPAKA3_ADD_ARGS EXCLUDE_FROM_ALL)
     endif()
     add_subdirectory("${aV2P_ALPAKA3_SOURCE_DIR}"
                      "${CMAKE_BINARY_DIR}/_aV2P-alpaka3-build"
-                     EXCLUDE_FROM_ALL)
+                     ${_aV2P_ALPAKA3_ADD_ARGS})
     set(CMAKE_SKIP_INSTALL_RULES "${_aV2P_SKIP_INSTALL_SAVED}")
     unset(_aV2P_SKIP_INSTALL_SAVED)
+    unset(_aV2P_ALPAKA3_ADD_ARGS)
 elseif(aV2P_ALPAKA3_DIR OR alpaka3_DIR OR alpaka_DIR)
     if(aV2P_ALPAKA3_DIR AND NOT alpaka_DIR)
         set(alpaka_DIR "${aV2P_ALPAKA3_DIR}" CACHE PATH
@@ -235,12 +243,15 @@ else()
 
     set(aV2P_ALPAKA3_IS_SUBPROJECT TRUE)
     set(_aV2P_SKIP_INSTALL_SAVED "${CMAKE_SKIP_INSTALL_RULES}")
+    set(_aV2P_ALPAKA3_ADD_ARGS)
     if(NOT aV2P_INSTALL_NATIVE_ALPAKA)
         set(CMAKE_SKIP_INSTALL_RULES ON)
+        set(_aV2P_ALPAKA3_ADD_ARGS EXCLUDE_FROM_ALL)
     endif()
-    add_subdirectory("${alpaka_SOURCE_DIR}" "${alpaka_BINARY_DIR}")
+    add_subdirectory("${alpaka_SOURCE_DIR}" "${alpaka_BINARY_DIR}" ${_aV2P_ALPAKA3_ADD_ARGS})
     set(CMAKE_SKIP_INSTALL_RULES "${_aV2P_SKIP_INSTALL_SAVED}")
     unset(_aV2P_SKIP_INSTALL_SAVED)
+    unset(_aV2P_ALPAKA3_ADD_ARGS)
 endif()
 
 _aV2P_verify_alpaka3_version()
