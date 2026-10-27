@@ -40,6 +40,8 @@ function(_aV2P_apply_alpaka3_patches source_dir)
             "${_aV2P_patch_out}${_aV2P_patch_err}")
     endif()
     string(STRIP "${_aV2P_patch_out}" _aV2P_patch_out)
+    # cmake -P prefixes its STATUS messages with "-- "; do not repeat the prefix.
+    string(REGEX REPLACE "^-+ " "" _aV2P_patch_out "${_aV2P_patch_out}")
     if(NOT _aV2P_patch_out STREQUAL "")
         message(STATUS "${_aV2P_patch_out}")
     endif()
