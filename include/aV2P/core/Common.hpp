@@ -30,11 +30,11 @@
 //! \endcode
 //! @{
 #if AV2P_LANG_CUDA || AV2P_LANG_HIP
-#    if defined(AV2P_ACC_GPU_CUDA_ONLY_MODE) || defined(AV2P_ACC_GPU_HIP_ONLY_MODE)
-#        define AV2P_FN_ACC __device__
-#    else
-#        define AV2P_FN_ACC __device__ __host__
-#    endif
+// ONLY_MODE is a 2.2 compatibility validation: it restricts the enabled back-ends, it must not
+// change the function attributes.  Native alpaka 3 decides whether a kernel can be launched by
+// checking that the functor is invocable on the host (`KernelBundle::operator()`), so a
+// `__device__`-only functor is rejected.  Keep `__device__ __host__` in every mode.
+#    define AV2P_FN_ACC __device__ __host__
 #    define AV2P_FN_HOST_ACC __device__ __host__
 #    define AV2P_FN_HOST __host__
 #else

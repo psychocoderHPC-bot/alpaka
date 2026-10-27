@@ -27,10 +27,14 @@ public:
     template<typename TAcc>
     AV2P_FN_ACC auto operator()(TAcc const& /* acc */, bool* success) const -> void
     {
-        // We should be able to call some native CUDA functions when AV2P_ACC_GPU_CUDA_ONLY_MODE is enabled.
+        // We should be able to call some native CUDA functions when AV2P_ACC_GPU_CUDA_ONLY_MODE is
+        // enabled.  The functor is also compiled for the host, where device-only builtins must not
+        // be named, so the native calls live in the device pass.
+#    if defined(__CUDA_ARCH__)
         __threadfence_block();
         userDefinedThreadFence();
         __threadfence_system();
+#    endif
 
         *success = true;
     }
