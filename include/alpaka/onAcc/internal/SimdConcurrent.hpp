@@ -13,6 +13,7 @@
 #include "alpaka/mem/concepts/IDataStorage.hpp"
 #include "alpaka/onAcc/WorkerGroup.hpp"
 #include "alpaka/onAcc/interface.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 
 #include <cstdint>
 #include <new>
@@ -26,7 +27,7 @@ namespace alpaka::onAcc::internal
         constexpr SimdConcurrent() = default;
 
     protected:
-        template<uint32_t T_maxConcurrencyInByte, alpaka::concepts::Alignment T_MemAlignment>
+        template<uint32_t T_maxConcurrencyInByte, alpaka::concepts::Alignment T_MemAlignment, typename T_CachePolicy>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr void concurrent(
             auto const& acc,
             alpaka::concepts::Vector auto extents,
@@ -47,7 +48,7 @@ namespace alpaka::onAcc::internal
             if constexpr(simdWidth != 1u)
             {
                 constexpr uint32_t numSimdPerFnCall = simdCfg.numSimdPacksPerFnCall;
-                concurrentSimdPackExecution<simdWidth, numSimdPerFnCall, T_MemAlignment>(
+                concurrentSimdPackExecution<simdWidth, numSimdPerFnCall, T_MemAlignment, T_CachePolicy>(
                     acc,
                     numElements,
                     ALPAKA_FORWARD(func),
@@ -66,8 +67,8 @@ namespace alpaka::onAcc::internal
                 {
                     func(
                         acc,
-                        SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}},
-                        SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}}...);
+                        SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}},
+                        SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}}...);
                 }
             }
         }
@@ -78,14 +79,21 @@ namespace alpaka::onAcc::internal
             return static_cast<T_Parent const&>(*this);
         }
 
-        template<alpaka::concepts::Alignment T_MemAlignment, uint32_t T_width>
+        template<alpaka::concepts::Alignment T_MemAlignment, uint32_t T_width, typename T_CachePolicy>
         ALPAKA_FN_INLINE static constexpr void executeDo(
             auto const& acc,
             auto const& dataIdx,
             auto&& func,
             alpaka::concepts::IDataSource auto&&... data)
         {
-            func(acc, SimdPtr{ALPAKA_FORWARD(data), dataIdx, T_MemAlignment{}, CVec<uint32_t, T_width>{}}...);
+            func(
+                acc,
+                SimdPtr{
+                    ALPAKA_FORWARD(data),
+                    dataIdx,
+                    T_MemAlignment{},
+                    CVec<uint32_t, T_width>{},
+                    T_CachePolicy{}}...);
         }
 
         /** calls the functor and forward the data T_repeat times
@@ -95,7 +103,11 @@ namespace alpaka::onAcc::internal
          * @param iter the caller must ensure tha the interator can be increased T_repeat times without jumping over
          * iter.end()
          */
-        template<alpaka::concepts::Alignment T_MemAlignment, uint32_t T_width, uint32_t... T_repeat>
+        template<
+            alpaka::concepts::Alignment T_MemAlignment,
+            uint32_t T_width,
+            typename T_CachePolicy,
+            uint32_t... T_repeat>
         ALPAKA_FN_INLINE static constexpr void execute(
             auto const& acc,
             auto& iter,
@@ -112,13 +124,21 @@ namespace alpaka::onAcc::internal
             std::apply(
                 [&](auto const&... dataIdx) constexpr
                 {
-                    (executeDo<T_MemAlignment, T_width>(acc, dataIdx, ALPAKA_FORWARD(func), ALPAKA_FORWARD(data)...),
+                    (executeDo<T_MemAlignment, T_width, T_CachePolicy>(
+                         acc,
+                         dataIdx,
+                         ALPAKA_FORWARD(func),
+                         ALPAKA_FORWARD(data)...),
                      ...);
                 },
                 ids);
         }
 
-        template<uint32_t T_simdWidth, uint32_t T_numSimdPerFnCall, alpaka::concepts::Alignment T_MemAlignment>
+        template<
+            uint32_t T_simdWidth,
+            uint32_t T_numSimdPerFnCall,
+            alpaka::concepts::Alignment T_MemAlignment,
+            typename T_CachePolicy>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr auto concurrentSimdPackExecution(
             auto const& acc,
             alpaka::concepts::Vector auto numElements,
@@ -186,7 +206,7 @@ namespace alpaka::onAcc::internal
 
                     for(auto iter = simdIdxContainer.begin(); iter != simdIdxContainer.end();)
                     {
-                        execute<T_MemAlignment, T_simdWidth>(
+                        execute<T_MemAlignment, T_simdWidth, T_CachePolicy>(
                             acc,
                             iter,
                             std::make_integer_sequence<uint32_t, T_numSimdPerFnCall>{},
@@ -207,7 +227,7 @@ namespace alpaka::onAcc::internal
 
                 for(auto iter = simdIdxContainer.begin(); iter != simdIdxContainer.end();)
                 {
-                    execute<T_MemAlignment, T_simdWidth>(
+                    execute<T_MemAlignment, T_simdWidth, T_CachePolicy>(
                         acc,
                         iter,
                         std::make_integer_sequence<uint32_t, T_numSimdPerFnCall>{},
@@ -228,8 +248,8 @@ namespace alpaka::onAcc::internal
             {
                 func(
                     acc,
-                    SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}},
-                    SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}}...);
+                    SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}},
+                    SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}}...);
             }
         }
     };

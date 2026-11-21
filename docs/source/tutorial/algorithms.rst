@@ -185,6 +185,27 @@ The second buffer is read-only, and the third buffer is used only for writing (b
 If all buffers have the same data type, use that data type.
 Otherwise, you'll need to run tests and take measurements to achieve the best performance.
 
+.. _algo_simd_cache_policy:
+
+SIMD Cache Policy
+-----------------
+
+The SIMD algorithms ``transformReduce`` and ``concurrent`` accept a cache policy as an additional template argument.
+The policy is opt-in per call: ``simdCachePolicy::Default`` is the default and generates the same code as before.
+Use ``alpaka::onAcc::simdCachePolicy::Stream`` for kernels that stream data which is not reused, for example copy, scale, add, or triad kernels.
+It applies an evict-first (non-temporal) hint to the SIMD loads and leaves stores unchanged.
+
+.. code-block:: cpp
+
+    auto simdGrid = alpaka::onAcc::SimdAlgo{alpaka::onAcc::worker::threadsInGrid};
+    simdGrid.concurrent<
+        64u,
+        alpaka::AutoAligned,
+        alpaka::onAcc::simdCachePolicy::Stream>(acc, extents, functor, input, output);
+
+The policy currently affects HIP/AMD only.
+Every other backend accepts the tag but generates the same code as ``simdCachePolicy::Default``.
+
 Scan
 ----
 

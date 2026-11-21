@@ -19,6 +19,7 @@
 #include "alpaka/cast.hpp"
 #include "alpaka/core/util.hpp"
 #include "alpaka/mem/Alignment.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/simd/concepts.hpp"
 #include "alpaka/simd/trait.hpp"
 #include "alpaka/trait.hpp"
@@ -177,9 +178,13 @@ namespace alpaka
             return T_width;
         }
 
-        constexpr void copyFrom(T_Type const* data, concepts::Alignment auto alignment)
+        template<typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
+        constexpr void copyFrom(
+            T_Type const* data,
+            concepts::Alignment auto alignment,
+            T_CachePolicy = T_CachePolicy{})
         {
-            Storage::copyFrom(data, alignment);
+            Storage::copyFrom(data, alignment, T_CachePolicy{});
         }
 
         constexpr void copyTo(auto* data, concepts::Alignment auto alignment) const

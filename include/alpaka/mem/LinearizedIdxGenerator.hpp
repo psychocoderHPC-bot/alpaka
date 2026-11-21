@@ -115,9 +115,13 @@ namespace alpaka
         struct LoadAsSimd::Op<LinearizedIdxGenerator<T_IndexType, T_dim>, T_MdSpanAlignment, T_Idx>
         {
             template<uint32_t T_simdWidth>
-            constexpr auto load(auto&& linearIdxGenerator, T_MdSpanAlignment alignment, T_Idx const& idx) const
+            constexpr auto load(
+                auto&& linearIdxGenerator,
+                T_MdSpanAlignment alignment,
+                T_Idx const& idx,
+                auto cachePolicy) const
             {
-                alpaka::unused(alignment);
+                alpaka::unused(alignment, cachePolicy);
                 static_assert(
                     std::is_same_v<LinearizedIdxGenerator<T_IndexType, T_dim>, ALPAKA_TYPEOF(linearIdxGenerator)>,
                     "Type of linearIdxGenerator must match the class template signature.");

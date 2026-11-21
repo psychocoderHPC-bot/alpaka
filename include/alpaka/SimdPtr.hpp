@@ -10,6 +10,7 @@
 #include "alpaka/mem/Alignment.hpp"
 #include "alpaka/mem/concepts/IMdSpan.hpp"
 #include "alpaka/mem/concepts/IndexVec.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/trait.hpp"
 
 #include <concepts>
@@ -52,12 +53,14 @@ namespace alpaka
      * @tparam T_IdxType type of the index
      * @tparam T_MemAlignment alignment of the memory the pointer is pointing to
      * @tparam T_SimdWidth width of the SIMD pack
+     * @tparam T_CachePolicy cache policy used for loads
      */
     template<
         typename T_MdSpan,
         alpaka::concepts::Vector T_IdxType,
         alpaka::concepts::Alignment T_MemAlignment,
-        alpaka::concepts::CVector T_SimdWidth>
+        alpaka::concepts::CVector T_SimdWidth,
+        typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
     struct SimdPtr : private T_MdSpan
     {
         using value_type = typename T_MdSpan::value_type;
@@ -68,7 +71,12 @@ namespace alpaka
             return T_SimdWidth{}.back();
         }
 
-        constexpr SimdPtr(T_MdSpan const& mdSpan, T_IdxType const& idx, T_MemAlignment, T_SimdWidth)
+        constexpr SimdPtr(
+            T_MdSpan const& mdSpan,
+            T_IdxType const& idx,
+            T_MemAlignment,
+            T_SimdWidth,
+            T_CachePolicy = T_CachePolicy{})
             : T_MdSpan(mdSpan)
             , m_idx(idx)
         {
@@ -92,7 +100,7 @@ namespace alpaka
                 "lossless castable to the MdSpan index type");
             constexpr uint32_t valueAlignment = static_cast<uint32_t>(alignof(value_type));
             constexpr auto align = Alignment<valueAlignment>{};
-            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth>{
+            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth, T_CachePolicy>{
                 static_cast<T_MdSpan>(*this),
                 idx + m_idx,
                 align,
@@ -110,7 +118,7 @@ namespace alpaka
                 "lossless castable to the MdSpan index type");
             constexpr uint32_t valueAlignment = static_cast<uint32_t>(alignof(value_type));
             constexpr auto align = Alignment<valueAlignment>{};
-            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth>{
+            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth, T_CachePolicy>{
                 static_cast<T_MdSpan>(*this),
                 idx + m_idx,
                 align,
@@ -121,12 +129,15 @@ namespace alpaka
 
         constexpr decltype(auto) load() const
         {
-            return internal::loadAsSimd<width()>(static_cast<T_MdSpan const&>(*this), getAlignment(), m_idx);
+            return internal::loadAsSimd<width(), T_CachePolicy>(
+                static_cast<T_MdSpan const&>(*this),
+                getAlignment(),
+                m_idx);
         }
 
         constexpr decltype(auto) load()
         {
-            return internal::loadAsSimd<width()>(static_cast<T_MdSpan&>(*this), getAlignment(), m_idx);
+            return internal::loadAsSimd<width(), T_CachePolicy>(static_cast<T_MdSpan&>(*this), getAlignment(), m_idx);
         }
 
         /** get the alignment of the memory the pointer is pointing to
@@ -208,7 +219,8 @@ namespace alpaka
         struct LoadAsSimd::Op<T_MdSpan, T_MdSpanAlignment, T_Idx>
         {
             template<uint32_t T_simdWidth>
-            constexpr auto load(auto&& dataSource, T_MdSpanAlignment alignment, T_Idx const& idx) const
+            constexpr auto load(auto&& dataSource, T_MdSpanAlignment alignment, T_Idx const& idx, auto cachePolicy)
+                const
             {
                 static_assert(
                     std::is_same_v<T_MdSpan, ALPAKA_TYPEOF(dataSource)>,
@@ -221,7 +233,7 @@ namespace alpaka
                     Simd<std::decay_t<DataTypeType>, T_simdWidth>>;
 
                 alpaka::concepts::Simd auto dest = DstType{};
-                dest.copyFrom(&d, alignment);
+                dest.copyFrom(&d, alignment, cachePolicy);
                 return dest;
             }
         };

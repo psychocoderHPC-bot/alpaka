@@ -97,7 +97,8 @@ namespace alpaka
                 return StdSimd{BaseType(value)};
             }
 
-            constexpr void copyFrom(T_Type const* data, alpaka::concepts::Alignment auto alignment)
+            template<typename T_CachePolicy>
+            constexpr void copyFrom(T_Type const* data, alpaka::concepts::Alignment auto alignment, T_CachePolicy)
             {
                 if constexpr((alignment.template get<T_Type>() % alpakaStdSimd::memory_alignment_v<BaseType>) == 0u)
                     this->asNativeType().copy_from(data, alpakaStdSimd::vector_aligned);
