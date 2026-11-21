@@ -60,6 +60,13 @@ If all blocks may update the same global counter, histogram bin, or reduction ou
 *alpaka* provides operations such as ``atomicAdd``, ``atomicMin``, ``atomicMax``, ``atomicExch``, and ``atomicCas``.
 You can find a complete list of all available atomic operations in the `Doxygen documentation <../doxygen/namespacealpaka_1_1onAcc.html>`_.
 
+Floating point
+--------------
+
+On AMD GPUs a device-scope ``float`` add may use the hardware's native float atomic add, which ignores the current FP denormal mode.
+A sum over denormal operands can therefore differ bit-wise from a CAS-based sum.
+Ordering and scope guarantees are unchanged.
+
 Common Mistakes
 ---------------
 

@@ -90,6 +90,19 @@ inline namespace alpakaGlobal
     {
         static __device__ T atomic(T* add, T value)
         {
+#    if ALPAKA_LANG_HIP && defined(__HIP_PLATFORM_AMD__) && defined(__HIP_DEVICE_COMPILE__)
+#        if __has_builtin(__builtin_amdgcn_global_atomic_fadd_f32)
+            // HIP's atomicAdd() carries clang::atomic(fine_grained_memory, remote_memory), so clang lowers it to an
+            // atomicCAS retry loop on AMD. Native is used only on AMD targets that return an f32 global fadd atomic
+            // (gfx90a, gfx942, gfx11 and newer); other AMD targets keep the atomicCAS loop. The builtin only covers
+            // global memory, so shared and private pointers keep the generic path.
+            // It ignores the operands' FP denormal mode; the relaxed device-scope ordering is preserved.
+            if constexpr(std::is_same_v<T, float>)
+                if(!__builtin_amdgcn_is_shared(static_cast<void const*>(add))
+                   && !__builtin_amdgcn_is_private(static_cast<void const*>(add)))
+                    return __builtin_amdgcn_global_atomic_fadd_f32(add, value);
+#        endif
+#    endif
             return atomicAdd(add, value);
         }
     };
