@@ -183,7 +183,11 @@ namespace alpaka
             Storage::copyFrom(data, alignment, onAcc::simdCachePolicy::Default{});
         }
 
-        /** Load a SIMD pack while passing the cache policy carried by the data source. */
+        /** Load a SIMD pack while passing an explicit load cache policy to the storage implementation.
+         *
+         * The policy is a compile-time tag which is selected at the load site, see
+         * ``alpaka::onAcc::simdCachePolicy``. The policy-free overload above uses ``simdCachePolicy::Default``.
+         */
         constexpr void copyFrom(T_Type const* data, concepts::Alignment auto alignment, auto cachePolicy)
         {
             Storage::copyFrom(data, alignment, cachePolicy);

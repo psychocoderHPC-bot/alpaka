@@ -190,14 +190,17 @@ Otherwise, you'll need to run tests and take measurements to achieve the best pe
 SIMD Cache Policy
 -----------------
 
-The cache policy belongs to one data source, not to the algorithm call, so a single call can mix sources with
-different policies. Attach it with ``alpaka::withCachePolicy(alpaka::onAcc::simdCachePolicy::Stream{}, input)``, which
-accepts an owning buffer or a view. The policy affects loads only, and ``simdCachePolicy::Default`` is the default for
-every source and generates the previous code. ``simdCachePolicy::Stream`` marks data that is not reused before it is
-evicted, such as the inputs of copy, scale, add or triad kernels; on CUDA it uses an L1-bypass load (``__ldcg``,
-``LDG.E.128.STRONG.GPU``), which currently costs a little on reductions, so reuse-heavy and reduction-heavy kernels
-keep ``Default``. The hint applies only to fully aligned 16 byte loads where the intrinsic exists, otherwise the plain
-load is used.
+A cache policy is passed where the load happens, so a kernel decides per access and one call can use a different
+policy for each input. ``load()`` without an argument uses ``alpaka::onAcc::simdCachePolicy::Default`` and generates
+the previous code. ``simdCachePolicy::Stream`` marks data that is not reused before it is evicted, such as the inputs
+of copy, scale, add or triad kernels. The policy affects loads only, stores are untouched, and it applies only to fully
+aligned 16 byte loads where the intrinsic exists, otherwise the plain load is used. On CUDA the streaming path is an
+L1-bypass load (``__ldcg``, ``LDG.E.128.STRONG.GPU``), which currently costs a little on reductions, so reuse-heavy
+and reduction-heavy kernels keep the default.
+
+.. code-block:: cpp
+
+    out = input.load(alpaka::onAcc::simdCachePolicy::Stream{}) + value;
 
 Scan
 ----

@@ -53,14 +53,12 @@ namespace alpaka
      * @tparam T_IdxType type of the index
      * @tparam T_MemAlignment alignment of the memory the pointer is pointing to
      * @tparam T_SimdWidth width of the SIMD pack
-     * @tparam T_CachePolicy load cache policy, derived from the data source the pointer is built from
      */
     template<
         typename T_MdSpan,
         alpaka::concepts::Vector T_IdxType,
         alpaka::concepts::Alignment T_MemAlignment,
-        alpaka::concepts::CVector T_SimdWidth,
-        typename T_CachePolicy = alpaka::CachePolicyOf_t<T_MdSpan>>
+        alpaka::concepts::CVector T_SimdWidth>
     struct SimdPtr : private T_MdSpan
     {
         using value_type = typename T_MdSpan::value_type;
@@ -95,7 +93,7 @@ namespace alpaka
                 "lossless castable to the MdSpan index type");
             constexpr uint32_t valueAlignment = static_cast<uint32_t>(alignof(value_type));
             constexpr auto align = Alignment<valueAlignment>{};
-            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth, T_CachePolicy>{
+            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth>{
                 static_cast<T_MdSpan>(*this),
                 idx + m_idx,
                 align,
@@ -113,7 +111,7 @@ namespace alpaka
                 "lossless castable to the MdSpan index type");
             constexpr uint32_t valueAlignment = static_cast<uint32_t>(alignof(value_type));
             constexpr auto align = Alignment<valueAlignment>{};
-            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth, T_CachePolicy>{
+            return SimdPtr<T_MdSpan, IdxType, ALPAKA_TYPEOF(align), T_SimdWidth>{
                 static_cast<T_MdSpan>(*this),
                 idx + m_idx,
                 align,
@@ -131,6 +129,30 @@ namespace alpaka
         {
             return internal::loadAsSimd<width()>(static_cast<T_MdSpan&>(*this), getAlignment(), m_idx);
         }
+
+        /** Load a SIMD pack with an explicit load cache policy
+         *
+         * The policy is a compile-time tag, see ``alpaka::onAcc::simdCachePolicy``. It is passed where the load
+         * happens, therefore a kernel can select it per access and different pointers in one call may use different
+         * policies. A data source which does not support a policy ignores it.
+         *
+         * @param policy cache policy tag, for example ``onAcc::simdCachePolicy::Stream{}``
+         *
+         * @{
+         */
+        template<typename T_Policy>
+        constexpr decltype(auto) load(T_Policy const& policy) const
+        {
+            return internal::loadAsSimd<width()>(static_cast<T_MdSpan const&>(*this), getAlignment(), m_idx, policy);
+        }
+
+        template<typename T_Policy>
+        constexpr decltype(auto) load(T_Policy const& policy)
+        {
+            return internal::loadAsSimd<width()>(static_cast<T_MdSpan&>(*this), getAlignment(), m_idx, policy);
+        }
+
+        /** @} */
 
         /** get the alignment of the memory the pointer is pointing to
          *
@@ -224,7 +246,27 @@ namespace alpaka
                     Simd<std::decay_t<DataTypeType>, T_simdWidth>>;
 
                 alpaka::concepts::Simd auto dest = DstType{};
-                dest.copyFrom(&d, alignment, alpaka::CachePolicyOf_t<T_MdSpan>{});
+                dest.copyFrom(&d, alignment);
+                return dest;
+            }
+
+            /** Policy-aware load, the policy is forwarded to the SIMD storage implementation. */
+            template<uint32_t T_simdWidth, typename T_Policy>
+            constexpr auto load(auto&& dataSource, T_MdSpanAlignment alignment, T_Idx const& idx, T_Policy policy)
+                const
+            {
+                static_assert(
+                    std::is_same_v<T_MdSpan, ALPAKA_TYPEOF(dataSource)>,
+                    "Data source type must match the class template signature.");
+                auto&& d = dataSource[idx];
+                using DataTypeType = std::remove_reference_t<decltype(d)>;
+                using DstType = std::conditional_t<
+                    std::is_const_v<DataTypeType>,
+                    Simd<std::decay_t<DataTypeType>, T_simdWidth> const,
+                    Simd<std::decay_t<DataTypeType>, T_simdWidth>>;
+
+                alpaka::concepts::Simd auto dest = DstType{};
+                dest.copyFrom(&d, alignment, policy);
                 return dest;
             }
         };

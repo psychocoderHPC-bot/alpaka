@@ -150,6 +150,26 @@ namespace alpaka
                  */
                 template<uint32_t T_simdWidth>
                 constexpr auto load(auto&& anyDataSource, T_Alignment dataAlignment, T_Idx const& index) const;
+
+                /** Get data as SIMD vector with a load cache policy.
+                 *
+                 * The default implementation forwards to the policy-free overload, so a data source which does not
+                 * care about the policy needs no change. A data source which understands a policy, for example a
+                 * memory view, specialises this form as well. ``loadAsSimd`` uses the policy-free overload when the
+                 * specialisation does not provide this form.
+                 *
+                 * @see loadAsSimd for more details.
+                 */
+                template<uint32_t T_simdWidth, typename T_Policy>
+                constexpr auto load(
+                    auto&& anyDataSource,
+                    T_Alignment dataAlignment,
+                    T_Idx const& index,
+                    T_Policy policy) const
+                {
+                    alpaka::unused(policy);
+                    return this->template load<T_simdWidth>(ALPAKA_FORWARD(anyDataSource), dataAlignment, index);
+                }
             };
         };
 
@@ -170,6 +190,40 @@ namespace alpaka
         {
             return LoadAsSimd::Op<ALPAKA_TYPEOF(anyDataSource), ALPAKA_TYPEOF(dataAlignment), ALPAKA_TYPEOF(index)>{}
                 .template load<T_simdWidth>(ALPAKA_FORWARD(anyDataSource), dataAlignment, index);
+        }
+
+        /** Get data as SIMD vector with a load cache policy.
+         *
+         * Data sources which do not provide a policy-aware load keep the policy-free overload, therefore the policy
+         * is simply not applicable there, for example for a generator which has no memory to hint.
+         *
+         * @tparam T_simdWidth number of elements in the SIMD vector
+         * @tparam T_Policy compile-time cache policy tag, see ``alpaka::onAcc::simdCachePolicy``
+         * @param anyDataSource data source to load data from
+         * @param dataAlignment Alignment of the resulting SIMD vector.
+         * @param index Offset index relative to the first element of data source.
+         * @param policy cache policy of the load
+         * @return SIMD vector with data loaded from the data source, aligned to dataAlignment
+         */
+        template<uint32_t T_simdWidth, typename T_Policy>
+        constexpr auto loadAsSimd(auto&& anyDataSource, auto dataAlignment, auto const& index, T_Policy policy)
+        {
+            using Op
+                = LoadAsSimd::Op<ALPAKA_TYPEOF(anyDataSource), ALPAKA_TYPEOF(dataAlignment), ALPAKA_TYPEOF(index)>;
+            if constexpr(requires {
+                             Op{}.template load<T_simdWidth>(
+                                 ALPAKA_FORWARD(anyDataSource),
+                                 dataAlignment,
+                                 index,
+                                 policy);
+                         })
+            {
+                return Op{}.template load<T_simdWidth>(ALPAKA_FORWARD(anyDataSource), dataAlignment, index, policy);
+            }
+            else
+            {
+                return Op{}.template load<T_simdWidth>(ALPAKA_FORWARD(anyDataSource), dataAlignment, index);
+            }
         }
     } // namespace internal
 } // namespace alpaka

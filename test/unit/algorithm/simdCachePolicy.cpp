@@ -8,6 +8,7 @@
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <exception>
 #include <functional>
 #include <string>
@@ -17,7 +18,7 @@ using namespace alpaka;
 
 using TestBackends = std::decay_t<decltype(onHost::allBackends(onHost::enabledDeviceSpecs, exec::enabledExecutors))>;
 
-/** Reads both inputs and writes their sum, the cache policy is carried by each data source. */
+/** Reads both inputs and writes their sum using the default cache policy. */
 struct AddTwoInputs
 {
     constexpr void operator()(
@@ -30,12 +31,48 @@ struct AddTwoInputs
     }
 };
 
+/** Reads the left input with the default policy and the right input with the streaming policy. */
+struct AddTwoInputsMixed
+{
+    constexpr void operator()(
+        onAcc::concepts::Acc auto const&,
+        concepts::SimdPtr auto out,
+        concepts::SimdPtr auto const& lhs,
+        concepts::SimdPtr auto const& rhs) const
+    {
+        out = lhs.load() + rhs.load(onAcc::simdCachePolicy::Stream{});
+    }
+};
+
+/** Reads both inputs with the streaming policy. */
+struct AddTwoInputsStream
+{
+    constexpr void operator()(
+        onAcc::concepts::Acc auto const&,
+        concepts::SimdPtr auto out,
+        concepts::SimdPtr auto const& lhs,
+        concepts::SimdPtr auto const& rhs) const
+    {
+        out = lhs.load(onAcc::simdCachePolicy::Stream{}) + rhs.load(onAcc::simdCachePolicy::Stream{});
+    }
+};
+
 struct AddOneSimd
 {
     constexpr auto operator()(concepts::Simd auto const& value) const
     {
         using ValueType = typename std::remove_cvref_t<decltype(value)>::value_type;
         return value + ValueType{1};
+    }
+};
+
+/** Stencil functor for transformReduce, it receives SimdPtr and selects the policy at the load site. */
+struct AddOneSimdStream
+{
+    constexpr auto operator()(concepts::SimdPtr auto const& value) const
+    {
+        using ValueType = typename std::remove_cvref_t<decltype(value)>::value_type;
+        return value.load(onAcc::simdCachePolicy::Stream{}) + ValueType{1};
     }
 };
 
@@ -50,20 +87,16 @@ struct CachePolicyKernel
         alpaka::concepts::IMdSpan auto reduceStream,
         auto const& lhs,
         auto const& rhs,
-        auto const& lhsStream,
-        auto const& rhsStream,
         auto const& extentMd) const
     {
         auto simdGrid = onAcc::SimdAlgo{onAcc::WorkerGroup{extentMd.fill(0), extentMd.fill(1)}};
 
-        // (a) Default on one source and Stream on the other source within one concurrent call.
-        simdGrid.template concurrent<16u>(acc, extentMd, AddTwoInputs{}, outMixed, lhs, rhsStream);
-        // Reference results without any hint.
+        // (a) The same call site selects Default, mixed and Stream loads, the data sources are plain buffers.
         simdGrid.template concurrent<16u>(acc, extentMd, AddTwoInputs{}, outDefault, lhs, rhs);
-        // Both sources hinted, to compare against the Default result.
-        simdGrid.template concurrent<16u>(acc, extentMd, AddTwoInputs{}, outStream, lhsStream, rhsStream);
+        simdGrid.template concurrent<16u>(acc, extentMd, AddTwoInputsMixed{}, outMixed, lhs, rhs);
+        simdGrid.template concurrent<16u>(acc, extentMd, AddTwoInputsStream{}, outStream, lhs, rhs);
 
-        // (b) Stream through transformReduce, Default as reference.
+        // (b) The policy is selected at the load site of a stencil functor, Default is the reference.
         using ReduceValueType = typename ALPAKA_TYPEOF(reduceDefault)::value_type;
         reduceDefault[0u]
             = simdGrid
@@ -73,12 +106,161 @@ struct CachePolicyKernel
             extentMd,
             ReduceValueType{0},
             std::plus{},
-            AddOneSimd{},
-            lhsStream);
+            StencilFunc{AddOneSimdStream{}},
+            lhs);
     }
 };
 
-TEMPLATE_LIST_TEST_CASE("SimdAlgo per-source cache policy", "", TestBackends)
+namespace
+{
+    /** Minimal data source used to test the load customisation point without a memory view. */
+    struct LegacyLoadSource
+    {
+        using value_type = int;
+        using index_type = uint32_t;
+
+        static consteval uint32_t dim()
+        {
+            return 1u;
+        }
+
+        static constexpr auto getAlignment()
+        {
+            return Alignment<16>{};
+        }
+
+        ALPAKA_FN_HOST_ACC constexpr value_type const& operator[](concepts::Vector auto const& idx) const
+        {
+            return m_data[idx[0u]];
+        }
+
+        ALPAKA_FN_HOST_ACC constexpr value_type& operator[](concepts::Vector auto const& idx)
+        {
+            return m_data[idx[0u]];
+        }
+
+        int* m_data = nullptr;
+    };
+
+    /** Data source whose load specialisation is policy-aware. */
+    struct PolicyAwareLoadSource
+    {
+        using value_type = int;
+        using index_type = uint32_t;
+
+        static consteval uint32_t dim()
+        {
+            return 1u;
+        }
+
+        static constexpr auto getAlignment()
+        {
+            return Alignment<16>{};
+        }
+
+        ALPAKA_FN_HOST_ACC constexpr value_type const& operator[](concepts::Vector auto const& idx) const
+        {
+            return m_data[idx[0u]];
+        }
+
+        ALPAKA_FN_HOST_ACC constexpr value_type& operator[](concepts::Vector auto const& idx)
+        {
+            return m_data[idx[0u]];
+        }
+
+        int* m_data = nullptr;
+    };
+} // namespace
+
+namespace alpaka::internal
+{
+    /** A third-party data source written against the policy-free load form keeps working. */
+    template<alpaka::concepts::Alignment T_Alignment, alpaka::concepts::Vector T_Idx>
+    struct LoadAsSimd::Op<LegacyLoadSource, T_Alignment, T_Idx>
+    {
+        template<uint32_t T_simdWidth>
+        constexpr auto load(auto&& dataSource, T_Alignment, T_Idx const& idx) const
+        {
+            static_assert(
+                std::is_same_v<LegacyLoadSource, ALPAKA_TYPEOF(dataSource)>,
+                "Data source type must match the class template signature.");
+            return Simd<int, T_simdWidth>([&](auto i) -> int { return dataSource.m_data[idx[0u] + i]; });
+        }
+    };
+
+    /** A policy-aware data source sees the policy tag; the policy-free form stays as a fallback. */
+    template<alpaka::concepts::Alignment T_Alignment, alpaka::concepts::Vector T_Idx>
+    struct LoadAsSimd::Op<PolicyAwareLoadSource, T_Alignment, T_Idx>
+    {
+        template<uint32_t T_simdWidth>
+        constexpr auto load(auto&& dataSource, T_Alignment, T_Idx const& idx) const
+        {
+            return load<T_simdWidth>(
+                ALPAKA_FORWARD(dataSource),
+                T_Alignment{},
+                idx,
+                onAcc::simdCachePolicy::Default{});
+        }
+
+        template<uint32_t T_simdWidth, typename T_Policy>
+        constexpr auto load(auto&& dataSource, T_Alignment, T_Idx const& idx, T_Policy) const
+        {
+            static_assert(
+                std::is_same_v<PolicyAwareLoadSource, ALPAKA_TYPEOF(dataSource)>,
+                "Data source type must match the class template signature.");
+            // The policy is a compile-time tag, the value proves that the specialisation received it.
+            constexpr int offset = std::is_same_v<T_Policy, onAcc::simdCachePolicy::Stream> ? 100 : 0;
+            return Simd<int, T_simdWidth>([&](auto i) -> int { return dataSource.m_data[idx[0u] + i] + offset; });
+        }
+    };
+} // namespace alpaka::internal
+
+/** The policy is passed at the load site and the load trait stays compatible with the policy-free form. */
+TEST_CASE("SimdPtr load cache policy", "[simdCachePolicy]")
+{
+    constexpr uint32_t numElements = 32u;
+    std::array<int, numElements> values{};
+    for(uint32_t i = 0u; i < numElements; ++i)
+        values[i] = static_cast<int>(i);
+
+    using Idx = Vec<uint32_t, 1u>;
+    using Pack = CVec<uint32_t, 4u>;
+
+    // A data source which only implements the policy-free load form: the policy is ignored, both results match.
+    LegacyLoadSource legacy{values.data()};
+    auto legacyPtr = SimdPtr{legacy, Idx{0u}, Alignment<16>{}, Pack{}};
+    auto legacyDefault = legacyPtr.load();
+    auto legacyStream = legacyPtr.load(onAcc::simdCachePolicy::Stream{});
+    for(uint32_t i = 0u; i < Pack{}.back(); ++i)
+    {
+        CHECK(static_cast<int>(legacyDefault[i]) == legacy.m_data[i]);
+        CHECK(static_cast<int>(legacyStream[i]) == legacy.m_data[i]);
+    }
+
+    // A policy-aware specialisation sees the tag of the selected load.
+    PolicyAwareLoadSource aware{values.data()};
+    auto awarePtr = SimdPtr{aware, Idx{0u}, Alignment<16>{}, Pack{}};
+    auto awareDefault = awarePtr.load();
+    auto awareStream = awarePtr.load(onAcc::simdCachePolicy::Stream{});
+    for(uint32_t i = 0u; i < Pack{}.back(); ++i)
+    {
+        CHECK(static_cast<int>(awareDefault[i]) == aware.m_data[i]);
+        CHECK(static_cast<int>(awareStream[i]) == aware.m_data[i] + 100);
+    }
+
+    // A generator has no memory to hint, the default forwarding swallows the policy and the values are identical.
+    auto generator = LinearizedIdxGenerator{Vec{numElements}};
+    auto generatorPtr = SimdPtr{generator, Idx{0u}, Alignment<alignof(uint32_t)>{}, Pack{}};
+    auto generatorDefault = generatorPtr.load();
+    auto generatorStream = generatorPtr.load(onAcc::simdCachePolicy::Stream{});
+    for(uint32_t i = 0u; i < Pack{}.back(); ++i)
+    {
+        CHECK(static_cast<uint32_t>(generatorDefault[i]) == i);
+        CHECK(static_cast<uint32_t>(generatorStream[i]) == i);
+    }
+}
+
+TEMPLATE_LIST_TEST_CASE("SimdAlgo cache policy at the load site", "", TestBackends)
 {
     auto cfg = TestType::makeDict();
     auto deviceExec = test::getDeviceExecutorOrSkipTest(cfg);
@@ -91,25 +273,9 @@ TEMPLATE_LIST_TEST_CASE("SimdAlgo per-source cache policy", "", TestBackends)
     // load path, the host SSE path and the scalar remainder path for the types used in practice.
     auto runForDataType = [&]<typename DataType>()
     {
-        // The policy is a property of the data source type, not of the algorithm call.
         auto const extentMd = Vec{1024u};
         onHost::SharedBuffer computeBufferLhs = onHost::alloc<DataType>(computeDev, extentMd);
         onHost::SharedBuffer computeBufferRhs = onHost::alloc<DataType>(computeDev, extentMd);
-        auto streamLhsView = withCachePolicy(onAcc::simdCachePolicy::Stream{}, computeBufferLhs.getView());
-        // The owning buffer overload derives the view internally.
-        auto streamLhs = withCachePolicy(onAcc::simdCachePolicy::Stream{}, computeBufferLhs);
-
-        STATIC_REQUIRE(alpaka::concepts::IDataSource<decltype(streamLhsView)>);
-        STATIC_REQUIRE(std::is_trivially_copyable_v<decltype(streamLhsView)>);
-        STATIC_REQUIRE(alpaka::concepts::IMdSpan<decltype(streamLhsView)>);
-        STATIC_REQUIRE(std::same_as<alpaka::CachePolicyOf_t<decltype(streamLhsView)>, onAcc::simdCachePolicy::Stream>);
-        STATIC_REQUIRE(
-            std::same_as<alpaka::CachePolicyOf_t<decltype(computeBufferLhs)>, onAcc::simdCachePolicy::Default>);
-        STATIC_REQUIRE(std::same_as<decltype(streamLhsView.getExtents()), decltype(computeBufferLhs.getExtents())>);
-        STATIC_REQUIRE(
-            std::same_as<decltype(streamLhsView.getAlignment()), decltype(computeBufferLhs.getAlignment())>);
-        STATIC_REQUIRE(requires { streamLhsView[Vec{0u}]; });
-        STATIC_REQUIRE(std::same_as<decltype(streamLhs), decltype(streamLhsView)>);
 
         // (d) 1024 is a multiple of the SIMD width, 1002 leaves a remainder for the scalar tail path.
         for(uint32_t numElements : {1024u, 1002u})
@@ -149,8 +315,6 @@ TEMPLATE_LIST_TEST_CASE("SimdAlgo per-source cache policy", "", TestBackends)
                     computeBufferReduceStream,
                     computeBufferLhs,
                     computeBufferRhs,
-                    withCachePolicy(onAcc::simdCachePolicy::Stream{}, computeBufferLhs),
-                    withCachePolicy(onAcc::simdCachePolicy::Stream{}, computeBufferRhs.getView()),
                     runExtentMd});
 
             onHost::memcpy(computeQueue, hostOutDefault, computeBufferOutDefault);
