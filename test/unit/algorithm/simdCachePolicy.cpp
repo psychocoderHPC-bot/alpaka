@@ -272,6 +272,49 @@ TEST_CASE("SimdPtr load cache policy", "[simdCachePolicy]")
     }
 }
 
+/** Load one SIMD pack with the Stream policy and compare it against the values in the buffer.
+ *
+ * The pack width is a template argument, so this forces the wide chunk paths on a host build whose native width is
+ * larger than one hinted load. 64 byte is a cache line and satisfies every hinted load instruction.
+ */
+template<typename DataType, uint32_t T_width>
+void checkStreamLoadWidth()
+{
+    constexpr uint32_t alignment = 64u;
+
+    struct alignas(alignment) AlignedBuffer
+    {
+        DataType data[T_width];
+    };
+
+    AlignedBuffer src{};
+    for(uint32_t i = 0u; i < T_width; ++i)
+        src.data[i] = static_cast<DataType>(i + 1);
+
+    Simd<DataType, T_width> hinted{};
+    hinted.copyFrom(src.data, Alignment<alignment>{}, onAcc::simdCachePolicy::Stream{});
+    for(uint32_t i = 0u; i < T_width; ++i)
+        CHECK(hinted[i] == src.data[i]);
+
+    // A pointer which is only aligned for the element type must keep the plain load and produce the same values.
+    Simd<DataType, T_width> fallback{};
+    fallback.copyFrom(src.data, Alignment<alignof(DataType)>{}, onAcc::simdCachePolicy::Stream{});
+    for(uint32_t i = 0u; i < T_width; ++i)
+        CHECK(fallback[i] == src.data[i]);
+}
+
+TEST_CASE("Simd load cache policy derives width and alignment", "[simdCachePolicy]")
+{
+    // 8, 16, 32 and 64 byte packs; the 8 byte pack is narrower than every hinted load instruction.
+    checkStreamLoadWidth<float, 2u>();
+    checkStreamLoadWidth<float, 4u>();
+    checkStreamLoadWidth<float, 8u>();
+    checkStreamLoadWidth<float, 16u>();
+    checkStreamLoadWidth<double, 2u>();
+    checkStreamLoadWidth<double, 4u>();
+    checkStreamLoadWidth<int, 4u>();
+}
+
 TEMPLATE_LIST_TEST_CASE("SimdAlgo cache policy at the load site", "", TestBackends)
 {
     auto cfg = TestType::makeDict();
@@ -281,8 +324,8 @@ TEMPLATE_LIST_TEST_CASE("SimdAlgo cache policy at the load site", "", TestBacken
 
     onHost::Queue computeQueue = computeDev.makeQueue();
 
-    // int, float and double cover the 16 byte SIMD packs int4, float4 and double2, i.e. the CUDA and HIP 16 byte
-    // load path, the host SSE path and the scalar remainder path for the types used in practice.
+    // int, float and double cover the intrinsic-width packs of every backend, the chunked wide host packs and the
+    // scalar remainder path for the types used in practice.
     auto runForDataType = [&]<typename DataType>()
     {
         auto const extentMd = Vec{1024u};

@@ -27,10 +27,12 @@ namespace alpaka::onAcc
 
         /** Evict-first/non-temporal loads for data which is not reused before it is evicted.
          *
-         * The hint is applied to fully aligned 16 byte SIMD loads only; all other loads and every store use the
-         * default path. Kernels which read data several times should stay on Default. The implementation uses
+         * The load width and the alignment come from the SIMD type and the alignment of the data source. A pack
+         * which is a multiple of the instruction width is covered by several hinted loads, a pack below the
+         * instruction width or a pointer which is not aligned for the instruction keeps the plain load. Stores are
+         * untouched. Kernels which read data several times should stay on Default. The implementation uses
          * ``__builtin_nontemporal_load`` on HIP and SYCL, ``__ldcg`` (L1 bypass, L2 kept) on CUDA and
-         * ``__builtin_nontemporal_load`` or ``_mm_stream_load_si128`` on the host, each behind an availability check.
+         * ``_mm_stream_load_si128`` or ``_mm256_stream_load_si256`` on the host, each behind an availability check.
          */
         struct Stream
         {
