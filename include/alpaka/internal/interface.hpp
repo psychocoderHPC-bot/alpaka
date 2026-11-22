@@ -8,7 +8,6 @@
 #include "alpaka/Vec.hpp"
 #include "alpaka/core/common.hpp"
 #include "alpaka/mem/Alignment.hpp"
-#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/onHost/Handle.hpp"
 #include "alpaka/onHost/demangledName.hpp"
 
@@ -150,11 +149,7 @@ namespace alpaka
                  * @see loadAsSimd for more details.
                  */
                 template<uint32_t T_simdWidth>
-                constexpr auto load(
-                    auto&& anyDataSource,
-                    T_Alignment dataAlignment,
-                    T_Idx const& index,
-                    auto cachePolicy) const;
+                constexpr auto load(auto&& anyDataSource, T_Alignment dataAlignment, T_Idx const& index) const;
             };
         };
 
@@ -170,11 +165,11 @@ namespace alpaka
          * @param index Offset index relative to the first element of data source.
          * @return SIMD vector with data loaded from the data source, aligned to dataAlignment
          */
-        template<uint32_t T_simdWidth, typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
+        template<uint32_t T_simdWidth>
         constexpr auto loadAsSimd(auto&& anyDataSource, auto dataAlignment, auto const& index)
         {
             return LoadAsSimd::Op<ALPAKA_TYPEOF(anyDataSource), ALPAKA_TYPEOF(dataAlignment), ALPAKA_TYPEOF(index)>{}
-                .template load<T_simdWidth>(ALPAKA_FORWARD(anyDataSource), dataAlignment, index, T_CachePolicy{});
+                .template load<T_simdWidth>(ALPAKA_FORWARD(anyDataSource), dataAlignment, index);
         }
     } // namespace internal
 } // namespace alpaka

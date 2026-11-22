@@ -178,13 +178,15 @@ namespace alpaka
             return T_width;
         }
 
-        template<typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
-        constexpr void copyFrom(
-            T_Type const* data,
-            concepts::Alignment auto alignment,
-            T_CachePolicy = T_CachePolicy{})
+        constexpr void copyFrom(T_Type const* data, concepts::Alignment auto alignment)
         {
-            Storage::copyFrom(data, alignment, T_CachePolicy{});
+            Storage::copyFrom(data, alignment, onAcc::simdCachePolicy::Default{});
+        }
+
+        /** Load a SIMD pack while passing the cache policy carried by the data source. */
+        constexpr void copyFrom(T_Type const* data, concepts::Alignment auto alignment, auto cachePolicy)
+        {
+            Storage::copyFrom(data, alignment, cachePolicy);
         }
 
         constexpr void copyTo(auto* data, concepts::Alignment auto alignment) const

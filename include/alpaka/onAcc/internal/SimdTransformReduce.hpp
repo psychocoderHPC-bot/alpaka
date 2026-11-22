@@ -15,7 +15,6 @@
 #include "alpaka/onAcc/Acc.hpp"
 #include "alpaka/onAcc/WorkerGroup.hpp"
 #include "alpaka/onAcc/interface.hpp"
-#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/simd/simdized.hpp"
 
 #include <cstdint>
@@ -31,10 +30,7 @@ namespace alpaka::onAcc::internal
         constexpr SimdTransformReduce() = default;
 
     protected:
-        template<
-            uint32_t T_maxConcurrencyInByte,
-            alpaka::concepts::Alignment T_MemAlignment = AutoAligned,
-            typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
+        template<uint32_t T_maxConcurrencyInByte, alpaka::concepts::Alignment T_MemAlignment = AutoAligned>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr auto transformReduce(
             concepts::Acc auto const& acc,
             alpaka::concepts::Vector auto extents,
@@ -58,7 +54,7 @@ namespace alpaka::onAcc::internal
             if constexpr(simdWidth != 1u)
             {
                 constexpr uint32_t numSimdPerFnCall = simdCfg.numSimdPacksPerFnCall;
-                return reduceSimdPackExecution<simdWidth, numSimdPerFnCall, T_MemAlignment, T_CachePolicy>(
+                return reduceSimdPackExecution<simdWidth, numSimdPerFnCall, T_MemAlignment>(
                     acc,
                     numElements,
                     neutralElement,
@@ -87,8 +83,8 @@ namespace alpaka::onAcc::internal
                     callFunctor(
                         acc,
                         transformFunc,
-                        SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}},
-                        SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}}...));
+                        SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}},
+                        SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}}...));
             }
 
             auto result = neutralElement;
@@ -146,17 +142,14 @@ namespace alpaka::onAcc::internal
             }
         }
 
-        template<alpaka::concepts::Alignment T_MemAlignment, uint32_t T_width, typename T_CachePolicy>
+        template<alpaka::concepts::Alignment T_MemAlignment, uint32_t T_width>
         ALPAKA_FN_INLINE static constexpr auto executeDoTransform(
             concepts::Acc auto const& acc,
             auto const& dataIdx,
             auto&& func,
             alpaka::concepts::IDataSource auto&&... data)
         {
-            return callFunctor(
-                acc,
-                func,
-                SimdPtr{data, dataIdx, T_MemAlignment{}, CVec<uint32_t, T_width>{}, T_CachePolicy{}}...);
+            return callFunctor(acc, func, SimdPtr{data, dataIdx, T_MemAlignment{}, CVec<uint32_t, T_width>{}}...);
         }
 
         /** advance the iterator T_repeat times
@@ -187,11 +180,7 @@ namespace alpaka::onAcc::internal
          * iter.end()
          * @return a single simdized pack
          */
-        template<
-            alpaka::concepts::Alignment T_MemAlignment,
-            uint32_t T_width,
-            typename T_CachePolicy,
-            uint32_t... T_repeat>
+        template<alpaka::concepts::Alignment T_MemAlignment, uint32_t T_width, uint32_t... T_repeat>
         ALPAKA_FN_INLINE static constexpr auto executeReduce(
             concepts::Acc auto const& acc,
             auto& iter,
@@ -208,13 +197,13 @@ namespace alpaka::onAcc::internal
                      * the type for the result explicit.
                      */
                     using ComponentType = ALPAKA_TYPEOF(
-                        executeDoTransform<T_MemAlignment, T_width, T_CachePolicy>(
+                        executeDoTransform<T_MemAlignment, T_width>(
                             acc,
                             std::get<0>(std::make_tuple(dataIdx...)),
                             func,
                             data...));
                     auto results = Simd<ComponentType, std::tuple_size_v<ALPAKA_TYPEOF(ids)>>{
-                        executeDoTransform<T_MemAlignment, T_width, T_CachePolicy>(acc, dataIdx, func, data...)...};
+                        executeDoTransform<T_MemAlignment, T_width>(acc, dataIdx, func, data...)...};
 
                     return results.reduce(reduceFunc);
                 },
@@ -230,11 +219,7 @@ namespace alpaka::onAcc::internal
          * @param result The results of reduceFn with the result of transformFn will be reduced into this simdized
          * pack.
          */
-        template<
-            alpaka::concepts::Alignment T_MemAlignment,
-            uint32_t T_width,
-            typename T_CachePolicy,
-            uint32_t... T_repeat>
+        template<alpaka::concepts::Alignment T_MemAlignment, uint32_t T_width, uint32_t... T_repeat>
         ALPAKA_FN_INLINE static constexpr void executeReduceInto(
             concepts::Acc auto const& acc,
             auto& iter,
@@ -250,11 +235,7 @@ namespace alpaka::onAcc::internal
                 {
                     ((result = reduceFn(
                           result,
-                          executeDoTransform<T_MemAlignment, T_width, T_CachePolicy>(
-                              acc,
-                              dataIdx,
-                              transformFn,
-                              data...))),
+                          executeDoTransform<T_MemAlignment, T_width>(acc, dataIdx, transformFn, data...))),
                      ...);
                 },
                 ids);
@@ -263,11 +244,7 @@ namespace alpaka::onAcc::internal
         /** Reduce T_numSimdPerFnCall simdized packs
          *
          */
-        template<
-            uint32_t T_simdWidth,
-            uint32_t T_numSimdPerFnCall,
-            alpaka::concepts::Alignment T_MemAlignment,
-            typename T_CachePolicy>
+        template<uint32_t T_simdWidth, uint32_t T_numSimdPerFnCall, alpaka::concepts::Alignment T_MemAlignment>
         ALPAKA_FN_INLINE static constexpr void reduceNextSimdized(
             auto const& acc,
             auto& iter,
@@ -281,7 +258,7 @@ namespace alpaka::onAcc::internal
             {
                 tmpReturn = reduceFn(
                     tmpReturn,
-                    executeReduce<T_MemAlignment, T_simdWidth, T_CachePolicy>(
+                    executeReduce<T_MemAlignment, T_simdWidth>(
                         acc,
                         iter,
                         std::make_integer_sequence<uint32_t, T_numSimdPerFnCall>{},
@@ -292,7 +269,7 @@ namespace alpaka::onAcc::internal
             }
             else
             {
-                executeReduceInto<T_MemAlignment, T_simdWidth, T_CachePolicy>(
+                executeReduceInto<T_MemAlignment, T_simdWidth>(
                     acc,
                     iter,
                     std::make_integer_sequence<uint32_t, T_numSimdPerFnCall>{},
@@ -380,11 +357,7 @@ namespace alpaka::onAcc::internal
             return static_cast<T_Parent const&>(*this);
         }
 
-        template<
-            uint32_t T_simdWidth,
-            uint32_t T_numSimdPerFnCall,
-            alpaka::concepts::Alignment T_MemAlignment,
-            typename T_CachePolicy>
+        template<uint32_t T_simdWidth, uint32_t T_numSimdPerFnCall, alpaka::concepts::Alignment T_MemAlignment>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr auto reduceSimdPackExecution(
             auto const& acc,
             alpaka::concepts::Vector auto numElements,
@@ -466,7 +439,7 @@ namespace alpaka::onAcc::internal
 
                     for(auto iter = simdIdxContainerFastDim.begin(); iter != simdIdxContainerFastDim.end();)
                     {
-                        reduceNextSimdized<T_simdWidth, T_numSimdPerFnCall, T_MemAlignment, T_CachePolicy>(
+                        reduceNextSimdized<T_simdWidth, T_numSimdPerFnCall, T_MemAlignment>(
                             acc,
                             iter,
                             simdizedReducedValue,
@@ -481,7 +454,7 @@ namespace alpaka::onAcc::internal
             {
                 for(auto iter = simdIdxContainer.begin(); iter != simdIdxContainer.end();)
                 {
-                    reduceNextSimdized<T_simdWidth, T_numSimdPerFnCall, T_MemAlignment, T_CachePolicy>(
+                    reduceNextSimdized<T_simdWidth, T_numSimdPerFnCall, T_MemAlignment>(
                         acc,
                         iter,
                         simdizedReducedValue,
@@ -504,8 +477,8 @@ namespace alpaka::onAcc::internal
                 auto transformResult = callFunctor(
                     acc,
                     func,
-                    SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}},
-                    SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}, T_CachePolicy{}}...);
+                    SimdPtr{data0, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}},
+                    SimdPtr{dataN, idx, T_MemAlignment{}, CVec<uint32_t, 1u>{}}...);
 
                 alpakaSimdizedInvoke(
                     [reduceFunc](auto& lhs, alpaka::concepts::Simd auto const& rhs)

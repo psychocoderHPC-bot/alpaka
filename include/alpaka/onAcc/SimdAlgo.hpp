@@ -9,7 +9,6 @@
 #include "alpaka/mem/concepts/IDataStorage.hpp"
 #include "alpaka/onAcc/internal/SimdConcurrent.hpp"
 #include "alpaka/onAcc/internal/SimdTransformReduce.hpp"
-#include "alpaka/onAcc/simdCachePolicy.hpp"
 
 #include <bit>
 #include <cstdint>
@@ -123,17 +122,14 @@ namespace alpaka::onAcc
          *
          * @{
          */
-        template<
-            uint32_t T_maxConcurrencyInByte,
-            alpaka::concepts::Alignment T_MemAlignment = AutoAligned,
-            typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
+        template<uint32_t T_maxConcurrencyInByte, alpaka::concepts::Alignment T_MemAlignment = AutoAligned>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr void concurrent(
             auto const& acc,
             auto&& func,
             alpaka::concepts::IDataSource auto&& data0,
             alpaka::concepts::IDataSource auto&&... dataN) const
         {
-            concurrent<T_maxConcurrencyInByte, T_MemAlignment, T_CachePolicy>(
+            concurrent<T_maxConcurrencyInByte, T_MemAlignment>(
                 acc,
                 data0.getExtents(),
                 ALPAKA_FORWARD(func),
@@ -144,10 +140,7 @@ namespace alpaka::onAcc
         /**
          * @param extents number of elements to process in each dimension
          */
-        template<
-            uint32_t T_maxConcurrencyInByte,
-            alpaka::concepts::Alignment T_MemAlignment = AutoAligned,
-            typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
+        template<uint32_t T_maxConcurrencyInByte, alpaka::concepts::Alignment T_MemAlignment = AutoAligned>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr void concurrent(
             auto const& acc,
             alpaka::concepts::Vector auto extents,
@@ -155,7 +148,7 @@ namespace alpaka::onAcc
             alpaka::concepts::IDataSource auto&& data0,
             alpaka::concepts::IDataSource auto&&... dataN) const
         {
-            ConcurrentAlgo::template concurrent<T_maxConcurrencyInByte, T_MemAlignment, T_CachePolicy>(
+            ConcurrentAlgo::template concurrent<T_maxConcurrencyInByte, T_MemAlignment>(
                 acc,
                 extents,
                 ALPAKA_FORWARD(func),
@@ -244,10 +237,7 @@ namespace alpaka::onAcc
          * @tparam T_MemAlignment alignment of the memory, if no alignments is given the alignment will be derived from
          * the MdSpan data descriptions
          */
-        template<
-            uint32_t T_maxConcurrencyInByte,
-            alpaka::concepts::Alignment T_MemAlignment = AutoAligned,
-            typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
+        template<uint32_t T_maxConcurrencyInByte, alpaka::concepts::Alignment T_MemAlignment = AutoAligned>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr auto transformReduce(
             auto const& acc,
             auto const& neutralElement,
@@ -256,7 +246,7 @@ namespace alpaka::onAcc
             alpaka::concepts::IDataSource auto&& data0,
             alpaka::concepts::IDataSource auto&&... dataN) const
         {
-            return transformReduce<T_maxConcurrencyInByte, T_MemAlignment, T_CachePolicy>(
+            return transformReduce<T_maxConcurrencyInByte, T_MemAlignment>(
                 acc,
                 data0.getExtents(),
                 neutralElement,
@@ -278,10 +268,7 @@ namespace alpaka::onAcc
          * @tparam T_MemAlignment alignment of the memory, if no alignments is given the alignment will be derived from
          * the MdSpan data descriptions
          */
-        template<
-            uint32_t T_maxConcurrencyInByte,
-            alpaka::concepts::Alignment T_MemAlignment = AutoAligned,
-            typename T_CachePolicy = alpaka::onAcc::simdCachePolicy::Default>
+        template<uint32_t T_maxConcurrencyInByte, alpaka::concepts::Alignment T_MemAlignment = AutoAligned>
         ALPAKA_FN_INLINE ALPAKA_FN_ACC constexpr auto transformReduce(
             auto const& acc,
             alpaka::concepts::Vector auto extents,
@@ -291,7 +278,7 @@ namespace alpaka::onAcc
             alpaka::concepts::IDataSource auto&& data0,
             alpaka::concepts::IDataSource auto&&... dataN) const
         {
-            return ReduceAlgo::template transformReduce<T_maxConcurrencyInByte, T_MemAlignment, T_CachePolicy>(
+            return ReduceAlgo::template transformReduce<T_maxConcurrencyInByte, T_MemAlignment>(
                 acc,
                 extents,
                 neutralElement,

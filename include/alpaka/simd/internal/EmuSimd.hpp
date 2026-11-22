@@ -19,6 +19,7 @@
 #include "alpaka/simd/concepts.hpp"
 #include "alpaka/simd/internal/SmartMaskValueRef.hpp"
 #include "alpaka/simd/internal/alignment.hpp"
+#include "alpaka/simd/internal/streamLoad.hpp"
 #include "alpaka/simd/internal/utility.hpp"
 #include "alpaka/simd/trait.hpp"
 
@@ -110,23 +111,18 @@ namespace alpaka
             template<typename T_CachePolicy>
             constexpr void copyFrom(T_Type const* data, alpaka::concepts::Alignment auto alignment, T_CachePolicy)
             {
-#if ALPAKA_LANG_HIP && defined(__has_builtin)
-#    if __has_builtin(__builtin_nontemporal_load)
-                // Streaming (evict-first) 128 bit load. Only the fully aligned 16 byte case is
-                // hinted; every other case falls through to the stock path.
+                constexpr uint32_t alignmentBytes = alignment.template get<T_Type>();
+                constexpr bool isAligned = (alignmentBytes % alignof(ALPAKA_TYPEOF(*this))) == 0u;
+
                 if constexpr(
                     std::is_same_v<T_CachePolicy, alpaka::onAcc::simdCachePolicy::Stream>
-                    && sizeof(T_Type) * T_width == 16u
-                    && (alignment.template get<T_Type>() % alignof(ALPAKA_TYPEOF(*this))) == 0u)
+                    && internal::streamLoadAvailable<T_Type, T_width>() && isAligned)
                 {
-                    using NativeVec = T_Type __attribute__((ext_vector_type(T_width)));
-                    auto const value = __builtin_nontemporal_load(reinterpret_cast<NativeVec const*>(data));
-                    *reinterpret_cast<NativeVec*>(asNativeType().data()) = value;
+                    internal::streamLoad<T_Type, T_width>(asNativeType().data(), data);
                     return;
                 }
-#    endif
-#endif
-                if constexpr((alignment.template get<T_Type>() % alignof(ALPAKA_TYPEOF(*this))) == 0u)
+
+                if constexpr(isAligned)
                     *(this) = *reinterpret_cast<ALPAKA_TYPEOF(*this) const*>(data);
                 else
                 {

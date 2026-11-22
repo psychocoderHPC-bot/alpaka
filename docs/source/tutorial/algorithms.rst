@@ -190,21 +190,29 @@ Otherwise, you'll need to run tests and take measurements to achieve the best pe
 SIMD Cache Policy
 -----------------
 
-The SIMD algorithms ``transformReduce`` and ``concurrent`` accept a cache policy as an additional template argument.
-The policy is opt-in per call: ``simdCachePolicy::Default`` is the default and generates the same code as before.
-Use ``alpaka::onAcc::simdCachePolicy::Stream`` for kernels that stream data which is not reused, for example copy, scale, add, or triad kernels.
-It applies an evict-first (non-temporal) hint to the SIMD loads and leaves stores unchanged.
+The cache policy is a property of a data source, not of the algorithm call.
+Attach it with ``alpaka::withCachePolicy``, for example ``withCachePolicy(alpaka::onAcc::simdCachePolicy::Stream{}, input.getView())``.
+The adapter derives from the original view, so all accessors, the extents and the alignment keep working.
 
 .. code-block:: cpp
 
     auto simdGrid = alpaka::onAcc::SimdAlgo{alpaka::onAcc::worker::threadsInGrid};
-    simdGrid.concurrent<
-        64u,
-        alpaka::AutoAligned,
-        alpaka::onAcc::simdCachePolicy::Stream>(acc, extents, functor, input, output);
+    simdGrid.concurrent<64u>(
+        acc,
+        extents,
+        functor,
+        alpaka::withCachePolicy(alpaka::onAcc::simdCachePolicy::Stream{}, input.getView()),
+        output);
 
-The policy currently affects HIP/AMD only.
-Every other backend accepts the tag but generates the same code as ``simdCachePolicy::Default``.
+``simdCachePolicy::Default`` is the default for every data source and generates the same code as before.
+``simdCachePolicy::Stream`` applies an evict-first (non-temporal) hint to the SIMD loads only; stores are untouched.
+Use it for data that is not reused before it is evicted, for example copy, scale, add, or triad kernels.
+Kernels which reuse data should stay on ``Default``, because the hint can regress them.
+
+All backends are supported: HIP and SYCL use ``__builtin_nontemporal_load``, CUDA uses ``__ldcs``, and the host uses
+``__builtin_nontemporal_load`` for clang or ``_mm_stream_load_si128`` for GCC with SSE4.1.
+The hint is applied only when the intrinsic exists and the 16 byte load is fully aligned; otherwise the plain load is
+used. On normal write-back host memory the x86 hint is a no-op.
 
 Scan
 ----
