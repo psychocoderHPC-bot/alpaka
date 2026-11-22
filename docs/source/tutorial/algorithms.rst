@@ -196,7 +196,9 @@ the previous code. ``simdCachePolicy::Stream`` marks data that is not reused bef
 of copy, scale, add or triad kernels. The policy affects loads only, stores are untouched, and it applies only to fully
 aligned 16 byte loads where the intrinsic exists, otherwise the plain load is used. On CUDA the streaming path is an
 L1-bypass load (``__ldcg``, ``LDG.E.128.STRONG.GPU``), which currently costs a little on reductions, so reuse-heavy
-and reduction-heavy kernels keep the default.
+and reduction-heavy kernels keep the default. The AMDGPU load-store optimizer can drop the hint when a hinted and an
+unhinted load of the same buffer are placed adjacent, so hint distinct buffers. The policy is per load, so a kernel
+that streams all its inputs annotates each ``.load(...)``; there is no per-source default.
 
 .. code-block:: cpp
 

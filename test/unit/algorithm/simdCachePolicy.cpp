@@ -258,6 +258,18 @@ TEST_CASE("SimdPtr load cache policy", "[simdCachePolicy]")
         CHECK(static_cast<uint32_t>(generatorDefault[i]) == i);
         CHECK(static_cast<uint32_t>(generatorStream[i]) == i);
     }
+
+    // A shifted head is not 16 byte aligned, so Stream falls back to the plain load and both results match the
+    // reference.
+    auto misalignedPtr = legacyPtr[Idx{1u}];
+    static_assert(decltype(misalignedPtr)::getAlignment().template get<int>() == alignof(int));
+    auto misalignedDefault = misalignedPtr.load();
+    auto misalignedStream = misalignedPtr.load(onAcc::simdCachePolicy::Stream{});
+    for(uint32_t i = 0u; i < Pack{}.back(); ++i)
+    {
+        CHECK(static_cast<int>(misalignedDefault[i]) == legacy.m_data[1u + i]);
+        CHECK(static_cast<int>(misalignedStream[i]) == legacy.m_data[1u + i]);
+    }
 }
 
 TEMPLATE_LIST_TEST_CASE("SimdAlgo cache policy at the load site", "", TestBackends)
