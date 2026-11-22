@@ -185,6 +185,27 @@ The second buffer is read-only, and the third buffer is used only for writing (b
 If all buffers have the same data type, use that data type.
 Otherwise, you'll need to run tests and take measurements to achieve the best performance.
 
+.. _algo_simd_cache_policy:
+
+SIMD Cache Policy
+-----------------
+
+A cache policy is passed where the load happens, so a kernel decides per access and one call can use a different
+policy for each input. ``load()`` without an argument uses ``alpaka::onAcc::simdCachePolicy::Default`` and generates
+the previous code. ``simdCachePolicy::Stream`` marks data that is not reused before it is evicted, such as the inputs
+of copy, scale, add or triad kernels. The policy affects loads only, stores are untouched. The width and the
+alignment of a hinted load come from the SIMD type and the alignment of the data source, never from a fixed pack size:
+one instruction moves 16 byte (CUDA, SSE4.1) or 32 byte (AVX2), so a wider pack is covered by several hinted loads;
+a pack below 16 byte and a pointer which is not aligned for the instruction keep the plain load. On CUDA the streaming
+path is an L1-bypass load (``__ldcg``, ``LDG.E.128.STRONG.GPU``), which currently costs a little on reductions, so
+reuse-heavy and reduction-heavy kernels keep the default. The AMDGPU load-store optimizer can drop the hint when a
+hinted and an unhinted load of the same buffer are placed adjacent, so hint distinct buffers. The policy is per load,
+so a kernel that streams all its inputs annotates each ``.load(...)``; there is no per-source default.
+
+.. code-block:: cpp
+
+    out = input.load(alpaka::onAcc::simdCachePolicy::Stream{}) + value;
+
 Scan
 ----
 

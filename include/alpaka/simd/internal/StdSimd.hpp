@@ -16,7 +16,9 @@
 
 #include "alpaka/api/api.hpp"
 #include "alpaka/mem/Alignment.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/simd/concepts.hpp"
+#include "alpaka/simd/internal/streamLoad.hpp"
 #include "alpaka/simd/simdConfig.hpp"
 #include "alpaka/simd/trait.hpp"
 #include "alpaka/vecConcepts.hpp"
@@ -97,9 +99,26 @@ namespace alpaka
                 return StdSimd{BaseType(value)};
             }
 
-            constexpr void copyFrom(T_Type const* data, alpaka::concepts::Alignment auto alignment)
+            template<typename T_CachePolicy>
+            constexpr void copyFrom(T_Type const* data, alpaka::concepts::Alignment auto alignment, T_CachePolicy)
             {
-                if constexpr((alignment.template get<T_Type>() % alpakaStdSimd::memory_alignment_v<BaseType>) == 0u)
+                using AlignmentType = ALPAKA_TYPEOF(alignment);
+                constexpr bool isAligned
+                    = (alignment.template get<T_Type>() % alpakaStdSimd::memory_alignment_v<BaseType>) == 0u;
+
+                if constexpr(
+                    std::is_same_v<T_CachePolicy, alpaka::onAcc::simdCachePolicy::Stream>
+                    && internal::streamLoadAvailable<T_Type, T_width, AlignmentType>())
+                {
+                    // The scratch buffer only has to satisfy the hinted load, its width is derived from the pack.
+                    constexpr size_t chunkWidth = internal::streamLoadChunkWidth<T_Type, T_width, AlignmentType>();
+                    alignas(chunkWidth) T_Type tmp[T_width];
+                    internal::streamLoad<T_Type, T_width, AlignmentType>(tmp, data);
+                    this->asNativeType().copy_from(tmp, alpakaStdSimd::element_aligned);
+                    return;
+                }
+
+                if constexpr(isAligned)
                     this->asNativeType().copy_from(data, alpakaStdSimd::vector_aligned);
                 else
                     this->asNativeType().copy_from(data, alpakaStdSimd::element_aligned);

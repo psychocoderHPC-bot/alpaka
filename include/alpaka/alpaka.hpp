@@ -41,6 +41,7 @@
 #include "alpaka/onAcc/internal/interfaceImpl.hpp"
 #include "alpaka/onAcc/memFence.hpp"
 #include "alpaka/onAcc/range.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/onAcc/tag.hpp"
 #include "alpaka/onAcc/warp.hpp"
 #include "alpaka/onHost/Device.hpp"

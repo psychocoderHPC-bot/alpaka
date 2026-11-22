@@ -19,6 +19,7 @@
 #include "alpaka/cast.hpp"
 #include "alpaka/core/util.hpp"
 #include "alpaka/mem/Alignment.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/simd/concepts.hpp"
 #include "alpaka/simd/trait.hpp"
 #include "alpaka/trait.hpp"
@@ -179,7 +180,17 @@ namespace alpaka
 
         constexpr void copyFrom(T_Type const* data, concepts::Alignment auto alignment)
         {
-            Storage::copyFrom(data, alignment);
+            Storage::copyFrom(data, alignment, onAcc::simdCachePolicy::Default{});
+        }
+
+        /** Load a SIMD pack while passing an explicit load cache policy to the storage implementation.
+         *
+         * The policy is a compile-time tag which is selected at the load site, see
+         * ``alpaka::onAcc::simdCachePolicy``. The policy-free overload above uses ``simdCachePolicy::Default``.
+         */
+        constexpr void copyFrom(T_Type const* data, concepts::Alignment auto alignment, auto cachePolicy)
+        {
+            Storage::copyFrom(data, alignment, cachePolicy);
         }
 
         constexpr void copyTo(auto* data, concepts::Alignment auto alignment) const

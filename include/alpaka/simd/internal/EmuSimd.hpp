@@ -15,9 +15,11 @@
 #pragma once
 
 #include "alpaka/api/api.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/simd/concepts.hpp"
 #include "alpaka/simd/internal/SmartMaskValueRef.hpp"
 #include "alpaka/simd/internal/alignment.hpp"
+#include "alpaka/simd/internal/streamLoad.hpp"
 #include "alpaka/simd/internal/utility.hpp"
 #include "alpaka/simd/trait.hpp"
 
@@ -106,9 +108,26 @@ namespace alpaka
             {
             }
 
-            constexpr void copyFrom(T_Type const* data, alpaka::concepts::Alignment auto alignment)
+            template<typename T_CachePolicy>
+            constexpr void copyFrom(T_Type const* data, alpaka::concepts::Alignment auto alignment, T_CachePolicy)
             {
-                if constexpr((alignment.template get<T_Type>() % alignof(ALPAKA_TYPEOF(*this))) == 0u)
+                using AlignmentType = ALPAKA_TYPEOF(alignment);
+                constexpr uint32_t alignmentBytes = alignment.template get<T_Type>();
+                constexpr bool isAligned = (alignmentBytes % alignof(ALPAKA_TYPEOF(*this))) == 0u;
+
+                if constexpr(
+                    std::is_same_v<T_CachePolicy, alpaka::onAcc::simdCachePolicy::Stream>
+                    && internal::streamLoadAvailable<T_Type, T_width, AlignmentType>())
+                {
+                    // The chunk width divides the promise the caller gave for data and the storage is aligned for
+                    // the pack, therefore both sides are aligned for every chunk.
+                    constexpr size_t chunkWidth = internal::streamLoadChunkWidth<T_Type, T_width, AlignmentType>();
+                    static_assert(alignof(ALPAKA_TYPEOF(*this)) % chunkWidth == 0u);
+                    internal::streamLoad<T_Type, T_width, AlignmentType>(asNativeType().data(), data);
+                    return;
+                }
+
+                if constexpr(isAligned)
                     *(this) = *reinterpret_cast<ALPAKA_TYPEOF(*this) const*>(data);
                 else
                 {

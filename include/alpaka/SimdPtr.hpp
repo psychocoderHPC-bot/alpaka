@@ -10,6 +10,7 @@
 #include "alpaka/mem/Alignment.hpp"
 #include "alpaka/mem/concepts/IMdSpan.hpp"
 #include "alpaka/mem/concepts/IndexVec.hpp"
+#include "alpaka/onAcc/simdCachePolicy.hpp"
 #include "alpaka/trait.hpp"
 
 #include <concepts>
@@ -129,6 +130,30 @@ namespace alpaka
             return internal::loadAsSimd<width()>(static_cast<T_MdSpan&>(*this), getAlignment(), m_idx);
         }
 
+        /** Load a SIMD pack with an explicit load cache policy
+         *
+         * The policy is a compile-time tag, see ``alpaka::onAcc::simdCachePolicy``. It is passed where the load
+         * happens, therefore a kernel can select it per access and different pointers in one call may use different
+         * policies. A data source which does not support a policy ignores it.
+         *
+         * @param policy cache policy tag, for example ``onAcc::simdCachePolicy::Stream{}``
+         *
+         * @{
+         */
+        template<typename T_Policy>
+        constexpr decltype(auto) load(T_Policy const& policy) const
+        {
+            return internal::loadAsSimd<width()>(static_cast<T_MdSpan const&>(*this), getAlignment(), m_idx, policy);
+        }
+
+        template<typename T_Policy>
+        constexpr decltype(auto) load(T_Policy const& policy)
+        {
+            return internal::loadAsSimd<width()>(static_cast<T_MdSpan&>(*this), getAlignment(), m_idx, policy);
+        }
+
+        /** @} */
+
         /** get the alignment of the memory the pointer is pointing to
          *
          * @attention If the pointer is shifted by `operator[]` the alignment is equal to the data alignment of an
@@ -222,6 +247,26 @@ namespace alpaka
 
                 alpaka::concepts::Simd auto dest = DstType{};
                 dest.copyFrom(&d, alignment);
+                return dest;
+            }
+
+            /** Policy-aware load, the policy is forwarded to the SIMD storage implementation. */
+            template<uint32_t T_simdWidth, typename T_Policy>
+            constexpr auto load(auto&& dataSource, T_MdSpanAlignment alignment, T_Idx const& idx, T_Policy policy)
+                const
+            {
+                static_assert(
+                    std::is_same_v<T_MdSpan, ALPAKA_TYPEOF(dataSource)>,
+                    "Data source type must match the class template signature.");
+                auto&& d = dataSource[idx];
+                using DataTypeType = std::remove_reference_t<decltype(d)>;
+                using DstType = std::conditional_t<
+                    std::is_const_v<DataTypeType>,
+                    Simd<std::decay_t<DataTypeType>, T_simdWidth> const,
+                    Simd<std::decay_t<DataTypeType>, T_simdWidth>>;
+
+                alpaka::concepts::Simd auto dest = DstType{};
+                dest.copyFrom(&d, alignment, policy);
                 return dest;
             }
         };
