@@ -68,12 +68,14 @@ namespace alpaka::internal
         using NativeVec = T_Type __attribute__((vector_size(16)));
         *reinterpret_cast<NativeVec*>(dst) = __builtin_nontemporal_load(reinterpret_cast<NativeVec const*>(src));
 #elif ALPAKA_LANG_CUDA && defined(__CUDA_ARCH__)
-        // __ldcs has no generic overload, use the matching 16 byte CUDA vector type for the raw bit copy.
+        // __ldcg has no generic overload, use the matching 16 byte CUDA vector type for the raw bit copy.
+        // It bypasses L1 and keeps L2, which is the closest CUDA equivalent of AMD's evict-first policy. Measured on
+        // sm_80 __ldcs (evict-first in L2 as well) is slower than the plain load for all BabelStream cells.
         using NativeVec = std::conditional_t<
             std::is_floating_point_v<T_Type> && sizeof(T_Type) == 8u,
             double2,
             std::conditional_t<std::is_floating_point_v<T_Type>, float4, uint4>>;
-        *reinterpret_cast<NativeVec*>(dst) = __ldcs(reinterpret_cast<NativeVec const*>(src));
+        *reinterpret_cast<NativeVec*>(dst) = __ldcg(reinterpret_cast<NativeVec const*>(src));
 #elif ALPAKA_LANG_SYCL && defined(__SYCL_DEVICE_ONLY__)
         using NativeVec = T_Type __attribute__((vector_size(16)));
         *reinterpret_cast<NativeVec*>(dst) = __builtin_nontemporal_load(reinterpret_cast<NativeVec const*>(src));

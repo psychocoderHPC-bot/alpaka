@@ -190,29 +190,14 @@ Otherwise, you'll need to run tests and take measurements to achieve the best pe
 SIMD Cache Policy
 -----------------
 
-The cache policy is a property of a data source, not of the algorithm call.
-Attach it with ``alpaka::withCachePolicy``, for example ``withCachePolicy(alpaka::onAcc::simdCachePolicy::Stream{}, input.getView())``.
-The adapter derives from the original view, so all accessors, the extents and the alignment keep working.
-
-.. code-block:: cpp
-
-    auto simdGrid = alpaka::onAcc::SimdAlgo{alpaka::onAcc::worker::threadsInGrid};
-    simdGrid.concurrent<64u>(
-        acc,
-        extents,
-        functor,
-        alpaka::withCachePolicy(alpaka::onAcc::simdCachePolicy::Stream{}, input.getView()),
-        output);
-
-``simdCachePolicy::Default`` is the default for every data source and generates the same code as before.
-``simdCachePolicy::Stream`` applies an evict-first (non-temporal) hint to the SIMD loads only; stores are untouched.
-Use it for data that is not reused before it is evicted, for example copy, scale, add, or triad kernels.
-Kernels which reuse data should stay on ``Default``, because the hint can regress them.
-
-All backends are supported: HIP and SYCL use ``__builtin_nontemporal_load``, CUDA uses ``__ldcs``, and the host uses
-``__builtin_nontemporal_load`` for clang or ``_mm_stream_load_si128`` for GCC with SSE4.1.
-The hint is applied only when the intrinsic exists and the 16 byte load is fully aligned; otherwise the plain load is
-used. On normal write-back host memory the x86 hint is a no-op.
+The cache policy belongs to one data source, not to the algorithm call, so a single call can mix sources with
+different policies. Attach it with ``alpaka::withCachePolicy(alpaka::onAcc::simdCachePolicy::Stream{}, input)``, which
+accepts an owning buffer or a view. The policy affects loads only, and ``simdCachePolicy::Default`` is the default for
+every source and generates the previous code. ``simdCachePolicy::Stream`` marks data that is not reused before it is
+evicted, such as the inputs of copy, scale, add or triad kernels; on CUDA it uses an L1-bypass load (``__ldcg``,
+``LDG.E.128.STRONG.GPU``), which currently costs a little on reductions, so reuse-heavy and reduction-heavy kernels
+keep ``Default``. The hint applies only to fully aligned 16 byte loads where the intrinsic exists, otherwise the plain
+load is used.
 
 Scan
 ----

@@ -28,8 +28,8 @@ namespace alpaka::onAcc
          *
          * The hint is applied to fully aligned 16 byte SIMD loads only; all other loads and every store use the
          * default path. Kernels which read data several times should stay on Default. The implementation uses
-         * ``__builtin_nontemporal_load`` on HIP and SYCL, ``__ldcs`` on CUDA and ``__builtin_nontemporal_load`` or
-         * ``_mm_stream_load_si128`` on the host, each behind an availability check.
+         * ``__builtin_nontemporal_load`` on HIP and SYCL, ``__ldcg`` (L1 bypass, L2 kept) on CUDA and
+         * ``__builtin_nontemporal_load`` or ``_mm_stream_load_si128`` on the host, each behind an availability check.
          */
         struct Stream
         {
@@ -87,13 +87,29 @@ namespace alpaka
         }
     };
 
-    /** Attach a cache policy to a data source: ``withCachePolicy(simdCachePolicy::Stream{}, view)``. */
+    /** Attach a cache policy to a data source: ``withCachePolicy(simdCachePolicy::Stream{}, view)``.
+     *
+     * An owning buffer may be passed directly, the adapter then uses its ``getView()``.
+     */
     struct WithCachePolicyFn
     {
-        template<typename T_Policy, typename T_View>
-        ALPAKA_FN_HOST_ACC constexpr auto operator()(T_Policy, T_View&& view) const
+        template<typename T_Policy, typename T_Source>
+        ALPAKA_FN_HOST_ACC constexpr auto operator()(T_Policy policy, T_Source&& source) const
         {
-            return WithCachePolicy<std::remove_cvref_t<T_View>, T_Policy>{std::forward<T_View>(view)};
+            if constexpr(requires { source.getView(); })
+            {
+                return (*this)(policy, source.getView());
+            }
+            else
+            {
+                using View = std::remove_cvref_t<T_Source>;
+                static_assert(
+                    std::is_trivially_copyable_v<View>,
+                    "withCachePolicy requires a trivially copyable data source: the adapter stores a copy of it, so a "
+                    "non-trivial source would be silently copied from a temporary");
+                // Bind as an lvalue so the adapter copies the named source instead of a forwarded temporary.
+                return WithCachePolicy<View, T_Policy>{static_cast<View const&>(source)};
+            }
         }
     };
 
