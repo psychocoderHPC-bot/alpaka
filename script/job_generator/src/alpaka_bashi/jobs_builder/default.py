@@ -11,7 +11,7 @@ from typeguard import typechecked
 
 from alpaka_bashi.ci_yaml.images import set_image
 from alpaka_bashi.ci_yaml.misc import set_misc_job_properties
-from alpaka_bashi.ci_yaml.scripts import set_script
+from alpaka_bashi.ci_yaml.scripts import set_before_script, set_script
 from alpaka_bashi.ci_yaml.tags import set_tags
 from alpaka_bashi.ci_yaml.variables import set_variables
 
@@ -40,6 +40,7 @@ def construct_job_yaml(
         job_body["stage"] = stage
     set_image(job_body, combination, container_version, image_check)
     set_variables(job_body, combination)
+    set_before_script(job_body, combination)
     set_script(job_body)
     set_tags(job_body, combination)
     set_misc_job_properties(job_body)

@@ -38,6 +38,12 @@ job-generator 4.1
 
 Use `job-generator --help` to display additional options.
 
+## GPU pinning
+
+Each HIP job exports `ROCR_VISIBLE_DEVICES` as `index % ALPAKA_CI_GPU_COUNT` to pin one GPU per job.
+`ALPAKA_CI_GPU_COUNT` defaults to 8 and can be overridden per runner, `ALPAKA_CI_GPU_INDEX` overrides the index for a single job.
+On ROCm, do not combine this with `HIP_VISIBLE_DEVICES`.
+
 # alpaka-validate
 
 `alpaka-validate` is a tool that can be used to check whether a combination is supported by alpaka.

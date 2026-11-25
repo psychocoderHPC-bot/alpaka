@@ -56,6 +56,8 @@ def set_variables(job_body: dict[str, Any], combination: bashi.Combination):
 
     if combination[ALPAKA_ACC_GPU_HIP_ENABLE].version == ON_VER:
         job_body["variables"]["APCI_HIP"] = str(combination[DEVICE_COMPILER].version)
+        # default number of GPUs per runner, override it if a runner has a different GPU count
+        job_body["variables"]["ALPAKA_CI_GPU_COUNT"] = "8"
 
     if ON_VER in (combination[ALPAKA_ACC_ONEAPI_CPU_ENABLE].version, combination[ALPAKA_ACC_ONEAPI_GPU_ENABLE].version):
         job_body["variables"]["APCI_ONEAPI"] = str(combination[DEVICE_COMPILER].version)
