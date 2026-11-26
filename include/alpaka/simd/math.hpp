@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-/** @file This file provides a basic implementation of a SIMD vector.
+/** @file
+ * @brief This file provides a basic implementation of a SIMD vector.
  *
  * The implementation is based on the class Vec:
  *   - the storage policy should become the native SIMD implementation e.g. std::simd
@@ -57,7 +58,7 @@ namespace alpaka::math::internal
             }                                                                                                         \
             else                                                                                                      \
             {                                                                                                         \
-                T_Arg ret{};                                                                                          \
+                T_Arg ret;                                                                                            \
                 for(uint32_t i = 0u; i < T_Arg::width(); i++)                                                         \
                     ret[i] = className::Op<T_MathImpl, ALPAKA_TYPEOF(arg[i])>{}(mathImpl, arg[i]);                    \
                 return ret;                                                                                           \

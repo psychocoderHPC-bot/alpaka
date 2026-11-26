@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-/** @file This file provides a basic implementation of a SIMD vector.
+/** @file
+ * @brief This file provides a basic implementation of a SIMD vector.
  *
  * The implementation is based on the class Vec:
  *   - the storge policy should become the native SIMD implementation e.g. std::simd
@@ -110,7 +111,7 @@ namespace alpaka
             static constexpr auto fill(bool value)
             {
                 auto maskValue = valueMaskCast<T_Type>(value);
-                BaseType ret{};
+                BaseType ret;
                 for(uint32_t i = 0u; i < T_width; ++i)
                     ret[i] = maskValue;
 
@@ -142,7 +143,6 @@ namespace alpaka
             /** assign operator
              */
 #define ALPAKA_VECTOR_ASSIGN_OP(op)                                                                                   \
-    template<typename T_OtherStorage>                                                                                 \
     constexpr EmuSimdMask& operator op(EmuSimdMask const& rhs)                                                        \
     {                                                                                                                 \
         for(uint32_t i = 0u; i < T_width; i++)                                                                        \
@@ -170,7 +170,7 @@ namespace alpaka
     template<typenameOrConcept T_Type, uint32_t T_width>                                                              \
     constexpr auto operator op(const argSimdType<T_Type, T_width>& lhs, const argSimdType<T_Type, T_width>& rhs)      \
     {                                                                                                                 \
-        returnSimdType<T_Type, T_width> ret{};                                                                        \
+        returnSimdType<T_Type, T_width> ret;                                                                          \
         for(uint32_t i = 0u; i < T_width; i++)                                                                        \
             ret[i] = valueMaskCast<T_Type>(lhs[i] op rhs[i]);                                                         \
         return ret;                                                                                                   \
@@ -178,7 +178,7 @@ namespace alpaka
     template<typenameOrConcept T_Type, uint32_t T_width>                                                              \
     constexpr auto operator op(const argSimdType<T_Type, T_width>& lhs, T_Type rhs)                                   \
     {                                                                                                                 \
-        returnSimdType<T_Type, T_width> ret{};                                                                        \
+        returnSimdType<T_Type, T_width> ret;                                                                          \
         for(uint32_t i = 0u; i < T_width; i++)                                                                        \
             ret[i] = valueMaskCast<T_Type>(lhs[i] op rhs);                                                            \
         return ret;                                                                                                   \
@@ -186,7 +186,7 @@ namespace alpaka
     template<typenameOrConcept T_Type, uint32_t T_width>                                                              \
     constexpr auto operator op(T_Type lhs, const argSimdType<T_Type, T_width>& rhs)                                   \
     {                                                                                                                 \
-        returnSimdType<T_Type, T_width> ret{};                                                                        \
+        returnSimdType<T_Type, T_width> ret;                                                                          \
         for(uint32_t i = 0u; i < T_width; i++)                                                                        \
             ret[i] = valueMaskCast<T_Type>(lhs op rhs[i]);                                                            \
         return ret;                                                                                                   \

@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-/** @file This file provides a basic implementation of a SIMD vector.
+/** @file
+ * @brief This file provides a basic implementation of a SIMD vector.
  *
  * The implementation is based on the class Vec:
  *   - the storge policy should become the native SIMD implementation e.g. std::simd
@@ -210,7 +211,7 @@ namespace alpaka
 
         constexpr Simd revert() const
         {
-            Simd invertedSimd{};
+            Simd invertedSimd;
             for(uint32_t i = 0u; i < T_width; i++)
                 invertedSimd[T_width - 1 - i] = (*this)[i];
 
@@ -338,7 +339,7 @@ namespace alpaka
         constexpr Simd<T_Type, T_numElements> rshrink() const
         {
             static_assert(T_numElements <= T_width);
-            Simd<T_Type, T_numElements> result{};
+            Simd<T_Type, T_numElements> result;
             for(uint32_t i = 0u; i < T_numElements; i++)
                 result[T_numElements - 1u - i] = (*this)[T_width - 1u - i];
 
@@ -352,7 +353,7 @@ namespace alpaka
         constexpr Simd<T_Type, T_width - 1u> eraseBack() const requires(T_width > 1u)
         {
             constexpr auto reducedDim = T_width - 1u;
-            Simd<T_Type, reducedDim> result{};
+            Simd<T_Type, reducedDim> result;
             for(uint32_t i = 0u; i < reducedDim; i++)
                 result[i] = (*this)[i];
 
@@ -386,7 +387,7 @@ namespace alpaka
         template<std::integral auto T_laneIdxToRemove>
         constexpr Simd<value_type, T_width - 1u> remove() const requires(T_width >= 2u)
         {
-            Simd<value_type, T_width - 1u> result{};
+            Simd<value_type, T_width - 1u> result;
             for(int i = 0u; i < static_cast<int>(T_width - 1u); ++i)
             {
                 // skip component which must be deleted
@@ -431,7 +432,7 @@ namespace alpaka
         template<typename T_OtherStorage>
         constexpr auto min(Simd<T_Type, T_width, T_OtherStorage> const& rhs) const
         {
-            Simd result{};
+            Simd result;
             for(uint32_t d = 0u; d < T_width; d++)
                 result[d] = std::min((*this)[d], rhs[d]);
             return result;
