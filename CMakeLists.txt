@@ -143,7 +143,6 @@ install(
         "${_alpaka_ROOT_DIR}/cmake/alpakaHip.cmake"
         "${_alpaka_ROOT_DIR}/cmake/alpakaOneApi.cmake"
         "${_alpaka_ROOT_DIR}/cmake/alpakaHwloc.cmake"
-        "${_alpaka_ROOT_DIR}/cmake/alpakaInstallConfig.cmake"
         "${_alpaka_ROOT_DIR}/cmake/buildDependencies.cmake"
         "${_alpaka_ROOT_DIR}/cmake/common.cmake"
         "${_alpaka_ROOT_DIR}/cmake/alpakaCompilePedantic.cmake"
