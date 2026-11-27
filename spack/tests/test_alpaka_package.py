@@ -163,17 +163,21 @@ def test_generic_development_install_is_lean(spack):
     assert "~cuda" in root
     assert "~hip" in root
     assert "~oneapi" in root
-    assert "~hwloc" in root
+    assert "hwloc=auto" in root
     assert "backend" not in root
 
     dependencies = spack.dependency_names("alpaka@dev_v3.x")
     assert "cuda" not in dependencies
     assert "hip" not in dependencies
     assert "intel-oneapi-compilers" not in dependencies
+    assert "hwloc" not in dependencies
     assert "boost" not in dependencies
 
     assert "~openmp" in spack.root_spec("alpaka@dev_v3.x ~openmp")
-    assert "hwloc" in spack.dependency_names("alpaka@dev_v3.x +hwloc")
+    assert "hwloc=on" in spack.root_spec("alpaka@dev_v3.x hwloc=on")
+    assert "hwloc" in spack.dependency_names("alpaka@dev_v3.x hwloc=on")
+    assert "hwloc=off" in spack.root_spec("alpaka@dev_v3.x hwloc=off")
+    assert "hwloc" not in spack.dependency_names("alpaka@dev_v3.x hwloc=off")
     assert "boost" in spack.dependency_names("alpaka@dev_v3.x +boost_atomic_ref")
 
 

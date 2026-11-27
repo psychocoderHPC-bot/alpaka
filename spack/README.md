@@ -107,11 +107,12 @@ The consumer must select the API it uses. A generic installation deliberately
 does not pin `alpaka_DEP_CUDA`, `alpaka_DEP_HIP`, or `alpaka_DEP_ONEAPI`.
 
 The host configuration selected by the Spack variants is persisted. The default
-generic installation pins OpenMP on and hwloc off:
+generic installation pins OpenMP on and hwloc to `auto`:
 
 ```bash
 spack install alpaka@dev_v3.x ~openmp
-spack install alpaka@dev_v3.x +hwloc
+spack install alpaka@dev_v3.x hwloc=on
+spack install alpaka@dev_v3.x hwloc=off
 ```
 
 ### Pinned accelerator installations
@@ -139,7 +140,7 @@ configuration:
 | `+hip` | `alpaka_DEP_HIP=ON`, `CMAKE_HIP_COMPILER`, `CMAKE_HIP_ARCHITECTURES` |
 | `+oneapi` | `alpaka_DEP_ONEAPI=ON`, `CMAKE_CXX_COMPILER`, `IntelSYCL_DIR` |
 | `+openmp` / `~openmp` | `alpaka_DEP_OMP=ON/OFF` |
-| `+hwloc` / `~hwloc` | `alpaka_DEP_HWLOC=ON/OFF` |
+| `hwloc=auto` / `hwloc=on` / `hwloc=off` | `alpaka_DEP_HWLOC=AUTO/ON/OFF` |
 
 `alpakaCommon.cmake` is evaluated with these values during installation, and
 the generated pinned file records the effective `alpaka_DEP_*` values and the
@@ -160,7 +161,9 @@ duplicate them in `alpaka_INSTALL_*` options.
 | `amdgpu_target` | none | Value passed to `CMAKE_HIP_ARCHITECTURES`. Set it for deployment. |
 | `+oneapi` | off | Enable the oneAPI SYCL API. Adds the Intel oneAPI compiler. |
 | `+openmp` | on, except with `+hip` | Enable the OpenMP host executor. |
-| `+hwloc` | off | Require hwloc 2.x and enable the NUMA host API. |
+| `hwloc=auto` | auto | Search for hwloc at consumer configure time and enable it if found. No error if absent. |
+| `hwloc=on` | | Require hwloc 2.x and enable the NUMA host API. |
+| `hwloc=off` | | Disable hwloc even if it is installed. |
 | `+boost_atomic_ref` | off | Provide Boost as a fallback for `std::atomic_ref`. |
 | `+examples` | off | Build the alpaka examples. |
 
@@ -175,7 +178,7 @@ CUDA, HIP, and oneAPI are mutually exclusive. HIP requires ROCm 6.0 or newer
 ### alpaka 3.0.0
 
 The 3.0.0 release is installed unchanged. It supports a generic header-only
-installation. The 3.1-only variants (`+hip`, `+oneapi`, `+openmp`, `+hwloc`,
+installation. The 3.1-only variants (`+hip`, `+oneapi`, `+openmp`, `hwloc`,
 `cuda_compiler`, `amdgpu_target`) are not available for 3.0.0. `+cuda` is
 rejected because the release cannot persist the selection in the installed
 CMake package. A consumer of a 3.0.0 installation can still select supported
@@ -256,11 +259,21 @@ resulting executable.
 
 ## hwloc
 
-`+hwloc` requires hwloc 2.x and pins `alpaka_DEP_HWLOC=ON`. The installed
-configuration prepends the hwloc prefix and its `pkg-config` directory before
-alpaka is configured. `~hwloc` pins `alpaka_DEP_HWLOC=OFF` and adds
-`ALPAKA_DISABLE_HWLOC` to the host target. The generic default is `~hwloc` so a
-plain alpaka installation does not acquire an ambient hwloc dependency.
+`hwloc` is tri-state and mirrors the existing `alpaka_DEP_HWLOC` semantics:
+
+- `hwloc=auto` (default) pins `alpaka_DEP_HWLOC=AUTO`. During consumer
+  configuration alpaka searches for hwloc and enables the NUMA host API if a
+  compatible hwloc 2.x is found. It does not fail if hwloc is absent.
+- `hwloc=on` adds a `hwloc@2:` dependency and pins `alpaka_DEP_HWLOC=ON`. The
+  installed configuration prepends the recorded hwloc prefix and its
+  `pkg-config` directory, and consumer configuration fails if hwloc 2.x is not
+  available.
+- `hwloc=off` pins `alpaka_DEP_HWLOC=OFF`. The policy and every location hint
+  are suppressed, and `ALPAKA_DISABLE_HWLOC` is added to the host target even
+  if hwloc is installed on the consumer machine.
+
+The generic default is `auto`, so a plain alpaka installation does not acquire
+a hard hwloc dependency.
 
 ## Downstream consumer
 

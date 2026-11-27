@@ -138,7 +138,12 @@ class Alpaka(CMakePackage, CudaPackage):
             when="+hip",
             description="Enable the OpenMP host executor",
         )
-        variant("hwloc", default=False, description="Enable hwloc and the NUMA host API")
+        variant(
+            "hwloc",
+            values=("auto", "on", "off"),
+            default="auto",
+            description="hwloc policy: auto searches at consumer configure time, on requires hwloc, off disables it",
+        )
         variant(
             "cuda_compiler",
             values=("nvcc", "clang"),
@@ -171,7 +176,7 @@ class Alpaka(CMakePackage, CudaPackage):
         depends_on("hip@6:", when="+hip")
         depends_on("llvm-amdgpu", when="+hip")
         depends_on("intel-oneapi-compilers", when="+oneapi")
-        depends_on("hwloc@2:", when="+hwloc")
+        depends_on("hwloc@2:", when="hwloc=on")
 
     def cmake_args(self):
         if self.spec.satisfies("@0.9:2"):
@@ -220,10 +225,11 @@ class Alpaka(CMakePackage, CudaPackage):
 
     def _development_cmake_args(self):
         spec = self.spec
+        hwloc = spec.variants["hwloc"].value
         args = [
             self.define("alpaka_INSTALL_PIN_CONFIG", True),
             self.define("alpaka_DEP_OMP", "+openmp" in spec),
-            self.define("alpaka_DEP_HWLOC", "ON" if "+hwloc" in spec else "OFF"),
+            self.define("alpaka_DEP_HWLOC", hwloc.upper()),
             self.define("alpaka_TESTS", self.run_tests),
             self.define_from_variant("alpaka_EXAMPLES", "examples"),
             self.define("BUILD_TESTING", self.run_tests),

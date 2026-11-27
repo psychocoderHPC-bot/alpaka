@@ -89,7 +89,7 @@ endfunction()
     _alpaka_install_config_call("${output}" alpaka_DEP_HWLOC "${alpaka_DEP_HWLOC}" STRING)
 
     set(_alpaka_hwloc_prefix "")
-    if(NOT alpaka_DEP_HWLOC STREQUAL "OFF")
+    if(alpaka_DEP_HWLOC STREQUAL "ON")
         set(_alpaka_hwloc_prefix "")
         if(DEFINED HWLOC_PREFIX AND HWLOC_PREFIX)
             set(_alpaka_hwloc_prefix "${HWLOC_PREFIX}")
