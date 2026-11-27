@@ -77,7 +77,7 @@ all memory nodes which hwloc reports as best for that property.
 Which Devices Implement What
 ----------------------------
 
-Currently only CPU devices (``deviceKind::cpu`` and ``deviceKind::numaCpu``) implement ``bestLatency``, ``bestBandwidth`` and ``locality``, and only when alpaka is **built with hwloc**. hwloc is what carries the placement out, so in a build without it a CPU device implements nothing but ``memoryProperty::defaultProperty`` and requesting a placement preference is a compile time error, exactly as it is on a GPU.
+Currently only CPU devices (``deviceKind::cpu`` and ``deviceKind::numaCpu``) implement ``bestLatency``, ``bestBandwidth`` and ``locality``, and only when alpaka is **built with hwloc 2.3 or newer**. hwloc is what carries the placement out, so in a build without it a CPU device implements nothing but ``memoryProperty::defaultProperty`` and requesting a placement preference is a compile time error, exactly as it is on a GPU.
 
 This means a source which passes a placement preference *directly* is specific to an hwloc-enabled CPU only build. Routing it through ``hasProperty`` keeps it compiling either way:
 
@@ -99,7 +99,8 @@ Whether a device *implements* a property is a compile time question, whether the
 When the property cannot be carried out at runtime, alpaka reports it:
 
 - hwloc provides no data for the requested attribute on this machine, for example a platform without ACPI HMAT.
-  alpaka prints a warning on ``std::cerr`` and falls back to binding all memory nodes of the CPU domain.
+  alpaka prints a warning on ``std::cerr`` and falls back to binding all memory nodes of the CPU domain. The host
+  device spans every domain, so there the allocation stays unbound and the OS chooses the placement.
 - the OS or container refuses the memory binding (missing privileges, restricted cpuset). With
   ``alpaka_HOST_MemPinningCanFail`` enabled alpaka prints a warning and leaves the placement to the OS,
   otherwise the allocation throws.

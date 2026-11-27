@@ -419,8 +419,8 @@ namespace alpaka::onHost::internal::hwloc
             [&]()
             {
                 std::stringstream ss;
-                ss << "pinPointerToNumaNode{ ptr=" << ptr << ", bytes=" << bytes << ", nodeset=" << toString(nodeset)
-                   << " }";
+                ss << "pinPointerToNumaNode{ ptr=" << static_cast<void const*>(ptr) << ", bytes=" << bytes
+                   << ", nodeset=" << toString(nodeset) << " }";
                 return ss.str();
             });
 
@@ -620,6 +620,15 @@ namespace alpaka::onHost::internal::hwloc
             // platform exposes no HMAT/memory attribute data.
             if(hwloc_bitmap_iszero(pinningNodes))
             {
+                if(cpuDomainIdx == allDomains)
+                {
+                    alpaka::core::warn(
+                        "memory property '" + T_Property::getName()
+                        + "' is supported by the device but hwloc provides no data for it on this machine, "
+                          "the allocation stays unbound and the OS chooses the memory placement");
+                    return;
+                }
+
                 alpaka::core::warn(
                     "memory property '" + T_Property::getName()
                     + "' is supported by the device but hwloc provides no data for it on this machine, "
@@ -627,10 +636,6 @@ namespace alpaka::onHost::internal::hwloc
 
                 // Keep the allocation inside its own domain rather than leaving it unbound.
                 addDomainNodes(pinningNodes, cpuDomainIdx);
-
-                // 'allDomains' has no domain to stay inside, leave the placement to the OS.
-                if(hwloc_bitmap_iszero(pinningNodes))
-                    return;
             }
         }
         else

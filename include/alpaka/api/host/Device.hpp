@@ -258,10 +258,38 @@ namespace alpaka::onHost
 
                 auto deviceDependency = onHost::Device{device.getSharedPtr()};
 
-                T_Type* ptr = reinterpret_cast<T_Type*>(alpaka::core::alignedAlloc(alignment, memSizeInByte));
-                device.pinPointer(ptr, memSizeInByte, property);
+                /* hwloc binds and migrates whole pages. A buffer sharing a page with another live allocation
+                 * would move that allocation's data when it is bound, therefore bound allocations get their own
+                 * whole pages. The logical buffer layout still uses the SIMD alignment from above.
+                 */
+                bool const requiresPinnedPages = !std::same_as<T_Property, memoryProperty::Default>
+                                                 || getDeviceKind(device) == deviceKind::numaCpu;
+                size_t allocationAlignment = alignment;
+                size_t allocationSize = memSizeInByte;
+                if(requiresPinnedPages)
+                {
+                    size_t const pageSize = getPageSize();
+                    // Round the alignment up to a whole page as well, not only the size, so the bound range
+                    // starts at a page boundary and covers whole pages.
+                    allocationAlignment = alpaka::divCeil(allocationAlignment, pageSize) * pageSize;
+                    allocationSize = alpaka::divCeil(memSizeInByte, pageSize) * pageSize;
+                }
+
+                T_Type* ptr
+                    = reinterpret_cast<T_Type*>(alpaka::core::alignedAlloc(allocationAlignment, allocationSize));
+                try
+                {
+                    device.pinPointer(ptr, allocationSize, property);
+                }
+                catch(...)
+                {
+                    // The deleter below is not constructed yet, so the raw allocation must be released here.
+                    alpaka::core::alignedFree(allocationAlignment, ptr);
+                    throw;
+                }
                 // deviceDependency is captured to keep the device alive until the memory is deleted
-                auto deleter = [ptr, deviceDependency]() { alpaka::core::alignedFree(alignment, ptr); };
+                auto deleter = [ptr, allocationAlignment, deviceDependency]()
+                { alpaka::core::alignedFree(allocationAlignment, ptr); };
 
                 auto sharedBuffer = onHost::SharedBuffer{
                     deviceDependency,
