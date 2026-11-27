@@ -182,9 +182,9 @@ class Alpaka(CMakePackage, CudaPackage):
         if self.spec.satisfies("@0.9:2"):
             return self._legacy_cmake_args()
         if self.spec.satisfies("@3.0.0"):
-            return self._release_3_0_0_cmake_args()
+            return self._v3_0_0_cmake_args()
         if self.spec.satisfies("@3.1:,dev_v3.x"):
-            return self._development_cmake_args()
+            return self._v3_1_cmake_args()
         raise InstallError(f"Unsupported alpaka version {self.version}")
 
     def _legacy_cmake_args(self):
@@ -216,14 +216,14 @@ class Alpaka(CMakePackage, CudaPackage):
         args.append(self.define("BUILD_TESTING", self.run_tests))
         return args
 
-    def _release_3_0_0_cmake_args(self):
+    def _v3_0_0_cmake_args(self):
         return [
             self.define("alpaka_TESTS", self.run_tests),
             self.define_from_variant("alpaka_EXAMPLES", "examples"),
             self.define("BUILD_TESTING", self.run_tests),
         ]
 
-    def _development_cmake_args(self):
+    def _v3_1_cmake_args(self):
         spec = self.spec
         hwloc = spec.variants["hwloc"].value
         args = [
@@ -236,14 +236,14 @@ class Alpaka(CMakePackage, CudaPackage):
         ]
 
         if "+cuda" in spec:
-            args.extend(self._cuda_args())
+            args.extend(self._v3_cuda_args())
         if "+hip" in spec:
-            args.extend(self._hip_args())
+            args.extend(self._v3_hip_args())
         if "+oneapi" in spec:
-            args.extend(self._oneapi_args())
+            args.extend(self._v3_oneapi_args())
         return args
 
-    def _cuda_args(self):
+    def _v3_cuda_args(self):
         spec = self.spec
         cuda_prefix = spec["cuda"].prefix
         mode = spec.variants["cuda_compiler"].value
@@ -266,7 +266,7 @@ class Alpaka(CMakePackage, CudaPackage):
             args.append(self.define("CMAKE_CUDA_FLAGS", f"--cuda-path={cuda_prefix}"))
         return args
 
-    def _hip_args(self):
+    def _v3_hip_args(self):
         spec = self.spec
         llvm_prefix = spec["llvm-amdgpu"].prefix
         compiler = None
@@ -293,15 +293,15 @@ class Alpaka(CMakePackage, CudaPackage):
             args.append(self.define("CMAKE_HIP_ARCHITECTURES", archs))
         return args
 
-    def _oneapi_args(self):
-        compiler, intelsycl_dir = self._oneapi_compiler_and_sycl_dir()
+    def _v3_oneapi_args(self):
+        compiler, intelsycl_dir = self._v3_oneapi_compiler_and_sycl_dir()
         return [
             self.define("alpaka_DEP_ONEAPI", True),
             self.define("CMAKE_CXX_COMPILER", compiler),
             self.define("IntelSYCL_DIR", intelsycl_dir),
         ]
 
-    def _oneapi_compiler_and_sycl_dir(self):
+    def _v3_oneapi_compiler_and_sycl_dir(self):
         prefix = str(self.spec["intel-oneapi-compilers"].prefix)
         roots = [prefix]
         roots.extend(sorted(glob.glob(os.path.join(prefix, "compiler", "*"))))

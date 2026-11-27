@@ -335,6 +335,7 @@ Numa Awareness
   .. code-block:: markdown
 
      Enable/Disable the possibility to use the `host` device kind `numaCpu`.
+     Valid values are `ON`, `OFF`, and `AUTO`.
      `AUTO` is the default and will check if `hwloc` is installed and if found handle `alpaka_DEP_HWLOC` as if it is set to `ON`, else `OFF`.
      If you installed `hwloc` by hand you should extent the environment variable `PKG_CONFIG_PATH` to the directory of `hwloc.pc` that CMake can find the dependency.
 
@@ -423,6 +424,21 @@ The following options are only available during the installation of alpaka, i.e.
   .. code-block:: markdown
 
      Build documentation code snippets.
+
+``alpaka_INSTALL_PIN_CONFIG``
+  .. code-block:: markdown
+
+     Persist the API and toolchain selection in the installed CMake package.
+     When enabled, ``alpakaCommon.cmake`` is evaluated during installation with the current
+     ``alpaka_DEP_*`` and ``CMAKE_*`` values and ``alpakaConfigPinned.cmake`` is generated.
+     The installed ``alpakaConfig.cmake`` includes the pinned file before any target is created.
+     Consumers of the installation cannot enable an unselected API, disable a selected API,
+     change the selected compiler, or replace the recorded architecture.
+     The normal ``alpaka_DEP_CUDA``, ``alpaka_DEP_HIP``, ``alpaka_DEP_ONEAPI``, ``alpaka_DEP_OMP``,
+     and ``alpaka_DEP_HWLOC`` variables carry the selection. CUDA, HIP, and oneAPI installations
+     additionally record the compiler, toolkit, and architecture variables.
+     This option is available in the development version and future releases. The unmodified
+     3.0.0 release does not provide it.
 
 Code Sanitizers for CPU
 ^^^^^^^^^^^^^^^^^^^^^^^
