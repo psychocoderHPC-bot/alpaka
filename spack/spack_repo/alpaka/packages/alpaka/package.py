@@ -270,7 +270,20 @@ class Alpaka(CMakePackage, CudaPackage):
     def _hip_args(self):
         spec = self.spec
         llvm_prefix = spec["llvm-amdgpu"].prefix
-        compiler = join_path(llvm_prefix.bin, "amdclang++")
+        compiler = None
+        for candidate in (
+            join_path(llvm_prefix.lib.llvm.bin, "clang++"),
+            join_path(llvm_prefix.bin, "clang++"),
+            join_path(llvm_prefix.bin, "amdclang++"),
+            join_path(llvm_prefix.lib.llvm.bin, "amdclang++"),
+        ):
+            if os.path.isfile(candidate):
+                compiler = candidate
+                break
+        if compiler is None:
+            raise InstallError(
+                f"Could not find a HIP-capable Clang compiler in the llvm-amdgpu prefix '{llvm_prefix}'."
+            )
         args = [
             self.define("alpaka_INSTALL_DEP_HIP", True),
             self.define("alpaka_INSTALL_HIP_COMPILER", compiler),

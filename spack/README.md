@@ -96,8 +96,15 @@ installation:
 cmake -S consumer -B build-host
 
 # CUDA consumer using the same alpaka installation
-cmake -S consumer -B build-cuda -Dalpaka_DEP_CUDA=ON
+cmake -S consumer -B build-cuda \
+  -Dalpaka_DEP_CUDA=ON \
+  -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc \
+  -DCUDAToolkit_ROOT=/usr/local/cuda \
+  -DCMAKE_CUDA_ARCHITECTURES=90
 ```
+
+The consumer must select the API it uses. A generic installation deliberately
+does not pin `alpaka_DEP_CUDA`, `alpaka_DEP_HIP`, or `alpaka_DEP_ONEAPI`.
 
 The host configuration selected by the Spack variants is persisted. The default
 generic installation pins OpenMP on and hwloc off:
