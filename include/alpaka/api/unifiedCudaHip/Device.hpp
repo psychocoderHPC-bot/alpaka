@@ -189,21 +189,29 @@ namespace alpaka::onHost
 {
     namespace internal
     {
-        template<typename T_Type, typename T_Platform, alpaka::concepts::Vector T_Extents>
-        struct Alloc::Op<T_Type, unifiedCudaHip::Device<T_Platform>, T_Extents>
+        template<
+            typename T_Type,
+            typename T_Platform,
+            alpaka::concepts::Vector T_Extents,
+            alpaka::concepts::MemoryProperty T_Property>
+        struct Alloc::Op<T_Type, unifiedCudaHip::Device<T_Platform>, T_Extents, T_Property>
         {
-            auto operator()(unifiedCudaHip::Device<T_Platform>& device, T_Extents const& extents) const
+            auto operator()(
+                unifiedCudaHip::Device<T_Platform>& device,
+                T_Extents const& extents,
+                [[maybe_unused]] T_Property property) const
             {
                 ALPAKA_LOG_FUNCTION(onHost::logger::memory + onHost::logger::device);
                 using ApiInterface = typename T_Platform::ApiInterface;
                 ALPAKA_UNIFORM_CUDA_HIP_RT_CHECK(ApiInterface, ApiInterface::setDevice(device.getNativeHandle()));
 
                 T_Type* ptr = nullptr;
-                auto pitches = typename T_Extents::UniVec{sizeof(T_Type)};
 
                 using Idx = typename T_Extents::value_type;
 
                 constexpr auto dim = T_Extents::dim();
+                // the pitches are fully overwritten by all branches except the 1D one
+                auto pitches = T_Extents::UniVec::fill(static_cast<Idx>(sizeof(T_Type)));
                 if constexpr(dim == 1u)
                 {
                     ALPAKA_UNIFORM_CUDA_HIP_RT_CHECK(
@@ -264,10 +272,17 @@ namespace alpaka::onHost
             }
         };
 
-        template<typename T_Type, typename T_Platform, alpaka::concepts::Vector T_Extents>
-        struct AllocUnified::Op<T_Type, unifiedCudaHip::Device<T_Platform>, T_Extents>
+        template<
+            typename T_Type,
+            typename T_Platform,
+            alpaka::concepts::Vector T_Extents,
+            alpaka::concepts::MemoryProperty T_Property>
+        struct AllocUnified::Op<T_Type, unifiedCudaHip::Device<T_Platform>, T_Extents, T_Property>
         {
-            auto operator()(unifiedCudaHip::Device<T_Platform>& device, T_Extents const& extents) const
+            auto operator()(
+                unifiedCudaHip::Device<T_Platform>& device,
+                T_Extents const& extents,
+                [[maybe_unused]] T_Property property) const
             {
                 ALPAKA_LOG_FUNCTION(onHost::logger::memory + onHost::logger::device);
                 using ApiInterface = typename T_Platform::ApiInterface;
@@ -313,10 +328,17 @@ namespace alpaka::onHost
             }
         };
 
-        template<typename T_Type, typename T_Platform, alpaka::concepts::Vector T_Extents>
-        struct AllocMapped::Op<T_Type, unifiedCudaHip::Device<T_Platform>, T_Extents>
+        template<
+            typename T_Type,
+            typename T_Platform,
+            alpaka::concepts::Vector T_Extents,
+            alpaka::concepts::MemoryProperty T_Property>
+        struct AllocMapped::Op<T_Type, unifiedCudaHip::Device<T_Platform>, T_Extents, T_Property>
         {
-            auto operator()(unifiedCudaHip::Device<T_Platform>& device, T_Extents const& extents) const
+            auto operator()(
+                unifiedCudaHip::Device<T_Platform>& device,
+                T_Extents const& extents,
+                [[maybe_unused]] T_Property property) const
             {
                 ALPAKA_LOG_FUNCTION(onHost::logger::memory + onHost::logger::device);
                 using ApiInterface = typename T_Platform::ApiInterface;

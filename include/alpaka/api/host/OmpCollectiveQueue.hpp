@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-/** @file This contains a special queue implementation for one of our users. All requirements to use this queue are in
+/** @file
+ * @brief This contains a special queue implementation for one of our users. All requirements to use this queue are in
  * this single file, this provides the possibility that the file is copied into the user project and adjusted if
  * needed.
  *
@@ -98,7 +99,8 @@ namespace alpaka::onHost
          * If this function is called outside of an OpenMP parallel section the functor is invoked by the caller only.
          * This operation is synchronizing all threads within a parallel OpenMP region.
          *
-         * @return A copy of the return value from the invocation. The return value must be assignable.
+         * If the functor returns a value, each participating thread receives a copy of that value.
+         * The return value must be assignable.
          */
         inline auto invokeSingle(auto&& fn) requires(!std::same_as<std::invoke_result_t<ALPAKA_TYPEOF(fn)>, void>)
         {
@@ -729,10 +731,15 @@ namespace alpaka::onHost
         };
 
         /** OpenMP barrier is used. */
-        template<typename T_Type, typename T_Device, alpaka::concepts::Vector T_Extents>
-        struct AllocDeferred::Op<T_Type, cpu::OmpCollectiveQueue<T_Device>, T_Extents>
+        template<
+            typename T_Type,
+            typename T_Device,
+            alpaka::concepts::Vector T_Extents,
+            alpaka::concepts::MemoryProperty T_Property>
+        struct AllocDeferred::Op<T_Type, cpu::OmpCollectiveQueue<T_Device>, T_Extents, T_Property>
         {
-            auto operator()(cpu::OmpCollectiveQueue<T_Device>& queue, T_Extents const& extents) const
+            auto operator()(cpu::OmpCollectiveQueue<T_Device>& queue, T_Extents const& extents, T_Property property)
+                const
             {
                 ALPAKA_LOG_FUNCTION(onHost::logger::memory + onHost::logger::queue);
 
@@ -740,9 +747,10 @@ namespace alpaka::onHost
                     queue,
                     [&]
                     {
-                        return internal::AllocDeferred::Op<T_Type, cpu::Queue<T_Device>, T_Extents>{}(
+                        return internal::AllocDeferred::Op<T_Type, cpu::Queue<T_Device>, T_Extents, T_Property>{}(
                             *queue.m_parentQueue,
-                            extents);
+                            extents,
+                            property);
                     });
             }
         };

@@ -10,6 +10,7 @@
 #include "alpaka/api/host/exec/OmpBlocks.hpp"
 #include "alpaka/api/host/exec/Serial.hpp"
 #include "alpaka/api/host/exec/TbbBlocks.hpp"
+#include "alpaka/api/host/sysInfo.hpp"
 #include "alpaka/api/util.hpp"
 #include "alpaka/core/CallbackThread.hpp"
 #include "alpaka/core/alignedAlloc.hpp"
@@ -574,7 +575,7 @@ namespace alpaka::onHost
 
         // copy to device global memory
         template<typename T_Device, typename T_Source, typename T_Storage, typename T>
-        struct internal::MemcpyDeviceGlobal::
+        struct MemcpyDeviceGlobal::
             Op<cpu::Queue<T_Device>, onAcc::internal::GlobalDeviceMemoryWrapper<T_Storage, T>, T_Source>
         {
             void operator()(
@@ -595,7 +596,7 @@ namespace alpaka::onHost
 
         // copy from device global memory
         template<typename T_Device, typename T_Dest, typename T_Storage, typename T>
-        struct internal::MemcpyDeviceGlobal::
+        struct MemcpyDeviceGlobal::
             Op<cpu::Queue<T_Device>, T_Dest, onAcc::internal::GlobalDeviceMemoryWrapper<T_Storage, T>>
         {
             void operator()(
@@ -684,8 +685,12 @@ namespace alpaka::onHost
         /** The code is a copy of the Alloc::Op with the difference that the memory is allocated and freed
          * within a queue
          */
-        template<typename T_Type, typename T_Device, alpaka::concepts::Vector T_Extents>
-        struct AllocDeferred::Op<T_Type, cpu::Queue<T_Device>, T_Extents>
+        template<
+            typename T_Type,
+            typename T_Device,
+            alpaka::concepts::Vector T_Extents,
+            alpaka::concepts::MemoryProperty T_Property>
+        struct AllocDeferred::Op<T_Type, cpu::Queue<T_Device>, T_Extents, T_Property>
         {
             static consteval uint32_t highestPowerOfTwo(uint32_t value)
             {
@@ -697,7 +702,7 @@ namespace alpaka::onHost
                 return result;
             }
 
-            auto operator()(cpu::Queue<T_Device>& queue, T_Extents const& extents) const
+            auto operator()(cpu::Queue<T_Device>& queue, T_Extents const& extents, T_Property property) const
             {
                 ALPAKA_LOG_FUNCTION(onHost::logger::memory + onHost::logger::queue);
                 auto device = queue.getDevice();
@@ -709,12 +714,42 @@ namespace alpaka::onHost
                 auto deviceDependency = onHost::Device{queue.getDevice()->getSharedPtr()};
                 auto queueDependency = queue.getSharedPtr();
 
-                T_Type* ptr = reinterpret_cast<T_Type*>(alpaka::core::alignedAlloc(alignment, memSizeInByte));
-                device->pinPointer(ptr, memSizeInByte);
+                /* hwloc binds and migrates whole pages. A buffer sharing a page with another live allocation
+                 * would move that allocation's data when it is bound, therefore bound allocations get their own
+                 * whole pages. The logical buffer layout still uses the SIMD alignment from above.
+                 */
+                bool const requiresPinnedPages = !std::same_as<T_Property, memoryProperty::Default>
+                                                 || getDeviceKind(device) == deviceKind::numaCpu;
+                size_t allocationAlignment = alignment;
+                size_t allocationSize = memSizeInByte;
+                if(requiresPinnedPages)
+                {
+                    size_t const pageSize = getPageSize();
+                    // Round the alignment up to a whole page as well, not only the size, so the bound range
+                    // starts at a page boundary and covers whole pages.
+                    allocationAlignment = alpaka::divCeil(allocationAlignment, pageSize) * pageSize;
+                    allocationSize = alpaka::divCeil(memSizeInByte, pageSize) * pageSize;
+                }
+
+                T_Type* ptr
+                    = reinterpret_cast<T_Type*>(alpaka::core::alignedAlloc(allocationAlignment, allocationSize));
+                try
+                {
+                    device->pinPointer(ptr, allocationSize, property);
+                }
+                catch(...)
+                {
+                    // The deleter below is not constructed yet, so the raw allocation must be released here.
+                    alpaka::core::alignedFree(allocationAlignment, ptr);
+                    throw;
+                }
 
                 // queueDependency is captured to keep the device alive until the memory is deleted
-                auto deleter = [ptr, queueDep = std::move(queueDependency)]()
-                { queueDep.get()->submit([ptr]() { alpaka::core::alignedFree(alignment, ptr); }); };
+                auto deleter = [ptr, allocationAlignment, queueDep = std::move(queueDependency)]()
+                {
+                    queueDep.get()->submit([ptr, allocationAlignment]()
+                                           { alpaka::core::alignedFree(allocationAlignment, ptr); });
+                };
 
                 auto sharedBuffer = onHost::SharedBuffer{
                     deviceDependency,
