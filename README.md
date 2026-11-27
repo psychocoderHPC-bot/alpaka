@@ -99,6 +99,22 @@ These measurements describe the hardware and benchmark configurations shown, rat
 
 See the [benchmark sources](benchmark) for workloads to evaluate on your own hardware.
 
+## Installation with Spack
+
+The repository ships a Spack package in [`spack/`](spack/README.md). It keeps the
+legacy 0.9 through 2.x recipe, installs the released 3.0.0 sources unchanged, and
+supports generic or pinned CUDA, HIP, and oneAPI installations from `dev_v3.x`.
+
+```bash
+spack repo add --scope user "$PWD/spack/spack_repo/alpaka"
+spack install alpaka@dev_v3.x
+spack install alpaka@dev_v3.x +cuda cuda_arch=90
+```
+
+See [`spack/README.md`](spack/README.md) for variants, downstream CMake usage,
+CUDA compiler selection, release-versus-development capabilities, and test
+instructions.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.

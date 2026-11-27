@@ -1,0 +1,63 @@
+name: Spack package
+
+on:
+  push:
+    branches: [dev_v3.x]
+  pull_request:
+    branches: [dev_v3.x]
+
+permissions:
+  contents: read
+
+env:
+  SPACK_VERSION: v1.2.0
+  SPACK_COMMIT: 63962ed90680d339004305075da272ae93c04a41
+
+jobs:
+  spack-cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ pkg-config
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Install Spack
+        run: |
+          git clone --depth 1 --branch "${SPACK_VERSION}" https://github.com/spack/spack.git "${RUNNER_TEMP}/spack"
+          test "$(git -C "${RUNNER_TEMP}/spack" rev-parse HEAD)" = "${SPACK_COMMIT}"
+
+      - name: Recipe, concretization, and installed-package tests
+        env:
+          SPACK: ${{ runner.temp }}/spack/bin/spack
+          ALPAKA_SPACK_INSTALL_TESTS: "1"
+        run: pytest -q spack/tests/test_alpaka_package.py
+
+  spack-accelerator-specs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pytest and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ pkg-config
+          pip install pytest
+
+      - name: Install Spack
+        run: |
+          git clone --depth 1 --branch "${SPACK_VERSION}" https://github.com/spack/spack.git "${RUNNER_TEMP}/spack"
+          test "$(git -C "${RUNNER_TEMP}/spack" rev-parse HEAD)" = "${SPACK_COMMIT}"
+
+      - name: Accelerator concretization tests
+        env:
+          SPACK: ${{ runner.temp }}/spack/bin/spack
+          ALPAKA_SPACK_GPU_SPEC_TESTS: "1"
+        run: pytest -q spack/tests/test_alpaka_package.py -k "not spack_installed"
