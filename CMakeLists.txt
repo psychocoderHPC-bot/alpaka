@@ -73,13 +73,6 @@ option(
 if(alpaka_INSTALL_PIN_CONFIG)
     include(${_alpaka_CMAKE_DIR}/alpakaCommon.cmake)
 
-    # Any selected accelerator API turns this into a pinned accelerator installation.
-    # If none is selected, the installation stays generic and consumers may select APIs.
-    set(alpaka_INSTALL_ACCELERATOR_PIN OFF)
-    if(alpaka_DEP_CUDA OR alpaka_DEP_HIP OR alpaka_DEP_ONEAPI)
-        set(alpaka_INSTALL_ACCELERATOR_PIN ON)
-    endif()
-
     include(${_alpaka_CMAKE_DIR}/alpakaInstallConfig.cmake)
     alpaka_generate_install_config("${CMAKE_CURRENT_BINARY_DIR}/alpakaConfigPinned.cmake")
 endif()
