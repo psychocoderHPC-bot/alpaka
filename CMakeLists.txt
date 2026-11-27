@@ -58,42 +58,28 @@ option(alpaka_EXAMPLES "Enable/Disable examples" OFF)
 option(alpaka_HEADERCHECKS "Enable/Disable header check tests" OFF)
 option(alpaka_CLANG_TIDY "Enable/Disable clang-tidy tests" OFF)
 
-# Options to persist an API and toolchain selection in the installed CMake package.
-# A header-only installation does not compile anything, therefore cache variables used while
-# configuring the installation are normally not visible to consumers of the installation.
-# A downstream package manager (for example Spack) can request a pinned installation here.
-# The generated configuration is evaluated by alpakaConfig.cmake before the targets are created.
+# Persist the API and toolchain selection in the installed CMake package.
+# A header-only installation does not compile anything, therefore the cache variables used
+# while configuring the installation are normally not visible to consumers. A downstream
+# package manager (for example Spack) can request a pinned installation here. The existing
+# alpaka_DEP_* and CMAKE_* variables are reused; only this single option is new.
+# The generated configuration is evaluated by alpakaConfig.cmake before targets are created.
 option(
     alpaka_INSTALL_PIN_CONFIG
-    "Persist the selected alpaka API and toolchain configuration in the installed CMake package"
+    "Persist the selected API and toolchain configuration in the installed CMake package"
     OFF
 )
-option(
-    alpaka_INSTALL_ACCELERATOR_PIN
-    "Reject unselected accelerator APIs in consumers of the installed CMake package"
-    OFF
-)
-set(alpaka_INSTALL_DEP_CUDA OFF CACHE BOOL "CUDA API selection persisted in the installation")
-set(alpaka_INSTALL_DEP_HIP OFF CACHE BOOL "HIP API selection persisted in the installation")
-set(alpaka_INSTALL_DEP_ONEAPI OFF CACHE BOOL "oneAPI API selection persisted in the installation")
-set(alpaka_INSTALL_DEP_OMP ON CACHE BOOL "OpenMP selection persisted in the installation")
-set(alpaka_INSTALL_DEP_HWLOC "AUTO" CACHE STRING "hwloc selection persisted in the installation (OFF, ON, AUTO)")
-set_property(CACHE alpaka_INSTALL_DEP_HWLOC PROPERTY STRINGS OFF ON AUTO)
-set(alpaka_INSTALL_CUDA_COMPILER "" CACHE FILEPATH "CUDA compiler persisted in the installation")
-set(alpaka_INSTALL_CUDA_TOOLKIT_ROOT "" CACHE PATH "CUDA toolkit root persisted in the installation")
-set(alpaka_INSTALL_CUDA_ARCHITECTURES "" CACHE STRING "CUDA architectures persisted in the installation")
-set(alpaka_INSTALL_HIP_COMPILER "" CACHE FILEPATH "HIP compiler persisted in the installation")
-set(alpaka_INSTALL_HIP_ARCHITECTURES "" CACHE STRING "HIP architectures persisted in the installation")
-set(alpaka_INSTALL_ONEAPI_COMPILER "" CACHE FILEPATH "oneAPI compiler persisted in the installation")
-set(alpaka_INSTALL_HWLOC_PREFIX "" CACHE PATH "hwloc prefix persisted in the installation")
 
 if(alpaka_INSTALL_PIN_CONFIG)
-    set(alpaka_DEP_CUDA ${alpaka_INSTALL_DEP_CUDA} CACHE BOOL "Enable the CUDA dependency" FORCE)
-    set(alpaka_DEP_HIP ${alpaka_INSTALL_DEP_HIP} CACHE BOOL "Enable the HIP dependency" FORCE)
-    set(alpaka_DEP_ONEAPI ${alpaka_INSTALL_DEP_ONEAPI} CACHE BOOL "Enable the oneAPI dependency" FORCE)
-    set(alpaka_DEP_OMP ${alpaka_INSTALL_DEP_OMP} CACHE BOOL "Enable the OpenMP dependency" FORCE)
-    set(alpaka_DEP_HWLOC ${alpaka_INSTALL_DEP_HWLOC} CACHE STRING "Enable the hwloc dependency" FORCE)
     include(${_alpaka_CMAKE_DIR}/alpakaCommon.cmake)
+
+    # Any selected accelerator API turns this into a pinned accelerator installation.
+    # If none is selected, the installation stays generic and consumers may select APIs.
+    set(alpaka_INSTALL_ACCELERATOR_PIN OFF)
+    if(alpaka_DEP_CUDA OR alpaka_DEP_HIP OR alpaka_DEP_ONEAPI)
+        set(alpaka_INSTALL_ACCELERATOR_PIN ON)
+    endif()
+
     include(${_alpaka_CMAKE_DIR}/alpakaInstallConfig.cmake)
     alpaka_generate_install_config("${CMAKE_CURRENT_BINARY_DIR}/alpakaConfigPinned.cmake")
 endif()

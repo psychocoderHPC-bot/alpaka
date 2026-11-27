@@ -129,6 +129,23 @@ an API that was not selected, disable a selected API, or replace the compiler.
 Unsupported attempts fail during `find_package(alpaka)` with an actionable
 error.
 
+The install-time interface is deliberately small. The only new option is
+`alpaka_INSTALL_PIN_CONFIG`; the existing CMake variables carry the
+configuration:
+
+| Selection | Install-time CMake variables |
+| --- | --- |
+| `+cuda` | `alpaka_DEP_CUDA=ON`, `CMAKE_CUDA_COMPILER`, `CUDAToolkit_ROOT`, `CMAKE_CUDA_ARCHITECTURES` |
+| `+hip` | `alpaka_DEP_HIP=ON`, `CMAKE_HIP_COMPILER`, `CMAKE_HIP_ARCHITECTURES` |
+| `+oneapi` | `alpaka_DEP_ONEAPI=ON`, `CMAKE_CXX_COMPILER`, `IntelSYCL_DIR` |
+| `+openmp` / `~openmp` | `alpaka_DEP_OMP=ON/OFF` |
+| `+hwloc` / `~hwloc` | `alpaka_DEP_HWLOC=ON/OFF` |
+
+`alpakaCommon.cmake` is evaluated with these values during installation, and
+the generated pinned file records the effective `alpaka_DEP_*` values and the
+actual `CMAKE_*` compiler and architecture variables. The recipe does not
+duplicate them in `alpaka_INSTALL_*` options.
+
 ## Variants
 
 ### alpaka 3.1 and `dev_v3.x`

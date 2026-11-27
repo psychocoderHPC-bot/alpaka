@@ -220,12 +220,10 @@ class Alpaka(CMakePackage, CudaPackage):
 
     def _development_cmake_args(self):
         spec = self.spec
-        accelerator = any(v in spec for v in ("+cuda", "+hip", "+oneapi"))
         args = [
             self.define("alpaka_INSTALL_PIN_CONFIG", True),
-            self.define("alpaka_INSTALL_ACCELERATOR_PIN", accelerator),
-            self.define("alpaka_INSTALL_DEP_OMP", "+openmp" in spec),
-            self.define("alpaka_INSTALL_DEP_HWLOC", "ON" if "+hwloc" in spec else "OFF"),
+            self.define("alpaka_DEP_OMP", "+openmp" in spec),
+            self.define("alpaka_DEP_HWLOC", "ON" if "+hwloc" in spec else "OFF"),
             self.define("alpaka_TESTS", self.run_tests),
             self.define_from_variant("alpaka_EXAMPLES", "examples"),
             self.define("BUILD_TESTING", self.run_tests),
@@ -237,8 +235,6 @@ class Alpaka(CMakePackage, CudaPackage):
             args.extend(self._hip_args())
         if "+oneapi" in spec:
             args.extend(self._oneapi_args())
-        if "+hwloc" in spec:
-            args.append(self.define("alpaka_INSTALL_HWLOC_PREFIX", self.spec["hwloc"].prefix))
         return args
 
     def _cuda_args(self):
@@ -251,9 +247,7 @@ class Alpaka(CMakePackage, CudaPackage):
             compiler = self.compiler.cxx
 
         args = [
-            self.define("alpaka_INSTALL_DEP_CUDA", True),
-            self.define("alpaka_INSTALL_CUDA_COMPILER", compiler),
-            self.define("alpaka_INSTALL_CUDA_TOOLKIT_ROOT", cuda_prefix),
+            self.define("alpaka_DEP_CUDA", True),
             self.define("CMAKE_CUDA_COMPILER", compiler),
             self.define("CUDAToolkit_ROOT", cuda_prefix),
         ]
@@ -261,7 +255,6 @@ class Alpaka(CMakePackage, CudaPackage):
         archs = spec.variants["cuda_arch"].value
         if archs and "none" not in archs:
             args.append(self.define("CMAKE_CUDA_ARCHITECTURES", archs))
-            args.append(self.define("alpaka_INSTALL_CUDA_ARCHITECTURES", ";".join(archs)))
 
         if mode == "clang":
             args.append(self.define("CMAKE_CUDA_FLAGS", f"--cuda-path={cuda_prefix}"))
@@ -285,22 +278,19 @@ class Alpaka(CMakePackage, CudaPackage):
                 f"Could not find a HIP-capable Clang compiler in the llvm-amdgpu prefix '{llvm_prefix}'."
             )
         args = [
-            self.define("alpaka_INSTALL_DEP_HIP", True),
-            self.define("alpaka_INSTALL_HIP_COMPILER", compiler),
+            self.define("alpaka_DEP_HIP", True),
             self.define("CMAKE_HIP_COMPILER", compiler),
         ]
 
         archs = spec.variants["amdgpu_target"].value
         if archs and "none" not in archs:
             args.append(self.define("CMAKE_HIP_ARCHITECTURES", archs))
-            args.append(self.define("alpaka_INSTALL_HIP_ARCHITECTURES", ";".join(archs)))
         return args
 
     def _oneapi_args(self):
         compiler, intelsycl_dir = self._oneapi_compiler_and_sycl_dir()
         return [
-            self.define("alpaka_INSTALL_DEP_ONEAPI", True),
-            self.define("alpaka_INSTALL_ONEAPI_COMPILER", compiler),
+            self.define("alpaka_DEP_ONEAPI", True),
             self.define("CMAKE_CXX_COMPILER", compiler),
             self.define("IntelSYCL_DIR", intelsycl_dir),
         ]

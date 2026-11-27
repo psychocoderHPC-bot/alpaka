@@ -90,8 +90,8 @@ endfunction()
 
     set(_alpaka_hwloc_prefix "")
     if(NOT alpaka_DEP_HWLOC STREQUAL "OFF")
-        set(_alpaka_hwloc_prefix "${alpaka_INSTALL_HWLOC_PREFIX}")
-        if(NOT _alpaka_hwloc_prefix AND DEFINED HWLOC_PREFIX AND HWLOC_PREFIX)
+        set(_alpaka_hwloc_prefix "")
+        if(DEFINED HWLOC_PREFIX AND HWLOC_PREFIX)
             set(_alpaka_hwloc_prefix "${HWLOC_PREFIX}")
         endif()
         if(NOT _alpaka_hwloc_prefix AND DEFINED HWLOC_INCLUDE_DIRS AND HWLOC_INCLUDE_DIRS)
@@ -137,23 +137,16 @@ endfunction()
 
             # Preserve the compiler path as given. Resolving symlinks can lose the driver name
             # (for example the AMD clang multiplexer) and break language detection in consumers.
-            set(_alpaka_cuda_compiler "${CMAKE_CUDA_COMPILER}")
-            if(alpaka_INSTALL_CUDA_COMPILER)
-                file(REAL_PATH "${alpaka_INSTALL_CUDA_COMPILER}" _alpaka_requested_cuda_compiler)
-                file(REAL_PATH "${CMAKE_CUDA_COMPILER}" _alpaka_actual_cuda_compiler)
-                if(NOT _alpaka_requested_cuda_compiler STREQUAL _alpaka_actual_cuda_compiler)
-                    message(
-                        FATAL_ERROR
-                        "CUDA compiler '${_alpaka_requested_cuda_compiler}' was requested, but CMake used "
-                        "'${_alpaka_actual_cuda_compiler}'."
-                    )
-                endif()
-            endif()
-            _alpaka_install_config_compiler("${output}" CMAKE_CUDA_COMPILER "${_alpaka_cuda_compiler}" CUDA)
+            _alpaka_install_config_compiler(
+                "${output}"
+                CMAKE_CUDA_COMPILER
+                "${CMAKE_CUDA_COMPILER}"
+                CUDA
+            )
             file(APPEND "${output}" "set(alpaka_PINNED_CUDA_COMPILER_ID \"${CMAKE_CUDA_COMPILER_ID}\")\n")
 
-            set(_alpaka_cuda_toolkit_root "${alpaka_INSTALL_CUDA_TOOLKIT_ROOT}")
-            if(NOT _alpaka_cuda_toolkit_root AND DEFINED CUDAToolkit_ROOT)
+            set(_alpaka_cuda_toolkit_root "")
+            if(DEFINED CUDAToolkit_ROOT AND CUDAToolkit_ROOT)
                 set(_alpaka_cuda_toolkit_root "${CUDAToolkit_ROOT}")
             endif()
             if(NOT _alpaka_cuda_toolkit_root AND DEFINED CMAKE_CUDA_COMPILER_TOOLKIT_ROOT)
@@ -169,18 +162,14 @@ endfunction()
                 )
                 file(APPEND "${output}" "list(PREPEND CMAKE_PREFIX_PATH \"${_alpaka_cuda_toolkit_root}\")\n")
             elseif(CMAKE_CUDA_COMPILER_ID STREQUAL "Clang")
-                message(
-                    FATAL_ERROR
-                    "A Clang CUDA installation requires a CUDA toolkit root. Set "
-                    "alpaka_INSTALL_CUDA_TOOLKIT_ROOT."
-                )
+                message(FATAL_ERROR "A Clang CUDA installation requires a CUDA toolkit root. Set " "CUDAToolkit_ROOT.")
             endif()
 
-            if(alpaka_INSTALL_CUDA_ARCHITECTURES)
+            if(DEFINED CMAKE_CUDA_ARCHITECTURES AND CMAKE_CUDA_ARCHITECTURES)
                 _alpaka_install_config_call(
                     "${output}"
                     CMAKE_CUDA_ARCHITECTURES
-                    "${alpaka_INSTALL_CUDA_ARCHITECTURES}"
+                    "${CMAKE_CUDA_ARCHITECTURES}"
                     STRING
                 )
             endif()
@@ -191,19 +180,12 @@ endfunction()
                 message(FATAL_ERROR "HIP is pinned but CMake did not enable the HIP language.")
             endif()
 
-            set(_alpaka_hip_compiler "${CMAKE_HIP_COMPILER}")
-            if(alpaka_INSTALL_HIP_COMPILER)
-                file(REAL_PATH "${alpaka_INSTALL_HIP_COMPILER}" _alpaka_requested_hip_compiler)
-                file(REAL_PATH "${CMAKE_HIP_COMPILER}" _alpaka_actual_hip_compiler)
-                if(NOT _alpaka_requested_hip_compiler STREQUAL _alpaka_actual_hip_compiler)
-                    message(
-                        FATAL_ERROR
-                        "HIP compiler '${_alpaka_requested_hip_compiler}' was requested, but CMake used "
-                        "'${_alpaka_actual_hip_compiler}'."
-                    )
-                endif()
-            endif()
-            _alpaka_install_config_compiler("${output}" CMAKE_HIP_COMPILER "${_alpaka_hip_compiler}" HIP)
+            _alpaka_install_config_compiler(
+                "${output}"
+                CMAKE_HIP_COMPILER
+                "${CMAKE_HIP_COMPILER}"
+                HIP
+            )
 
             if(DEFINED hip_DIR AND hip_DIR)
                 file(REAL_PATH "${hip_DIR}" _alpaka_hip_dir)
@@ -214,11 +196,11 @@ endfunction()
                 file(APPEND "${output}" "list(PREPEND CMAKE_PREFIX_PATH \"${_alpaka_hip_root}\")\n")
             endif()
 
-            if(alpaka_INSTALL_HIP_ARCHITECTURES)
+            if(DEFINED CMAKE_HIP_ARCHITECTURES AND CMAKE_HIP_ARCHITECTURES)
                 _alpaka_install_config_call(
                     "${output}"
                     CMAKE_HIP_ARCHITECTURES
-                    "${alpaka_INSTALL_HIP_ARCHITECTURES}"
+                    "${CMAKE_HIP_ARCHITECTURES}"
                     STRING
                 )
             endif()
@@ -233,19 +215,12 @@ endfunction()
                 )
             endif()
 
-            set(_alpaka_oneapi_compiler "${CMAKE_CXX_COMPILER}")
-            if(alpaka_INSTALL_ONEAPI_COMPILER)
-                file(REAL_PATH "${alpaka_INSTALL_ONEAPI_COMPILER}" _alpaka_requested_oneapi_compiler)
-                file(REAL_PATH "${CMAKE_CXX_COMPILER}" _alpaka_actual_oneapi_compiler)
-                if(NOT _alpaka_requested_oneapi_compiler STREQUAL _alpaka_actual_oneapi_compiler)
-                    message(
-                        FATAL_ERROR
-                        "oneAPI compiler '${_alpaka_requested_oneapi_compiler}' was requested, but CMake used "
-                        "'${_alpaka_actual_oneapi_compiler}'."
-                    )
-                endif()
-            endif()
-            _alpaka_install_config_compiler("${output}" CMAKE_CXX_COMPILER "${_alpaka_oneapi_compiler}" CXX)
+            _alpaka_install_config_compiler(
+                "${output}"
+                CMAKE_CXX_COMPILER
+                "${CMAKE_CXX_COMPILER}"
+                CXX
+            )
 
             if(DEFINED IntelSYCL_DIR AND IntelSYCL_DIR)
                 _alpaka_install_config_call("${output}" IntelSYCL_DIR "${IntelSYCL_DIR}" PATH)
@@ -256,7 +231,7 @@ endfunction()
                 )
             endif()
 
-            get_filename_component(_alpaka_oneapi_bin "${_alpaka_oneapi_compiler}" DIRECTORY)
+            get_filename_component(_alpaka_oneapi_bin "${CMAKE_CXX_COMPILER}" DIRECTORY)
             get_filename_component(_alpaka_oneapi_prefix "${_alpaka_oneapi_bin}" DIRECTORY)
             file(APPEND "${output}" "list(PREPEND CMAKE_PREFIX_PATH \"${_alpaka_oneapi_prefix}\")\n")
         endif()
