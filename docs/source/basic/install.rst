@@ -32,7 +32,7 @@ Download the installer from https://cmake.org/download/
 alpaka as Dependency in Your Application
 ++++++++++++++++++++++++++++++++++++++++
 
-There are two ways to integrate *alpaka* as dependency with CMake into your project.
+The following sections describe the supported ways to install *alpaka* or to integrate it as a dependency into a CMake project.
 
 .. _install-alpaka:
 
@@ -74,6 +74,46 @@ with the path `/install/alpaka`, that CMake knows where *alpaka* can be found.
 
   cmake <path_to_you_appliction>
   cmake --build . --parallel
+
+Install alpaka with Spack
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The repository ships a Spack package in ``spack/spack_repo/alpaka``. It keeps the
+legacy 0.9 through 2.x recipe, installs the released 3.0.0 sources unchanged, and
+supports generic or pinned CUDA, HIP, and oneAPI installations from ``dev_v3.x``.
+
+Register the in-tree repository once:
+
+.. code-block:: bash
+
+  spack repo add --scope user <path_to_alpaka_checkout>/spack/spack_repo/alpaka
+
+Install a generic host build, or pin one accelerator API and toolchain:
+
+.. code-block:: bash
+
+  spack install alpaka@dev_v3.x
+  spack install alpaka@dev_v3.x +cuda cuda_arch=90
+  spack install alpaka@dev_v3.x +cuda cuda_arch=90 cuda_compiler=clang %clang
+  spack install alpaka@dev_v3.x +hip amdgpu_target=gfx1100
+  spack install alpaka@dev_v3.x +oneapi
+  spack install alpaka@3.0.0
+
+``hwloc`` is selected with ``hwloc=auto``, ``hwloc=on``, or ``hwloc=off``.
+OpenMP is enabled by default. It defaults to off with ``+hip`` because HIP with
+OpenMP requires a Clang host compiler.
+
+Load the installation or add its prefix to ``CMAKE_PREFIX_PATH``:
+
+.. code-block:: bash
+
+  spack load alpaka
+  cmake <path_to_your_application>
+  cmake --build . --parallel
+
+The full variant and downstream CMake documentation, including release versus
+development capabilities and the maintenance workflow, is in
+``spack/README.md`` in the repository.
 
 Use the Source Code Without Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

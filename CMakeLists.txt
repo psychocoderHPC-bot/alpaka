@@ -58,10 +58,39 @@ option(alpaka_EXAMPLES "Enable/Disable examples" OFF)
 option(alpaka_HEADERCHECKS "Enable/Disable header check tests" OFF)
 option(alpaka_CLANG_TIDY "Enable/Disable clang-tidy tests" OFF)
 
+# Persist the API and toolchain selection in the installed CMake package.
+# A header-only installation does not compile anything, therefore the cache variables used
+# while configuring the installation are normally not visible to consumers. A downstream
+# package manager (for example Spack) can request a pinned installation here. The existing
+# alpaka_DEP_* and CMAKE_* variables are reused; only this single option is new.
+# The generated configuration is evaluated by alpakaConfig.cmake before targets are created.
+option(
+    alpaka_INSTALL_PIN_CONFIG
+    "Persist the selected API and toolchain configuration in the installed CMake package"
+    OFF
+)
+
+if(alpaka_INSTALL_PIN_CONFIG)
+    include(${_alpaka_CMAKE_DIR}/alpakaCommon.cmake)
+
+    include(${_alpaka_CMAKE_DIR}/alpakaInstallConfig.cmake)
+    alpaka_generate_install_config("${CMAKE_CURRENT_BINARY_DIR}/alpakaConfigPinned.cmake")
+endif()
+
 # only check for compiler support if this cmake is called with add_subdirectory or examples, benchmarks, ... should be compiled too
 if(
-    NOT PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME
-    OR (alpaka_TESTS OR alpaka_DOCS OR alpaka_BENCHMARKS OR alpaka_EXAMPLES OR alpaka_HEADERCHECKS OR alpaka_CLANG_TIDY)
+    NOT alpaka_INSTALL_PIN_CONFIG
+    AND (
+        NOT PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME
+        OR (
+            alpaka_TESTS
+            OR alpaka_DOCS
+            OR alpaka_BENCHMARKS
+            OR alpaka_EXAMPLES
+            OR alpaka_HEADERCHECKS
+            OR alpaka_CLANG_TIDY
+        )
+    )
 )
     include(${_alpaka_CMAKE_DIR}/alpakaCommon.cmake)
 endif()
@@ -120,6 +149,13 @@ install(
         "${PROJECT_BINARY_DIR}/alpakaConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/alpaka
 )
+
+if(alpaka_INSTALL_PIN_CONFIG)
+    install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/alpakaConfigPinned.cmake"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/alpaka
+    )
+endif()
 
 configure_package_config_file(
     ${_alpaka_ROOT_DIR}/cmake/alpakaConfig.cmake.in
