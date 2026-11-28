@@ -185,6 +185,22 @@ namespace hacc
                 = {static_cast<double>(vx2_hw[i]), static_cast<double>(vy2_hw[i]), static_cast<double>(vz2_hw[i])};
             for(int c = 0; c < 3; c++)
             {
+                // A NaN or Inf slips through the magnitude comparison below, so reject non-finite values explicitly.
+                if(!std::isfinite(refs[c]) || !std::isfinite(tests[c]))
+                {
+                    if(!reported[c])
+                    {
+                        printf(
+                            "error at %s[%d] reference %f kernel %f (non-finite value)\n",
+                            names[c],
+                            i,
+                            refs[c],
+                            tests[c]);
+                        reported[c] = true;
+                    }
+                    error = EXIT_FAILURE;
+                    continue;
+                }
                 double const diff = std::fabs(refs[c] - tests[c]);
                 double const scale = std::max(std::fabs(refs[c]), std::fabs(tests[c]));
                 double const rel = scale > 0.0 ? diff / scale : 0.0;
