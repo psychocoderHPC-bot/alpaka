@@ -39,3 +39,5 @@ target_link_libraries(HACCmk_alpaka PRIVATE Catch2::Catch2WithMain Catch2::Catch
 alpaka_finalize(HACCmk_alpaka)
 
 add_test(NAME HACCmk_alpaka COMMAND "HACCmk_alpaka")
+# The default size passes even with an absolute tolerance, so exercise a size where the relative verify matters.
+add_test(NAME HACCmk_alpaka_large COMMAND "HACCmk_alpaka" --size 60000 --particles 784 --repeat 1)
