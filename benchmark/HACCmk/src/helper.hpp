@@ -135,7 +135,16 @@ namespace hacc
 
             double r2 = dxc * dxc + dyc * dyc + dzc * dzc;
 
-            double m = (r2 < static_cast<double>(fsrrmax2)) ? static_cast<double>(mass1[j]) : 0.0;
+            /* The kernel decides the cutoff with fp32 arithmetic. A double-rounded r2 can land on the other side
+             * of fsrrmax2 than the float value the kernel uses, which flips an O(mass) contribution on or off.
+             * Replicate the kernel's fp32 decision so the reference measures summation error instead of that
+             * ambiguity. */
+            float const dxcF = static_cast<float>(xx1[j]) - static_cast<float>(xxi);
+            float const dycF = static_cast<float>(yy1[j]) - static_cast<float>(yyi);
+            float const dzcF = static_cast<float>(zz1[j]) - static_cast<float>(zzi);
+            float const r2f = dxcF * dxcF + dycF * dycF + dzcF * dzcF;
+
+            double m = (r2f < fsrrmax2) ? static_cast<double>(mass1[j]) : 0.0;
 
             double f = r2 + static_cast<double>(mp_rsm2);
             f = m * (1.0 / (f * std::sqrt(f)) - (ma0 + r2 * (ma1 + r2 * (ma2 + r2 * (ma3 + r2 * (ma4 + r2 * ma5))))));
@@ -155,7 +164,11 @@ namespace hacc
      * The comparison uses the combined criterion
      * |ref - test| <= atol + rtol * max(|ref|, |test|) per entry and component. A relative part is required because
      * the accelerator may reduce in a different order than the sequential reference, so the absolute error scales
-     * with the magnitude of the result.
+     * with the magnitude of the result. With the fp32 cutoff decision mirrored by the reference the residual is
+     * dominated by summation rounding of the kernel: for the 60000/120000 element cases a float SIMD-lane
+     * reduction stays within ~2e-6 relative error, so 1e-5 keeps a margin of at least 5 while rejecting
+     * regressions above ~1e-5 (an absolute tolerance of 1.0 or a relative tolerance of 1e-3 only detects
+     * ~1e-3).
      *
      * @return EXIT_SUCCESS if all n entries of the three velocity components pass.
      */
@@ -169,7 +182,7 @@ namespace hacc
         THwY const& vy2_hw,
         THwZ const& vz2_hw,
         double atol = 1e-3,
-        double rtol = 1e-3)
+        double rtol = 1e-5)
     {
         double maxAbs[3] = {0.0, 0.0, 0.0};
         double maxRel[3] = {0.0, 0.0, 0.0};
