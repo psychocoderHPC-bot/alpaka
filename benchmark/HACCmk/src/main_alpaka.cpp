@@ -10,6 +10,7 @@
 #include <bit>
 #include <chrono>
 #include <iostream>
+#include <vector>
 
 namespace haccmkAlpaka
 {
@@ -235,7 +236,11 @@ namespace haccmkAlpaka
         auto vy2Hw = onHost::allocHost<float>(extent);
         auto vz2Hw = onHost::allocHost<float>(extent);
 
-        float fsrrmax2, mpRsm2, fcoeff, dx1, dy1, dz1, dx2, dy2, dz2;
+        std::vector<double> vx2Ref(n2, 0.0);
+        std::vector<double> vy2Ref(n2, 0.0);
+        std::vector<double> vz2Ref(n2, 0.0);
+
+        float fsrrmax2, mpRsm2, fcoeff, dx1, dy1, dz1;
         int i = 0;
 
 
@@ -271,15 +276,31 @@ namespace haccmkAlpaka
 
         for(i = 0; i < n1; ++i)
         {
-            hacc::haccmk_gold(n2, xx[i], yy[i], zz[i], fsrrmax2, mpRsm2, xx, yy, zz, mass, &dx2, &dy2, &dz2);
-            vx2[i] = vx2[i] + dx2 * fcoeff;
-            vy2[i] = vy2[i] + dy2 * fcoeff;
-            vz2[i] = vz2[i] + dz2 * fcoeff;
+            double dx2Ref, dy2Ref, dz2Ref;
+            hacc::haccmk_gold_double(
+                n2,
+                xx[i],
+                yy[i],
+                zz[i],
+                fsrrmax2,
+                mpRsm2,
+                xx,
+                yy,
+                zz,
+                mass,
+                &dx2Ref,
+                &dy2Ref,
+                &dz2Ref);
+            // vx2 starts at zero, so the accumulated update equals the scaled contribution.
+            vx2Ref[i] = dx2Ref * fcoeff;
+            vy2Ref[i] = dy2Ref * fcoeff;
+            vz2Ref[i] = dz2Ref * fcoeff;
         }
 
         haccmk(devAcc, exec, repeat, n1, n2, xx, yy, zz, mass, vx2Hw, vy2Hw, vz2Hw, fsrrmax2, mpRsm2, fcoeff);
 
-        return hacc::verify(n2, vx2, vy2, vz2, vx2Hw, vy2Hw, vz2Hw);
+        // The kernel only writes the first n1 active entries; vx2/vx2Hw are allocated with n2 entries.
+        return hacc::verifyRelative(n1, vx2Ref, vy2Ref, vz2Ref, vx2Hw, vy2Hw, vz2Hw);
     }
 } // namespace haccmkAlpaka
 
